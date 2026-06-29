@@ -92,10 +92,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   @override
   Widget build(BuildContext context) {
     final database = ref.watch(appDatabaseProvider);
-    final amountReceived = _amountReceivedController.text.trim().isEmpty
-        ? 0
-        : CurrencyFormatter.parseToCentavos(_amountReceivedController.text);
-    final change = amountReceived - _total;
+    final amountReceived = _parseAmountReceived();
 
     return Scaffold(
       appBar: AppBar(
@@ -213,20 +210,12 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
           ),
           const SizedBox(height: 12),
           if (_paymentType == PaymentType.cash) ...[
-            TextField(
+            _CashChangePanel(
+              total: _total,
+              amountReceived: amountReceived,
               controller: _amountReceivedController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Amount received',
-                prefixIcon: Icon(Icons.payments),
-              ),
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Change'),
-              trailing: CurrencyText(change),
+              onAmountChanged: () => setState(() {}),
+              onTenderSelected: _setTenderedAmount,
             ),
           ] else
             FutureBuilder<List<Customer>>(
@@ -394,6 +383,13 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   }
 
   Future<void> _completeSale() async {
+    final amountReceived = _paymentType == PaymentType.cash
+        ? _parseAmountReceived()
+        : null;
+    if (_paymentType == PaymentType.cash && amountReceived == null) {
+      _showMessage('Enter a valid amount received.');
+      return;
+    }
     try {
       await ref
           .read(appDatabaseProvider)
@@ -401,11 +397,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
             items: _cart,
             paymentType: _paymentType,
             saleDate: DateTime.now(),
-            amountReceived: _paymentType == PaymentType.cash
-                ? CurrencyFormatter.parseToCentavos(
-                    _amountReceivedController.text,
-                  )
-                : null,
+            amountReceived: amountReceived,
             customerId: _selectedCustomerId,
             customerName: _customerNameController.text,
             contactNumber: _contactController.text,
@@ -418,6 +410,23 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
     }
   }
 
+  int? _parseAmountReceived() {
+    final text = _amountReceivedController.text.trim();
+    if (text.isEmpty) {
+      return null;
+    }
+    try {
+      return CurrencyFormatter.parseToCentavos(text);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _setTenderedAmount(int amount) {
+    _amountReceivedController.text = (amount / 100).toStringAsFixed(2);
+    setState(() {});
+  }
+
   void _showMessage(String message) {
     if (!mounted) {
       return;
@@ -425,6 +434,144 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _CashChangePanel extends StatelessWidget {
+  const _CashChangePanel({
+    required this.total,
+    required this.amountReceived,
+    required this.controller,
+    required this.onAmountChanged,
+    required this.onTenderSelected,
+  });
+
+  final int total;
+  final int? amountReceived;
+  final TextEditingController controller;
+  final VoidCallback onAmountChanged;
+  final ValueChanged<int> onTenderSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final validAmount = amountReceived;
+    final change = validAmount == null ? null : validAmount - total;
+    final isShort = change != null && change < 0;
+    final tenderOptions = _suggestTenderAmounts(total);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Amount Due', style: theme.textTheme.titleMedium),
+                CurrencyText(
+                  total,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Amount received',
+                prefixIcon: const Icon(Icons.payments),
+                errorText:
+                    controller.text.trim().isNotEmpty && validAmount == null
+                    ? 'Enter a valid peso amount.'
+                    : null,
+              ),
+              onChanged: (_) => onAmountChanged(),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final amount in tenderOptions)
+                  ActionChip(
+                    label: Text(CurrencyFormatter.format(amount)),
+                    avatar: amount == total
+                        ? const Icon(Icons.price_check, size: 18)
+                        : null,
+                    onPressed: () => onTenderSelected(amount),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: isShort
+                    ? theme.colorScheme.errorContainer
+                    : theme.colorScheme.primaryContainer,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isShort ? Icons.warning_amber : Icons.change_circle,
+                    color: isShort
+                        ? theme.colorScheme.onErrorContainer
+                        : theme.colorScheme.onPrimaryContainer,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      isShort ? 'Short by' : 'Change',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: isShort
+                            ? theme.colorScheme.onErrorContainer
+                            : theme.colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                  CurrencyText(
+                    change == null ? 0 : change.abs(),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: isShort
+                          ? theme.colorScheme.onErrorContainer
+                          : theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<int> _suggestTenderAmounts(int total) {
+    if (total <= 0) {
+      return const [2000, 5000, 10000, 50000, 100000];
+    }
+    final candidates = <int>{
+      total,
+      _roundUp(total, 2000),
+      _roundUp(total, 5000),
+      _roundUp(total, 10000),
+      _roundUp(total, 50000),
+      _roundUp(total, 100000),
+    }.where((amount) => amount >= total).toList()..sort();
+    return candidates.take(5).toList();
+  }
+
+  int _roundUp(int value, int step) {
+    return ((value + step - 1) ~/ step) * step;
   }
 }
 
