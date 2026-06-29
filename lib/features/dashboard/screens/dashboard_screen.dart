@@ -204,11 +204,12 @@ class _RecentSales extends StatelessWidget {
               }
               if (sales.isEmpty) {
                 return const SizedBox(
-                  height: 120,
+                  height: 132,
                   child: EmptyState(
                     icon: Icons.point_of_sale,
                     title: 'No sales yet',
                     message: 'Completed sales will appear here.',
+                    compact: true,
                   ),
                 );
               }

@@ -6,25 +6,37 @@ class EmptyState extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.message,
+    this.compact = false,
   });
 
   final IconData icon;
   final String title;
   final String message;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(compact ? 8 : 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: theme.colorScheme.primary),
-            const SizedBox(height: 12),
-            Text(title, style: theme.textTheme.titleMedium),
-            const SizedBox(height: 6),
+            Icon(
+              icon,
+              size: compact ? 36 : 48,
+              color: theme.colorScheme.primary,
+            ),
+            SizedBox(height: compact ? 6 : 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: compact
+                  ? theme.textTheme.titleSmall
+                  : theme.textTheme.titleMedium,
+            ),
+            SizedBox(height: compact ? 2 : 6),
             Text(
               message,
               textAlign: TextAlign.center,
