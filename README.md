@@ -37,6 +37,7 @@ Out of scope unless explicitly approved:
 - ✅ Local Drift/SQLite database setup.
 - ✅ App name/config foundation via `AppConfig.appName`.
 - ✅ Supabase installed but not initialized or required for startup.
+- ✅ Filipino sari-sari QA sample data loader with scan-ready products.
 - ✅ Business-rule unit tests for product status, sale totals, cash change, stock deduction, credit balances, expenses, voiding, report exclusion, price snapshots, oldest-first allocation, and store barcode uniqueness.
 - 🟡 Flutter Android project setup with Material 3 theme.
 - 🟡 Five-tab bottom navigation: Dashboard, Sales, Inventory, Credits, More.
@@ -383,6 +384,11 @@ flutter analyze
 flutter test
 ```
 
+For phone QA, open **More > Settings > QA sample data** and tap **Load**. Then use:
+
+- [QA sample data guide](docs/qa-sample-data.md)
+- [Printable barcode scan sheet](docs/qa-barcode-sheet.svg)
+
 Implemented tests cover:
 
 - Product status calculation.
@@ -399,6 +405,7 @@ Implemented tests cover:
 - Reports exclude voided sales.
 - Product price snapshots stay unchanged after price edit.
 - Store-generated barcode uniqueness.
+- QA sample data loads once and includes scan-ready products.
 - Password hash helper behavior.
 
 Testing still needed:
