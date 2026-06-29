@@ -35,6 +35,8 @@ Also loaded:
 
 Open [qa-barcode-sheet.svg](qa-barcode-sheet.svg) on a laptop/tablet or print it. These are Code 39 barcodes. If the camera has trouble with screen glare, use the manual barcode input field with the values above.
 
+Individual PNG barcode cards are also available in [qa-barcodes/](qa-barcodes/). Use these when you want to open one product at a time on another phone, send a single barcode image, or print separate cards for the counter.
+
 ## QA Pass Checklist
 
 1. Dashboard shows non-zero sales, expenses, net income, outstanding credit, and low stock count.
