@@ -94,6 +94,8 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
+          _QaToolsCard(),
+          const SizedBox(height: 12),
           Card(
             child: ListTile(
               leading: const Icon(Icons.info_outline),
@@ -119,5 +121,70 @@ class SettingsScreen extends ConsumerWidget {
       return;
     }
     ref.read(themeModeProvider.notifier).setThemeMode(value);
+  }
+}
+
+class _QaToolsCard extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_QaToolsCard> createState() => _QaToolsCardState();
+}
+
+class _QaToolsCardState extends ConsumerState<_QaToolsCard> {
+  bool _loading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: FutureBuilder<bool>(
+        future: ref.watch(sampleDataServiceProvider).isLoaded(),
+        builder: (context, snapshot) {
+          final loaded = snapshot.data ?? false;
+          return ListTile(
+            leading: Icon(loaded ? Icons.check_circle : Icons.science),
+            title: const Text('QA sample data'),
+            subtitle: Text(
+              loaded
+                  ? 'Filipino sari-sari sample data is already loaded.'
+                  : 'Load products, scan codes, sales, utang, and expenses for testing.',
+            ),
+            trailing: FilledButton.tonalIcon(
+              onPressed: loaded || _loading ? null : _loadSampleData,
+              icon: _loading
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download),
+              label: Text(loaded ? 'Loaded' : 'Load'),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _loadSampleData() async {
+    setState(() => _loading = true);
+    try {
+      await ref.read(sampleDataServiceProvider).load();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('QA sample data loaded.')));
+      setState(() {});
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
   }
 }
