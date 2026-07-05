@@ -30,17 +30,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          SegmentedButton<ReportRange>(
-            segments: const [
-              ButtonSegment(value: ReportRange.daily, label: Text('Daily')),
-              ButtonSegment(value: ReportRange.weekly, label: Text('Weekly')),
-              ButtonSegment(value: ReportRange.monthly, label: Text('Monthly')),
-              ButtonSegment(value: ReportRange.custom, label: Text('Custom')),
-            ],
-            selected: {_range},
-            onSelectionChanged: (value) {
+          _ReportRangeSelector(
+            value: _range,
+            onChanged: (value) {
               setState(() {
-                _range = value.first;
+                _range = value;
                 _applyRange();
               });
             },
@@ -179,6 +173,94 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         _end = _start.add(const Duration(days: 1));
       }
     });
+  }
+}
+
+class _ReportRangeSelector extends StatelessWidget {
+  const _ReportRangeSelector({required this.value, required this.onChanged});
+
+  final ReportRange value;
+  final ValueChanged<ReportRange> onChanged;
+
+  static const _items = [
+    (range: ReportRange.daily, label: 'Daily'),
+    (range: ReportRange.weekly, label: 'Weekly'),
+    (range: ReportRange.monthly, label: 'Monthly'),
+    (range: ReportRange.custom, label: 'Custom'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final borderColor = scheme.outline;
+
+    return SizedBox(
+      height: 48,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: borderColor),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(23),
+          child: Row(
+            children: [
+              for (var index = 0; index < _items.length; index++) ...[
+                Expanded(
+                  child: _ReportRangeSegment(
+                    label: _items[index].label,
+                    selected: value == _items[index].range,
+                    onTap: () => onChanged(_items[index].range),
+                  ),
+                ),
+                if (index != _items.length - 1)
+                  VerticalDivider(width: 1, thickness: 1, color: borderColor),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportRangeSegment extends StatelessWidget {
+  const _ReportRangeSegment({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
+      color: selected ? scheme.onPrimary : scheme.onSurface,
+      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+    );
+
+    return Material(
+      color: selected ? scheme.primary : Colors.transparent,
+      child: InkWell(
+        onTap: selected ? null : onTap,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: textStyle,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
