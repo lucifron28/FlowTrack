@@ -77,6 +77,15 @@ class AuthState {
   }
 }
 
+class AuthException implements Exception {
+  const AuthException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class AuthController extends AsyncNotifier<AuthState> {
   LocalAuthService get _authService => ref.read(localAuthServiceProvider);
 
@@ -107,18 +116,25 @@ class AuthController extends AsyncNotifier<AuthState> {
   }
 
   Future<void> login(String password) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      final success = await _authService.verifyPassword(password);
-      if (!success) {
-        throw StateError('Invalid password.');
-      }
-      return AuthState(
+    final current =
+        state.asData?.value ??
+        AuthState(
+          hasOwner: await _authService.hasOwnerAccount(),
+          isAuthenticated: false,
+          ownerName: await _authService.ownerName(),
+        );
+    final success = await _authService.verifyPassword(password);
+    if (!success) {
+      state = AsyncValue.data(current);
+      throw const AuthException('Invalid password. Please try again.');
+    }
+    state = AsyncValue.data(
+      AuthState(
         hasOwner: true,
         isAuthenticated: true,
         ownerName: await _authService.ownerName(),
-      );
-    });
+      ),
+    );
   }
 
   void logout() {
