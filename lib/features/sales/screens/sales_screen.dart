@@ -113,7 +113,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: _scanBarcode,
-                  icon: const Icon(Icons.qr_code_scanner),
+                  icon: const Icon(Icons.barcode_reader),
                   label: const Text('Scan Barcode'),
                 ),
               ),
