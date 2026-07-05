@@ -298,7 +298,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 ButtonSegment(
                   value: BarcodeType.manufacturer,
                   label: Text('Manufacturer'),
-                  icon: Icon(Icons.qr_code_scanner),
+                  icon: Icon(Icons.barcode_reader),
                 ),
                 ButtonSegment(
                   value: BarcodeType.storeGenerated,
@@ -316,7 +316,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               controller: _barcodeController,
               decoration: InputDecoration(
                 labelText: 'Barcode',
-                prefixIcon: const Icon(Icons.qr_code_2),
+                prefixIcon: const Icon(Icons.barcode_reader),
                 suffixIcon: IconButton(
                   tooltip: _barcodeType == BarcodeType.storeGenerated
                       ? 'Generate barcode'
@@ -982,28 +982,39 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
       body: Column(
         children: [
           Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                MobileScanner(
-                  controller: _controller,
-                  onDetect: (capture) {
-                    if (_locked) {
-                      return;
-                    }
-                    final code = capture.barcodes
-                        .map((barcode) => barcode.rawValue)
-                        .whereType<String>()
-                        .firstOrNull;
-                    if (code == null || code.isEmpty) {
-                      return;
-                    }
-                    _locked = true;
-                    Navigator.of(context).pop(code);
-                  },
-                ),
-                _ScannerOverlay(animation: _scanLineController),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final scanWindow = _scannerWindowFor(
+                  Size(constraints.maxWidth, constraints.maxHeight),
+                );
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    MobileScanner(
+                      controller: _controller,
+                      scanWindow: scanWindow,
+                      onDetect: (capture) {
+                        if (_locked) {
+                          return;
+                        }
+                        final code = capture.barcodes
+                            .map((barcode) => barcode.rawValue)
+                            .whereType<String>()
+                            .firstOrNull;
+                        if (code == null || code.isEmpty) {
+                          return;
+                        }
+                        _locked = true;
+                        Navigator.of(context).pop(code);
+                      },
+                    ),
+                    _ScannerOverlay(
+                      animation: _scanLineController,
+                      scanWindow: scanWindow,
+                    ),
+                  ],
+                );
+              },
             ),
           ),
           Padding(
@@ -1042,91 +1053,89 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
   }
 }
 
+Rect _scannerWindowFor(Size size) {
+  final width = math.min(math.max(size.width - 48, 220), 340).toDouble();
+  const height = 170.0;
+  final left = (size.width - width) / 2;
+  final top = (size.height - height) / 2;
+  return Rect.fromLTWH(left, top, width, height);
+}
+
 class _ScannerOverlay extends StatelessWidget {
-  const _ScannerOverlay({required this.animation});
+  const _ScannerOverlay({required this.animation, required this.scanWindow});
 
   final Animation<double> animation;
+  final Rect scanWindow;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = math
-            .min(math.max(constraints.maxWidth - 48, 220), 340)
-            .toDouble();
-        const height = 170.0;
-        return Stack(
-          children: [
-            Positioned(
-              top: 18,
-              left: 24,
-              right: 24,
-              child: _OverlayLabel(
-                icon: Icons.center_focus_strong,
-                text: 'Align the barcode inside the frame',
-                background: Colors.black.withValues(alpha: 0.62),
+    return Stack(
+      children: [
+        Positioned(
+          top: 18,
+          left: 24,
+          right: 24,
+          child: _OverlayLabel(
+            icon: Icons.barcode_reader,
+            text: 'Align the barcode inside the frame',
+            background: Colors.black.withValues(alpha: 0.62),
+          ),
+        ),
+        Positioned.fromRect(
+          rect: scanWindow,
+          child: Stack(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: scheme.primary, width: 2),
+                ),
+                child: const SizedBox.expand(),
               ),
-            ),
-            Center(
-              child: SizedBox(
-                width: width,
-                height: height,
-                child: Stack(
-                  children: [
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: scheme.primary, width: 2),
+              CustomPaint(
+                size: scanWindow.size,
+                painter: _ScannerCornerPainter(color: scheme.primary),
+              ),
+              AnimatedBuilder(
+                animation: animation,
+                builder: (context, child) {
+                  return Positioned(
+                    left: 14,
+                    right: 14,
+                    top: 16 + ((scanWindow.height - 35) * animation.value),
+                    child: child!,
+                  );
+                },
+                child: Container(
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: [
+                      BoxShadow(
+                        color: scheme.primary.withValues(alpha: 0.55),
+                        blurRadius: 10,
+                        spreadRadius: 1,
                       ),
-                      child: const SizedBox.expand(),
-                    ),
-                    CustomPaint(
-                      size: Size(width, height),
-                      painter: _ScannerCornerPainter(color: scheme.primary),
-                    ),
-                    AnimatedBuilder(
-                      animation: animation,
-                      builder: (context, child) {
-                        return Positioned(
-                          left: 14,
-                          right: 14,
-                          top: 16 + ((height - 35) * animation.value),
-                          child: child!,
-                        );
-                      },
-                      child: Container(
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: scheme.primary,
-                          borderRadius: BorderRadius.circular(999),
-                          boxShadow: [
-                            BoxShadow(
-                              color: scheme.primary.withValues(alpha: 0.55),
-                              blurRadius: 10,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Positioned(
-              left: 24,
-              right: 24,
-              bottom: 18,
-              child: _OverlayLabel(
-                icon: Icons.flash_on,
-                text: 'Scanning automatically',
-                background: Colors.black.withValues(alpha: 0.54),
-              ),
-            ),
-          ],
-        );
-      },
+            ],
+          ),
+        ),
+        Positioned(
+          left: 24,
+          right: 24,
+          bottom: 18,
+          child: _OverlayLabel(
+            icon: Icons.flash_on,
+            text: 'Scanning inside frame only',
+            background: Colors.black.withValues(alpha: 0.54),
+          ),
+        ),
+      ],
     );
   }
 }
