@@ -157,6 +157,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
+  String? _passwordError;
 
   @override
   void dispose() {
@@ -168,9 +169,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     ref.listen(authControllerProvider, (previous, next) {
       if (next.hasError) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(next.error.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_friendlyAuthMessage(next.error))),
+        );
       }
     });
     final owner = ref.watch(authControllerProvider).asData?.value.ownerName;
@@ -210,7 +211,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Password',
                       prefixIcon: Icon(Icons.lock),
-                    ),
+                    ).copyWith(errorText: _passwordError),
+                    onChanged: (_) {
+                      if (_passwordError != null) {
+                        setState(() => _passwordError = null);
+                      }
+                    },
                     onSubmitted: (_) => _login(),
                   ),
                   const SizedBox(height: 20),
@@ -234,9 +240,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
-    await ref
-        .read(authControllerProvider.notifier)
-        .login(_passwordController.text);
+    try {
+      await ref
+          .read(authControllerProvider.notifier)
+          .login(_passwordController.text);
+    } on AuthException catch (error) {
+      setState(() => _passwordError = error.message);
+    }
   }
 }
 
@@ -256,4 +266,18 @@ class _AuthError extends StatelessWidget {
       ),
     );
   }
+}
+
+String _friendlyAuthMessage(Object? error) {
+  if (error is AuthException) {
+    return error.message;
+  }
+  final message = error.toString();
+  if (message.startsWith('Bad state: ')) {
+    return message.replaceFirst('Bad state: ', '');
+  }
+  if (message.startsWith('Exception: ')) {
+    return message.replaceFirst('Exception: ', '');
+  }
+  return message;
 }
