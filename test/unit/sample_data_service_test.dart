@@ -36,4 +36,38 @@ void main() {
 
     expect(service.load(), throwsA(isA<StateError>()));
   });
+
+  test('sync demo data is idempotent after initial load', () async {
+    await service.syncDemoData();
+    final firstProductCount = (await database.getActiveProducts()).length;
+    final firstCustomerCount = (await database.getActiveCustomers()).length;
+    final firstSaleCount = (await database.watchSales().first).length;
+    final firstExpenseCount = (await database.watchExpenses().first).length;
+
+    await service.syncDemoData();
+
+    expect((await database.getActiveProducts()).length, firstProductCount);
+    expect((await database.getActiveCustomers()).length, firstCustomerCount);
+    expect((await database.watchSales().first).length, firstSaleCount);
+    expect((await database.watchExpenses().first).length, firstExpenseCount);
+  });
+
+  test(
+    'reset demo data clears business records and reloads clean data',
+    () async {
+      await service.syncDemoData();
+      final firstProductCount = (await database.getActiveProducts()).length;
+
+      final product = await database.findProductByBarcode('4807770271137');
+      await database.addStock(productId: product!.id, quantity: 99);
+
+      await service.resetDemoData();
+
+      final resetProduct = await database.findProductByBarcode('4807770271137');
+      expect(await service.isLoaded(), isTrue);
+      expect((await database.getActiveProducts()).length, firstProductCount);
+      expect(resetProduct, isNotNull);
+      expect(resetProduct!.stock, 33);
+    },
+  );
 }

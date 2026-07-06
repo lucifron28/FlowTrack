@@ -917,6 +917,24 @@ final class AppDatabase extends _$AppDatabase {
     return (await query.getSingleOrNull())?.value;
   }
 
+  Future<void> clearBusinessDataForDemo() async {
+    await transaction(() async {
+      await delete(auditLogs).go();
+      await delete(syncQueue).go();
+      await delete(creditPayments).go();
+      await delete(creditRecords).go();
+      await delete(saleItems).go();
+      await delete(stockMovements).go();
+      await delete(sales).go();
+      await delete(expenses).go();
+      await delete(products).go();
+      await delete(customers).go();
+      await (delete(
+        settings,
+      )..where((tbl) => tbl.key.equals('qa_sample_data_loaded'))).go();
+    });
+  }
+
   Future<void> _increaseCustomerBalance(
     String customerId,
     int amount,
