@@ -149,6 +149,7 @@ Money values are stored as integer centavos.
 
 - `README.md`: project status, features, setup, business rules, tests, pending work, and decisions.
 - `docs/demo.md`: phone demo script, QA checklist, sample data, and scan values.
+- `demo/README.md`: barcode asset manifest aligned with Sync demo data.
 - `demo/qa-barcode-sheet.svg`: printable scan sheet.
 - `demo/barcodes/`: individual PNG barcode cards for phone testing.
 

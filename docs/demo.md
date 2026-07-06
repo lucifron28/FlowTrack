@@ -12,6 +12,8 @@ Use this file for phone QA and video recording. The main project status, feature
 6. Open `demo/qa-barcode-sheet.svg` or one of the PNG files in `demo/barcodes/` on another screen.
 7. Use manual barcode entry if screen glare makes camera scanning unreliable.
 
+The full barcode asset manifest is in `demo/README.md`.
+
 ## Demo Data Controls
 
 Settings includes two demo data actions:
