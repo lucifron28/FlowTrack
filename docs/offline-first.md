@@ -1,39 +1,66 @@
 # Offline-First Architecture
 
-FlowTrack is local-first because the FRD requires an Android app that works without internet and does not require cloud synchronization.
+FlowTrack is built local-first because the FRD requires an Android app that works without internet and does not require cloud synchronization.
 
-## Local Database As Source Of Truth
+## Source Of Truth
 
-The Drift/SQLite database in `lib/core/database/app_database.dart` is the source of truth for products, stock movements, sales, sale items, customers, credit records, credit payments, expenses, settings, metadata, placeholder sync queue rows, and audit logs.
+The local Drift/SQLite database in `lib/core/database/app_database.dart` is the source of truth for:
 
-Core flows must read and write local data first:
+- Products.
+- Stock movements.
+- Sales and sale items.
+- Customers.
+- Credit records and credit payments.
+- Expenses.
+- Settings.
+- App metadata.
+- Audit logs.
 
-- Owner setup/login.
+The `sync_queue` table exists only as a placeholder for a future approved sync design.
+
+## Offline Behavior
+
+These flows must work without internet:
+
+- Owner setup and login.
 - Inventory add/edit/restock/adjust.
-- Barcode scan/manual lookup.
-- Cash and credit sale completion.
+- Barcode scan or manual barcode entry.
+- Cash sale.
+- Credit sale.
 - Customer credit payment.
 - Expense recording.
 - Dashboard summaries.
 - Reports.
 - Sale voiding.
+- Demo data sync/reset from local sample definitions.
 
-## Behavior Without Internet
+Supabase is not initialized during app startup. Missing Supabase credentials must not break local use.
 
-The app should still open, authenticate locally, record transactions, update inventory, show dashboard metrics, and generate reports without network access. Supabase is not initialized in the current app startup path and missing Supabase configuration must not break local usage.
+## Supabase Boundary
 
-## Why Supabase Is Optional
+Supabase is installed only for future optional backup, schema preparation, or sync work. It must not become required for:
 
-Supabase is installed only for future backup, cloud schema preparation, or optional sync after explicit approval. The FRD currently says single-device deployment and no cloud synchronization, so Supabase cannot be required for daily operation.
+- App startup.
+- Owner login.
+- Inventory.
+- Sales.
+- Credits.
+- Expenses.
+- Dashboard.
+- Reports.
+- Settings.
+
+Service role keys must never be placed in Flutter client code.
 
 ## Future Sync Requirements
 
-Any future sync design needs owner approval and must define:
+A future sync design needs approval before implementation. Required decisions:
 
 - Whether the FRD scope expands beyond single-device use.
-- Device identity.
+- Device identity strategy.
 - Conflict handling.
-- Deleted/voided record behavior.
-- RLS policies.
-- How local records remain usable while offline.
-- How service role keys stay out of Flutter client code.
+- Deleted and voided record behavior.
+- Sync queue processing.
+- Row-level security policies.
+- Backup and restore behavior.
+- Offline behavior while sync is unavailable.

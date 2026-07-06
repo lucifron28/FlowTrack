@@ -1,59 +1,61 @@
-# FlowTrack QA Sample Data
+# Demo And QA Sample Data
 
-Use this guide for phone testing. Open the app, log in, go to **More > Settings**, and tap **Load** under **QA sample data**.
+Use this dataset for phone testing and video demos.
 
-The loader is idempotent. It loads once and then disables itself so the same app database is not duplicated.
+## Load Or Reset Data
 
-## What Gets Loaded
+1. Open FlowTrack.
+2. Log in with the local owner account.
+3. Go to More, then Settings.
+4. In the Demo data card, tap Sync demo data.
+5. For a clean recording state, tap Reset demo data and confirm.
 
-Products:
+Sync demo data loads or repairs the sample products and customers without duplicating completed sample transactions. Reset demo data clears local business records and reloads the baseline dataset. Owner login is not changed.
 
-| Product | Barcode To Scan | Type |
-| --- | --- | --- |
-| Lucky Me Pancit Canton Chilimansi | `4807770271137` | Manufacturer |
-| 555 Sardines Tomato Sauce | `4800110020307` | Manufacturer |
-| Nescafe Original Stick | `4800361417406` | Manufacturer |
-| Great Taste White Sachet | `4800016112306` | Manufacturer |
-| SkyFlakes Crackers | `4800016640706` | Manufacturer |
-| C2 Green Tea Apple 230ml | `4804888801234` | Manufacturer |
-| Safeguard White Bar 60g | `4800888206019` | Manufacturer |
-| Piattos Cheese 40g | `4800016060218` | Manufacturer, low stock |
-| Coke Sakto 200ml | `4801981111112` | Manufacturer, out of stock |
-| Asukal Tingi 1/4 kilo | `FT-TINGI-ASUKAL` | Store-generated |
-| Mantika Tingi 100ml | `FT-TINGI-MANTIKA` | Store-generated |
-| Bigas Tingi 1 kilo | `FT-TINGI-BIGAS` | Store-generated |
+## Products To Scan
 
-Also loaded:
+| Product | Barcode | Type | Demo note |
+| --- | --- | --- | --- |
+| Lucky Me Pancit Canton Chilimansi | `4807770271137` | Manufacturer | Good for repeated scan and cash sale. |
+| 555 Sardines Tomato Sauce | `4800110020307` | Manufacturer | Used in credit-sale sample data. |
+| Nescafe Original Stick | `4800361417406` | Manufacturer | Good for multi-quantity sale. |
+| Great Taste White Sachet | `4800016112306` | Manufacturer | Used in credit-sale sample data. |
+| SkyFlakes Crackers | `4800016640706` | Manufacturer | Good for basic sale. |
+| C2 Green Tea Apple 230ml | `4804888801234` | Manufacturer | Good for cash sale demo. |
+| Safeguard White Bar 60g | `4800888206019` | Manufacturer | Normal stock item. |
+| Piattos Cheese 40g | `4800016060218` | Manufacturer | Low-stock item. |
+| Coke Sakto 200ml | `4801981111112` | Manufacturer | Out-of-stock item. |
+| Asukal Tingi 1/4 kilo | `FT-TINGI-ASUKAL` | Store-generated | Good for tingi barcode demo. |
+| Mantika Tingi 100ml | `FT-TINGI-MANTIKA` | Store-generated | Good for tingi barcode demo. |
+| Bigas Tingi 1 kilo | `FT-TINGI-BIGAS` | Store-generated | Good for tingi barcode demo. |
+
+## Other Records Loaded
 
 - Customers: Aling Nena, Mang Lito, Ate Joy.
-- Completed cash sale for today's dashboard.
+- One completed cash sale for today's dashboard.
 - Two credit sales for utang testing.
-- Partial credit payment for Mang Lito.
+- One partial credit payment for Mang Lito.
 - Expenses for restocking, utilities, and transportation.
 
-## Things To Scan
+## Barcode Assets
 
-Open [qa-barcode-sheet.svg](qa-barcode-sheet.svg) on a laptop/tablet or print it. These are Code 39 barcodes. If the camera has trouble with screen glare, use the manual barcode input field with the values above.
+- `docs/qa-barcode-sheet.svg`: printable scan sheet.
+- `docs/qa-barcodes/`: individual PNG files for each sample product.
 
-Individual PNG barcode cards are also available in [qa-barcodes/](qa-barcodes/). Use these when you want to open one product at a time on another phone, send a single barcode image, or print separate cards for the counter.
+If camera scanning has trouble with glare, open one PNG at a time on another device or use the manual barcode field.
 
-## QA Pass Checklist
+## QA Checklist
 
-1. Dashboard shows non-zero sales, expenses, net income, outstanding credit, and low stock count.
-2. Inventory search finds `Piattos` and shows it as low stock.
-3. Inventory search finds `Coke Sakto` and shows it as out of stock.
-4. Sales > New Sale > scan `4807770271137`; item is added.
-5. Scan the same item again; quantity increments.
-6. Scan `4801981111112`; app blocks selling because stock is zero.
-7. Complete a cash sale and confirm dashboard/reports update.
-8. Complete a credit sale for Ate Joy and confirm Credits updates.
-9. Record a partial payment for Aling Nena or Mang Lito.
-10. Void a completed sale and confirm stock is restored.
-11. Add a manual expense and confirm reports net income changes.
-12. Put the phone in airplane mode and repeat a sale, expense, and report check.
-
-## Known Scanner Notes
-
-- Screen glare can make camera scanning unreliable. Increase brightness on the display showing the scan sheet.
-- Hold the phone steady and keep the barcode inside the scanner frame.
-- Use manual input to test damaged-label and denied-permission fallback behavior.
+1. Dashboard shows non-zero sales, expenses, net income, outstanding credit, and low-stock count.
+2. Inventory search finds Piattos and shows low stock.
+3. Inventory search finds Coke Sakto and shows out of stock.
+4. Sales New Sale scans `4807770271137`.
+5. Scanning the same barcode again increments quantity.
+6. Scanning `4801981111112` blocks sale because stock is zero.
+7. Cash sale calculates change.
+8. Credit sale increases the selected customer's outstanding balance.
+9. Credit payment reduces outstanding balance.
+10. Expense entry changes dashboard/report net income.
+11. Voiding a sale restores inventory.
+12. Reports exclude voided sales.
+13. Airplane mode still allows sale, expense, credit, dashboard, and report checks.
