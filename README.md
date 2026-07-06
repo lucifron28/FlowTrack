@@ -44,7 +44,7 @@ Out of scope unless explicitly approved:
 - 🟡 Offline owner setup/login using secure storage plus PBKDF2-HMAC-SHA256 password hashing; needs device/security review before production.
 - 🟡 Inventory management: add product, edit price/cost/low-stock settings, restock, adjust stock, stock history. Delete/deactivate is not implemented.
 - 🟡 Manufacturer barcode product flow with camera scan and manual entry.
-- 🟡 Store-generated tingi/repacked barcode flow. Barcode preview/printing is not implemented.
+- 🟡 Store-generated tingi/repacked barcode flow with printable PDF barcode sheet save/share support.
 - 🟡 Barcode scanner with visible scan overlay and manual barcode fallback; needs physical-device QA.
 - 🟡 Sales list and new sale flow.
 - 🟡 Fast Selling Mode behavior: scan/search adds item, repeated scans increment quantity, and stock is not deducted until completion.
@@ -59,7 +59,7 @@ Out of scope unless explicitly approved:
 - 🧩 Supabase sync.
 - 🧩 Cloud backup.
 - 🧩 PDF/CSV export.
-- 🧩 Barcode printing.
+- 🟡 Barcode PDF generation for tingi/repacked items. Dedicated Bluetooth/USB printer integration is not implemented.
 - 🧩 Receipt printing.
 - 🧩 Password reset.
 - 🧩 Store profile editing.
@@ -89,7 +89,7 @@ Out of scope unless explicitly approved:
 | Settings module | 🟡 | Settings screen implemented; several settings are placeholders. |
 | Bottom navigation | 🟡 | Five-tab layout implemented. |
 | Manufacturer barcode support | 🟡 | Camera scan and manual fallback implemented; needs physical-device scanner QA. |
-| Store-generated barcode for tingi/repacked items | 🟡 | One generated barcode per product type implemented; print/export placeholder only. |
+| Store-generated barcode for tingi/repacked items | 🟡 | One generated barcode per product type implemented with printable PDF sheet save/share support. |
 | Stock deduction only after Complete Sale | ✅ | Implemented and covered by unit tests. |
 | Void transaction restores stock | ✅ | Implemented and covered by unit tests. |
 | Credit sale increases outstanding balance | ✅ | Implemented and covered by unit tests. |
@@ -239,6 +239,8 @@ Current key packages in `pubspec.yaml`:
 - `crypto 3.0.7`
 - `intl 0.20.2`
 - `uuid 4.5.3`
+- `barcode 2.2.9`
+- `pdf 3.12.0`
 
 Drift is preferred over direct SQLite access because it gives typed queries, migrations, streams, transactions, and testable local database logic.
 
@@ -275,12 +277,14 @@ FT-{millisecondsSinceEpoch}-{randomShortCode}
 
 This is one barcode per product type for tingi/repacked items, not per piece and not per batch.
 
+Printable barcode sheets are available for store-generated tingi/repacked products. The app generates a Code 128 PDF sheet with repeated labels, product name, price, and barcode value. The sheet can be saved to Downloads or shared as a PDF. Dedicated Bluetooth/USB thermal-printer workflows are not implemented yet because the target printer hardware and label format are not approved.
+
 ## User Flows
 
 - First launch: setup owner account, then enter dashboard.
 - Login: offline password login.
 - Add manufacturer product: scan or manually enter barcode, fill product details, save.
-- Add tingi product: generate store barcode, fill details, save.
+- Add tingi product: generate store barcode, fill details, save, then save or share the barcode PDF sheet.
 - Cash sale: scan/search products, enter amount received, complete sale, deduct stock.
 - Credit sale: scan/search products, select or create customer, complete sale, increase outstanding balance.
 - Record payment: select customer, enter amount, save, update credit status.
@@ -312,10 +316,10 @@ Future implementation: Add report exporters from local report queries.
 
 ### Barcode Printing
 
-Status: 🧩 Placeholder only  
-Reason: Printer hardware and barcode print format are not approved.  
-Decision needed: Choose target printer model or decide whether barcode export as image/PDF is enough.  
-Future implementation: Generate barcode image/PDF and support Bluetooth or USB printing depending on hardware.
+Status: 🟡 PDF barcode sheet implemented; dedicated printer integration is not implemented.
+Reason: The app can generate a Code 128 PDF sheet and use Android's save/share flow, but no specific Bluetooth/USB thermal printer has been approved.
+Decision needed: Choose target printer model and label size, or confirm PDF/share output is enough.
+Future implementation: Add hardware-specific Bluetooth or USB printing depending on the approved printer.
 
 ### Receipt Printing
 
@@ -420,7 +424,7 @@ Testing still needed:
 - Theme mode writes to local settings but is not rehydrated before app startup yet.
 - Barcode scanner needs physical Android device QA.
 - Inventory deactivate/delete is not implemented.
-- Barcode printing, receipt printing, PDF/CSV export, cloud backup, and Supabase sync are placeholders only.
+- Receipt printing, report PDF/CSV export, cloud backup, and Supabase sync are placeholders only. Barcode PDF sheet generation is implemented for store-generated tingi/repacked products, but dedicated printer hardware integration is still pending.
 - Reports are basic summaries and do not yet include profit/cost analytics.
 - Local password hashing now uses PBKDF2-HMAC-SHA256 and upgrades legacy salted SHA-256 hashes after successful login, but production defense still needs security review.
 - Android release signing, final application ID, app icon, and branding are not finalized.

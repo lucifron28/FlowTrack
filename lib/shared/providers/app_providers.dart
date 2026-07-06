@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/database/app_database.dart';
 import '../../core/services/barcode_service.dart';
+import '../../core/services/barcode_print_service.dart';
 import '../../core/services/local_auth_service.dart';
 import '../../core/services/sample_data_service.dart';
 import '../../features/auth/screens/auth_gate.dart';
@@ -17,6 +18,10 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
 
 final barcodeServiceProvider = Provider<BarcodeService>((ref) {
   return BarcodeService();
+});
+
+final barcodePrintServiceProvider = Provider<BarcodePrintService>((ref) {
+  return const BarcodePrintService();
 });
 
 final localAuthServiceProvider = Provider<LocalAuthService>((ref) {

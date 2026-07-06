@@ -19,6 +19,7 @@ If the barcode already exists, the app offers to add stock instead.
 4. Owner generates a store barcode.
 5. Owner enters product details.
 6. Product is saved with the generated barcode.
+7. App opens the printable barcode sheet screen for saving or sharing the PDF.
 
 Generated barcode format:
 
@@ -27,6 +28,17 @@ FT-{millisecondsSinceEpoch}-{randomShortCode}
 ```
 
 This is one barcode per product type. It is not per piece and not per batch.
+
+## Printable Tingi Barcode Sheet
+
+Store-generated tingi/repacked products can generate a printable Code 128 PDF sheet. Each label includes:
+
+- Product name
+- Selling price
+- Barcode bars
+- Human-readable barcode value
+
+The same barcode is repeated on the sheet so the owner can print one copy for the sintra board and keep extras if needed. The app can save the PDF to Downloads or share it through Android's standard share sheet. Dedicated Bluetooth or USB thermal-printer support is not implemented because the target printer model and label size still need approval.
 
 ## Manual Barcode Fallback
 
