@@ -1,21 +1,34 @@
 # Database Schema
 
-The current local schema lives in `lib/core/database/app_database.dart` and is generated into `app_database.g.dart` by Drift. Money values are stored as integer centavos.
+The local schema is implemented in `lib/core/database/app_database.dart` and generated into `lib/core/database/app_database.g.dart` by Drift.
 
-## Tables And Fields
+Money values are stored as integer centavos.
 
-- `products`: `id`, `name`, `barcode`, `barcodeType`, `sellingPrice`, nullable `costPrice`, `stock`, `lowStockLevel`, `isActive`, `createdAt`, `updatedAt`.
-- `stock_movements`: `id`, `productId`, `movementType`, `quantity`, nullable `reason`, nullable `relatedSaleId`, nullable `notes`, `createdAt`.
-- `sales`: `id`, `saleNumber`, `saleDate`, `totalAmount`, `paymentType`, nullable `amountReceived`, nullable `changeAmount`, nullable `customerId`, `status`, nullable `voidReason`, `createdAt`, `updatedAt`.
-- `sale_items`: `id`, `saleId`, `productId`, `productNameSnapshot`, `barcodeSnapshot`, `unitPriceSnapshot`, nullable `costPriceSnapshot`, `quantity`, `subtotal`.
-- `customers`: `id`, `name`, nullable `contactNumber`, `outstandingBalance`, `isActive`, `createdAt`, `updatedAt`.
-- `credit_records`: `id`, `customerId`, nullable `saleId`, `amount`, `paidAmount`, `status`, `creditDate`, `createdAt`, `updatedAt`.
-- `credit_payments`: `id`, `customerId`, `amount`, `paymentDate`, nullable `notes`, `createdAt`.
-- `expenses`: `id`, `category`, nullable `description`, `amount`, `expenseDate`, `createdAt`, `updatedAt`.
-- `settings`: `id`, `key`, `value`, `updatedAt`.
-- `app_metadata`: `id`, `databaseVersion`, `firstRunCompleted`, `ownerAccountCreated`, `createdAt`, `updatedAt`.
-- `sync_queue`: placeholder table with entity/operation/status metadata for future sync design.
-- `audit_logs`: audit table currently written by void-sale operations.
+## Tables
+
+| Table | Status | Purpose |
+| --- | --- | --- |
+| `products` | Implemented | Product catalog, barcode, price, cost, stock, low-stock level, active flag. |
+| `stock_movements` | Implemented | Stock history for initial stock, restock, sale deduction, void restore, and manual adjustments. |
+| `sales` | Implemented | Sale header, payment type, amount received, change, customer link, status, void reason. |
+| `sale_items` | Implemented | Sale line items with product and price snapshots. |
+| `customers` | Implemented | Customer records and outstanding balances. |
+| `credit_records` | Implemented | Credit sale balances, paid amount, and status. |
+| `credit_payments` | Implemented | Customer payment history. |
+| `expenses` | Implemented | Expense entries used by dashboard and reports. |
+| `settings` | Implemented | Key-value app settings and demo-data loaded flag. |
+| `app_metadata` | Implemented | Local database metadata. |
+| `sync_queue` | Placeholder | Reserved for future approved Supabase sync. |
+| `audit_logs` | Partial | Currently used for void-sale audit records. |
+
+## Key Fields
+
+- `products.barcode` is unique.
+- `products.stock` cannot become negative through implemented flows.
+- `sales.status` is `completed` or `voided`.
+- `sale_items.productNameSnapshot`, `barcodeSnapshot`, `unitPriceSnapshot`, and `costPriceSnapshot` preserve historical sale records.
+- `credit_records.paidAmount` supports oldest-first payment allocation.
+- `settings.qa_sample_data_loaded` records whether the demo dataset was loaded.
 
 ## Relationships
 
@@ -28,26 +41,24 @@ The current local schema lives in `lib/core/database/app_database.dart` and is g
 - `credit_records.saleId` may reference `sales.id`.
 - `credit_payments.customerId` references `customers.id`.
 
-## Sale Item Snapshots
+## Implemented Rules
 
-Sale items store product name, barcode, unit price, and cost price snapshots. This keeps historical sale totals stable when product prices are edited later.
+- Creating a product with initial stock records an initial stock movement.
+- Restock and stock adjustment update product stock and create stock movements.
+- Sale cart changes do not change stock.
+- Complete Sale validates stock, writes sale records, writes sale item snapshots, deducts stock, and creates sale deduction movements.
+- Cash sale requires amount received and stores change.
+- Credit sale requires a customer and creates a credit record.
+- Credit payment cannot exceed outstanding balance.
+- Credit payments allocate oldest-first across unpaid and partially paid records.
+- Voiding marks the sale voided, restores stock, writes void restore movements, reverses related credit, and creates an audit log.
+- Reports count completed sales only and exclude voided sales.
+- Demo reset clears business records and reloads sample data without changing owner login.
 
-## Stock Movements
+## Pending Schema Work
 
-Every implemented stock-changing path records a stock movement:
-
-- Initial stock when a product is created with stock.
-- Restock.
-- Adjustment add/deduct.
-- Sale deduction.
-- Void restore.
-
-Stock cannot become negative.
-
-## Credit Records
-
-Credit sales create credit records and increase customer outstanding balance. Payments reduce outstanding balance and allocate oldest-first across unpaid or partially paid credit records. Overpayment is blocked.
-
-## Voiding Rules
-
-Voided sales are marked `voided` instead of being physically deleted. Voiding restores inventory quantities, writes `void_restore` stock movements, reverses the related credit record if the sale was credit, and writes a void audit log. Reports exclude voided sales.
+- Real migrations for schema version changes.
+- Product category tables if category management is approved.
+- Expense category tables if editable categories are approved.
+- Backup/export metadata if local backup is approved.
+- Sync metadata and cloud IDs only if Supabase sync is approved.

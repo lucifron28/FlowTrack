@@ -139,23 +139,39 @@ class _QaToolsCardState extends ConsumerState<_QaToolsCard> {
         future: ref.watch(sampleDataServiceProvider).isLoaded(),
         builder: (context, snapshot) {
           final loaded = snapshot.data ?? false;
-          return ListTile(
-            leading: Icon(loaded ? Icons.check_circle : Icons.science),
-            title: const Text('QA sample data'),
-            subtitle: Text(
-              loaded
-                  ? 'Filipino sari-sari sample data is already loaded.'
-                  : 'Load products, scan codes, sales, utang, and expenses for testing.',
-            ),
-            trailing: FilledButton.tonalIcon(
-              onPressed: loaded || _loading ? null : _loadSampleData,
-              icon: _loading
-                  ? const SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.download),
-              label: Text(loaded ? 'Loaded' : 'Load'),
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(loaded ? Icons.check_circle : Icons.science),
+                  title: const Text('Demo data'),
+                  subtitle: Text(
+                    loaded
+                        ? 'Demo data is loaded. Sync to repair missing demo items or reset for a clean recording.'
+                        : 'Load Filipino sari-sari products, barcode samples, sales, utang, and expenses.',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: _loading ? null : _syncSampleData,
+                  icon: _loading
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.sync),
+                  label: const Text('Sync demo data'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _loading ? null : _confirmResetSampleData,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reset demo data'),
+                ),
+              ],
             ),
           );
         },
@@ -163,16 +179,59 @@ class _QaToolsCardState extends ConsumerState<_QaToolsCard> {
     );
   }
 
-  Future<void> _loadSampleData() async {
+  Future<void> _syncSampleData() async {
+    await _runDemoDataAction(
+      action: () => ref.read(sampleDataServiceProvider).syncDemoData(),
+      successMessage: 'Demo data synced.',
+    );
+  }
+
+  Future<void> _confirmResetSampleData() async {
+    final reset = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Reset demo data?'),
+          content: const Text(
+            'This clears local products, sales, credits, expenses, and stock history, then reloads the demo dataset. Owner login is not changed.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Reset'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (reset != true) {
+      return;
+    }
+
+    await _runDemoDataAction(
+      action: () => ref.read(sampleDataServiceProvider).resetDemoData(),
+      successMessage: 'Demo data reset and synced.',
+    );
+  }
+
+  Future<void> _runDemoDataAction({
+    required Future<void> Function() action,
+    required String successMessage,
+  }) async {
     setState(() => _loading = true);
     try {
-      await ref.read(sampleDataServiceProvider).load();
+      await action();
       if (!mounted) {
         return;
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('QA sample data loaded.')));
+      ).showSnackBar(SnackBar(content: Text(successMessage)));
       setState(() {});
     } catch (error) {
       if (!mounted) {

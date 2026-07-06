@@ -5,6 +5,116 @@ class SampleDataService {
   const SampleDataService(this._database);
 
   static const loadedSettingKey = 'qa_sample_data_loaded';
+  static const _products = <_SampleProduct>[
+    _SampleProduct(
+      name: 'Lucky Me Pancit Canton Chilimansi',
+      barcode: '4807770271137',
+      barcodeType: BarcodeType.manufacturer,
+      sellingPrice: 1800,
+      costPrice: 1450,
+      initialStock: 35,
+      lowStockLevel: 40,
+    ),
+    _SampleProduct(
+      name: '555 Sardines Tomato Sauce',
+      barcode: '4800110020307',
+      barcodeType: BarcodeType.manufacturer,
+      sellingPrice: 2800,
+      costPrice: 2350,
+      initialStock: 24,
+      lowStockLevel: 30,
+    ),
+    _SampleProduct(
+      name: 'Nescafe Original Stick',
+      barcode: '4800361417406',
+      barcodeType: BarcodeType.manufacturer,
+      sellingPrice: 800,
+      costPrice: 620,
+      initialStock: 60,
+      lowStockLevel: 50,
+    ),
+    _SampleProduct(
+      name: 'Great Taste White Sachet',
+      barcode: '4800016112306',
+      barcodeType: BarcodeType.manufacturer,
+      sellingPrice: 900,
+      costPrice: 700,
+      initialStock: 52,
+      lowStockLevel: 50,
+    ),
+    _SampleProduct(
+      name: 'SkyFlakes Crackers',
+      barcode: '4800016640706',
+      barcodeType: BarcodeType.manufacturer,
+      sellingPrice: 1200,
+      costPrice: 950,
+      initialStock: 30,
+      lowStockLevel: 30,
+    ),
+    _SampleProduct(
+      name: 'C2 Green Tea Apple 230ml',
+      barcode: '4804888801234',
+      barcodeType: BarcodeType.manufacturer,
+      sellingPrice: 2200,
+      costPrice: 1800,
+      initialStock: 18,
+      lowStockLevel: 24,
+    ),
+    _SampleProduct(
+      name: 'Safeguard White Bar 60g',
+      barcode: '4800888206019',
+      barcodeType: BarcodeType.manufacturer,
+      sellingPrice: 3200,
+      costPrice: 2650,
+      initialStock: 14,
+      lowStockLevel: 20,
+    ),
+    _SampleProduct(
+      name: 'Piattos Cheese 40g',
+      barcode: '4800016060218',
+      barcodeType: BarcodeType.manufacturer,
+      sellingPrice: 1800,
+      costPrice: 1450,
+      initialStock: 4,
+      lowStockLevel: 20,
+    ),
+    _SampleProduct(
+      name: 'Coke Sakto 200ml',
+      barcode: '4801981111112',
+      barcodeType: BarcodeType.manufacturer,
+      sellingPrice: 1500,
+      costPrice: 1200,
+      initialStock: 0,
+      lowStockLevel: 24,
+    ),
+    _SampleProduct(
+      name: 'Asukal Tingi 1/4 kilo',
+      barcode: 'FT-TINGI-ASUKAL',
+      barcodeType: BarcodeType.storeGenerated,
+      sellingPrice: 2500,
+      costPrice: 2100,
+      initialStock: 16,
+      lowStockLevel: 20,
+    ),
+    _SampleProduct(
+      name: 'Mantika Tingi 100ml',
+      barcode: 'FT-TINGI-MANTIKA',
+      barcodeType: BarcodeType.storeGenerated,
+      sellingPrice: 2000,
+      costPrice: 1650,
+      initialStock: 20,
+      lowStockLevel: 16,
+    ),
+    _SampleProduct(
+      name: 'Bigas Tingi 1 kilo',
+      barcode: 'FT-TINGI-BIGAS',
+      barcodeType: BarcodeType.storeGenerated,
+      sellingPrice: 5800,
+      costPrice: 5200,
+      initialStock: 12,
+      lowStockLevel: 12,
+    ),
+  ];
 
   final AppDatabase _database;
 
@@ -16,120 +126,25 @@ class SampleDataService {
     if (await isLoaded()) {
       throw StateError('Sample data is already loaded.');
     }
+    await _loadDemoData();
+  }
 
-    final products = <_SampleProduct>[
-      const _SampleProduct(
-        name: 'Lucky Me Pancit Canton Chilimansi',
-        barcode: '4807770271137',
-        barcodeType: BarcodeType.manufacturer,
-        sellingPrice: 1800,
-        costPrice: 1450,
-        initialStock: 35,
-        lowStockLevel: 40,
-      ),
-      const _SampleProduct(
-        name: '555 Sardines Tomato Sauce',
-        barcode: '4800110020307',
-        barcodeType: BarcodeType.manufacturer,
-        sellingPrice: 2800,
-        costPrice: 2350,
-        initialStock: 24,
-        lowStockLevel: 30,
-      ),
-      const _SampleProduct(
-        name: 'Nescafe Original Stick',
-        barcode: '4800361417406',
-        barcodeType: BarcodeType.manufacturer,
-        sellingPrice: 800,
-        costPrice: 620,
-        initialStock: 60,
-        lowStockLevel: 50,
-      ),
-      const _SampleProduct(
-        name: 'Great Taste White Sachet',
-        barcode: '4800016112306',
-        barcodeType: BarcodeType.manufacturer,
-        sellingPrice: 900,
-        costPrice: 700,
-        initialStock: 52,
-        lowStockLevel: 50,
-      ),
-      const _SampleProduct(
-        name: 'SkyFlakes Crackers',
-        barcode: '4800016640706',
-        barcodeType: BarcodeType.manufacturer,
-        sellingPrice: 1200,
-        costPrice: 950,
-        initialStock: 30,
-        lowStockLevel: 30,
-      ),
-      const _SampleProduct(
-        name: 'C2 Green Tea Apple 230ml',
-        barcode: '4804888801234',
-        barcodeType: BarcodeType.manufacturer,
-        sellingPrice: 2200,
-        costPrice: 1800,
-        initialStock: 18,
-        lowStockLevel: 24,
-      ),
-      const _SampleProduct(
-        name: 'Safeguard White Bar 60g',
-        barcode: '4800888206019',
-        barcodeType: BarcodeType.manufacturer,
-        sellingPrice: 3200,
-        costPrice: 2650,
-        initialStock: 14,
-        lowStockLevel: 20,
-      ),
-      const _SampleProduct(
-        name: 'Piattos Cheese 40g',
-        barcode: '4800016060218',
-        barcodeType: BarcodeType.manufacturer,
-        sellingPrice: 1800,
-        costPrice: 1450,
-        initialStock: 4,
-        lowStockLevel: 20,
-      ),
-      const _SampleProduct(
-        name: 'Coke Sakto 200ml',
-        barcode: '4801981111112',
-        barcodeType: BarcodeType.manufacturer,
-        sellingPrice: 1500,
-        costPrice: 1200,
-        initialStock: 0,
-        lowStockLevel: 24,
-      ),
-      const _SampleProduct(
-        name: 'Asukal Tingi 1/4 kilo',
-        barcode: 'FT-TINGI-ASUKAL',
-        barcodeType: BarcodeType.storeGenerated,
-        sellingPrice: 2500,
-        costPrice: 2100,
-        initialStock: 16,
-        lowStockLevel: 20,
-      ),
-      const _SampleProduct(
-        name: 'Mantika Tingi 100ml',
-        barcode: 'FT-TINGI-MANTIKA',
-        barcodeType: BarcodeType.storeGenerated,
-        sellingPrice: 2000,
-        costPrice: 1650,
-        initialStock: 20,
-        lowStockLevel: 16,
-      ),
-      const _SampleProduct(
-        name: 'Bigas Tingi 1 kilo',
-        barcode: 'FT-TINGI-BIGAS',
-        barcodeType: BarcodeType.storeGenerated,
-        sellingPrice: 5800,
-        costPrice: 5200,
-        initialStock: 12,
-        lowStockLevel: 12,
-      ),
-    ];
+  Future<void> syncDemoData() async {
+    if (await isLoaded()) {
+      await _ensureBaseProductsAndCustomers();
+      return;
+    }
+    await _loadDemoData();
+  }
 
+  Future<void> resetDemoData() async {
+    await _database.clearBusinessDataForDemo();
+    await _loadDemoData();
+  }
+
+  Future<void> _loadDemoData() async {
     final productIds = <String, String>{};
-    for (final product in products) {
+    for (final product in _products) {
       productIds[product.barcode] = await _ensureProduct(product);
     }
 
@@ -149,9 +164,9 @@ class SampleDataService {
     final now = DateTime.now();
     await _database.completeSale(
       items: [
-        _cartLine(products, productIds, '4807770271137', 2),
-        _cartLine(products, productIds, '4804888801234', 1),
-        _cartLine(products, productIds, '4800016640706', 1),
+        _cartLine(_products, productIds, '4807770271137', 2),
+        _cartLine(_products, productIds, '4804888801234', 1),
+        _cartLine(_products, productIds, '4800016640706', 1),
       ],
       paymentType: PaymentType.cash,
       saleDate: now,
@@ -160,9 +175,9 @@ class SampleDataService {
 
     await _database.completeSale(
       items: [
-        _cartLine(products, productIds, 'FT-TINGI-ASUKAL', 1),
-        _cartLine(products, productIds, '4800361417406', 4),
-        _cartLine(products, productIds, '4800110020307', 1),
+        _cartLine(_products, productIds, 'FT-TINGI-ASUKAL', 1),
+        _cartLine(_products, productIds, '4800361417406', 4),
+        _cartLine(_products, productIds, '4800110020307', 1),
       ],
       paymentType: PaymentType.credit,
       saleDate: now.subtract(const Duration(days: 1)),
@@ -171,9 +186,9 @@ class SampleDataService {
 
     await _database.completeSale(
       items: [
-        _cartLine(products, productIds, 'FT-TINGI-BIGAS', 1),
-        _cartLine(products, productIds, 'FT-TINGI-MANTIKA', 1),
-        _cartLine(products, productIds, '4800016112306', 3),
+        _cartLine(_products, productIds, 'FT-TINGI-BIGAS', 1),
+        _cartLine(_products, productIds, 'FT-TINGI-MANTIKA', 1),
+        _cartLine(_products, productIds, '4800016112306', 3),
       ],
       paymentType: PaymentType.credit,
       saleDate: now.subtract(const Duration(days: 3)),
@@ -207,6 +222,25 @@ class SampleDataService {
     );
 
     await _database.setSetting(loadedSettingKey, 'true');
+  }
+
+  Future<void> _ensureBaseProductsAndCustomers() async {
+    for (final product in _products) {
+      await _ensureProduct(product);
+    }
+
+    await _database.createCustomer(
+      name: 'Aling Nena',
+      contactNumber: '0917 111 2233',
+    );
+    await _database.createCustomer(
+      name: 'Mang Lito',
+      contactNumber: '0928 444 5566',
+    );
+    await _database.createCustomer(
+      name: 'Ate Joy',
+      contactNumber: '0999 777 8888',
+    );
   }
 
   Future<String> _ensureProduct(_SampleProduct product) async {

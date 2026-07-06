@@ -10,6 +10,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../shared/providers/app_providers.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
+import 'barcode_print_screen.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -455,7 +456,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     }
     final database = ref.read(appDatabaseProvider);
     try {
-      await database.createProduct(
+      final productId = await database.createProduct(
         name: _nameController.text,
         barcode: _barcodeController.text,
         barcodeType: _barcodeType,
@@ -469,7 +470,15 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         lowStockLevel: int.parse(_lowStockController.text),
       );
       if (mounted) {
-        Navigator.of(context).pop();
+        if (_barcodeType == BarcodeType.storeGenerated) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => BarcodePrintScreen(productId: productId),
+            ),
+          );
+        } else {
+          Navigator.of(context).pop();
+        }
       }
     } catch (error) {
       final existing = await database.findProductByBarcode(
@@ -603,6 +612,16 @@ class ProductDetailsScreen extends ConsumerWidget {
                 icon: const Icon(Icons.tune),
                 label: const Text('Adjust Stock'),
               ),
+              if (product.barcodeType == BarcodeType.storeGenerated.dbValue)
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => BarcodePrintScreen(productId: product.id),
+                    ),
+                  ),
+                  icon: const Icon(Icons.print),
+                  label: const Text('Print Barcode Sheet'),
+                ),
               const SizedBox(height: 12),
               Text(
                 'Stock History',

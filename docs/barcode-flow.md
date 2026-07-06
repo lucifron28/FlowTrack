@@ -1,41 +1,88 @@
 # Barcode Flow
 
-## Manufacturer Barcode Item Flow
+Barcode support covers inventory entry, fast selling, manual fallback, and printable sheets for store-generated tingi products.
 
-1. Owner opens Inventory.
-2. Owner taps Add Item.
-3. Owner keeps Manufacturer selected.
-4. Owner scans the package barcode or enters it manually.
-5. Owner enters product name, selling price, optional cost price, initial stock, and low stock level.
-6. Product is saved with a unique barcode.
+## Manufacturer Barcode Product
+
+Current status: Partial. Camera scan and manual entry exist; physical-device QA is still needed.
+
+Flow:
+
+1. Open Inventory.
+2. Tap Add Item.
+3. Keep Manufacturer selected.
+4. Scan the package barcode or enter it manually.
+5. Enter product name, selling price, optional cost price, initial stock, and low-stock level.
+6. Save the product.
 
 If the barcode already exists, the app offers to add stock instead.
 
-## Store-Generated Tingi/Repacked Item Flow
+## Store-Generated Tingi Product
 
-1. Owner opens Inventory.
-2. Owner taps Add Item.
-3. Owner selects Tingi.
-4. Owner generates a store barcode.
-5. Owner enters product details.
-6. Product is saved with the generated barcode.
+Current status: Partial. Barcode generation and PDF sheet output exist; dedicated printer integration is pending.
 
-Generated barcode format:
+Flow:
+
+1. Open Inventory.
+2. Tap Add Item.
+3. Select Tingi.
+4. Generate a store barcode.
+5. Enter product details.
+6. Save the product.
+7. The app opens the printable barcode sheet screen.
+8. Save or share the PDF sheet.
+
+Generated format:
 
 ```text
 FT-{millisecondsSinceEpoch}-{randomShortCode}
 ```
 
-This is one barcode per product type. It is not per piece and not per batch.
+Rule: one barcode per product type, not per piece and not per batch.
 
-## Manual Barcode Fallback
+## Printable Barcode Sheet
 
-Manual input is available on the scanner screen because camera permission can be denied, hardware can fail, and labels can be damaged.
+The app generates a Code 128 PDF sheet for store-generated products.
 
-## Camera Scanner Limitations
+Each label contains:
 
-`mobile_scanner` is implemented with a visible scan overlay and automatic detection. It still needs physical Android device QA for camera permission prompts, lighting, focus, and real packaging barcodes.
+- Product name.
+- Selling price.
+- Barcode bars.
+- Human-readable barcode value.
 
-## Fast Selling Mode
+The PDF can be saved to Android Downloads or shared through Android's share sheet. Bluetooth and USB printer support is not implemented because the printer model and label size are not approved.
 
-During a sale, scanning a known barcode adds the product with quantity 1. Scanning the same barcode increments the quantity if stock is sufficient. Stock is deducted only after `Complete Sale`.
+## Sales Scanner Behavior
+
+During a sale:
+
+1. Scan a known barcode.
+2. App adds the product to the current cart with quantity 1.
+3. Scan the same barcode again.
+4. Quantity increments if stock is sufficient.
+5. Stock is deducted only after Complete Sale.
+
+If a product is out of stock or quantity would exceed stock, the app blocks the cart change.
+
+## Manual Fallback
+
+Manual barcode input is required and implemented because:
+
+- Camera permission can be denied.
+- Device camera quality varies.
+- Screen glare can affect QA barcode sheets.
+- Product barcodes can be damaged.
+- The app must remain usable offline and without camera scanning.
+
+## Demo Barcode Assets
+
+- `docs/qa-barcode-sheet.svg` contains a printable scan sheet.
+- `docs/qa-barcodes/` contains individual PNG barcode cards.
+- `docs/qa-sample-data.md` lists every demo barcode value.
+
+## Known Scanner Risks
+
+- Scanner framing needs more physical-device QA.
+- Lighting and focus still need testing on the demo phone.
+- The scanner detects barcodes in the camera image; the visual frame is a guide and not a hard crop unless the scanner configuration is further refined.
