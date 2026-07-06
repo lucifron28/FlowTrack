@@ -6,8 +6,6 @@ The app is local-first. Drift/SQLite is the source of truth. Supabase is install
 
 ## Current Project State
 
-Branch in progress: `feature/demo-docs-and-data-reset`
-
 Foundation status:
 
 | Area | Status | Notes |
@@ -35,7 +33,7 @@ Feature status:
 | Expenses | Partial | Expense recording and report/dashboard inclusion are implemented. Category management is pending. |
 | Reports | Partial | Daily, weekly, monthly, and custom range summaries are implemented. PDF/CSV export is pending. |
 | Settings | Partial | Theme control, app/about info, Supabase placeholder, backup placeholder, demo data tools, and logout exist. Store profile editing is pending. |
-| Demo data | Done | Settings can sync demo data and reset/reload a clean demo dataset. Scan-ready barcode PNGs are in `docs/qa-barcodes/`. |
+| Demo data | Done | Settings can sync demo data and reset/reload a clean demo dataset. Scan-ready barcode PNGs are in `demo/barcodes/`. |
 | Tests | Partial | Core unit tests pass. More widget/integration tests and physical-device QA are still needed. |
 
 ## Demo Data
@@ -51,9 +49,9 @@ Use this before phone QA or video recording:
 
 Demo barcode files:
 
-- `docs/qa-sample-data.md` lists all sample products and test cases.
-- `docs/qa-barcode-sheet.svg` is a printable scan sheet.
-- `docs/qa-barcodes/` contains individual PNG barcode files.
+- `docs/demo.md` lists all sample products, test cases, and the recording flow.
+- `demo/qa-barcode-sheet.svg` is a printable scan sheet.
+- `demo/barcodes/` contains individual PNG barcode files.
 
 ## Recommended Video Demo Flow
 
@@ -149,13 +147,10 @@ Money values are stored as integer centavos.
 
 ## Documentation
 
-- `docs/demo-script.md`: phone demo script and QA sequence.
-- `docs/qa-sample-data.md`: sample records and barcodes.
-- `docs/offline-first.md`: local-first architecture and Supabase boundary.
-- `docs/database-schema.md`: tables, relationships, and business rules.
-- `docs/barcode-flow.md`: manufacturer scan, tingi barcode, PDF sheet, and scanner fallback.
-- `docs/decisions.md`: confirmed decisions, open decisions, and rules that should not change silently.
-- `docs/supabase-mcp.md`: future Supabase/MCP rules.
+- `README.md`: project status, features, setup, business rules, tests, pending work, and decisions.
+- `docs/demo.md`: phone demo script, QA checklist, sample data, and scan values.
+- `demo/qa-barcode-sheet.svg`: printable scan sheet.
+- `demo/barcodes/`: individual PNG barcode cards for phone testing.
 
 ## Implemented Tests
 
