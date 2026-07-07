@@ -13,6 +13,8 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final storeNameAsync = ref.watch(storeNameProvider);
+    final authState = ref.watch(authControllerProvider).value;
     const syncService = SyncService();
     return Scaffold(
       appBar: showAppBar ? AppBar(title: const Text('Settings')) : null,
@@ -22,7 +24,7 @@ class SettingsScreen extends ConsumerWidget {
           Card(
             child: ListTile(
               leading: const Icon(Icons.storefront),
-              title: const Text(AppConfig.appName),
+              title: Text(storeNameAsync.value ?? AppConfig.appName),
               subtitle: const Text(AppConfig.appDescription),
               trailing: const Text(AppConfig.appVersion),
             ),
@@ -68,10 +70,20 @@ class SettingsScreen extends ConsumerWidget {
           Card(
             child: Column(
               children: [
-                const ListTile(
-                  leading: Icon(Icons.badge),
-                  title: Text('Owner profile'),
-                  subtitle: Text('Editable owner/store profile placeholder.'),
+                ListTile(
+                  leading: const Icon(Icons.badge),
+                  title: const Text('Owner profile'),
+                  subtitle: Text(
+                    authState?.ownerName != null
+                        ? 'Owner: ${authState!.ownerName}'
+                        : 'Editable owner/store profile placeholder.',
+                  ),
+                  onTap: () => _editProfile(
+                    context,
+                    ref,
+                    authState?.ownerName,
+                    storeNameAsync.value,
+                  ),
                 ),
                 const ListTile(
                   leading: Icon(Icons.sell),
@@ -110,6 +122,66 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () => ref.read(authControllerProvider.notifier).logout(),
             icon: const Icon(Icons.logout),
             label: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editProfile(
+    BuildContext context,
+    WidgetRef ref,
+    String? currentOwner,
+    String? currentStore,
+  ) async {
+    final ownerController = TextEditingController(text: currentOwner);
+    final storeController = TextEditingController(text: currentStore);
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Owner Profile'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: storeController,
+              decoration: const InputDecoration(
+                labelText: 'Store name',
+                prefixIcon: Icon(Icons.storefront),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ownerController,
+              decoration: const InputDecoration(
+                labelText: 'Owner name',
+                prefixIcon: Icon(Icons.person),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final newStore = storeController.text.trim();
+              final newOwner = ownerController.text.trim();
+              if (newStore.isNotEmpty && newOwner.isNotEmpty) {
+                await ref.read(appDatabaseProvider).updateStoreName(newStore);
+                ref.invalidate(storeNameProvider);
+                await ref
+                    .read(authControllerProvider.notifier)
+                    .updateOwnerName(newOwner);
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
+              }
+            },
+            child: const Text('Save'),
           ),
         ],
       ),
