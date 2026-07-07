@@ -39,7 +39,7 @@ class CreditsScreen extends ConsumerWidget {
                 child: ListTile(
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => CustomerDetailsScreen(customer: customer),
+                      builder: (_) => CustomerDetailsScreen(customerId: customer.id),
                     ),
                   ),
                   title: Text(customer.name),
@@ -136,104 +136,186 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
 }
 
 class CustomerDetailsScreen extends ConsumerWidget {
-  const CustomerDetailsScreen({super.key, required this.customer});
+  const CustomerDetailsScreen({super.key, required this.customerId});
 
-  final Customer customer;
+  final String customerId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final database = ref.watch(appDatabaseProvider);
-    return Scaffold(
-      appBar: AppBar(title: Text(customer.name)),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            child: ListTile(
-              title: const Text('Outstanding Balance'),
-              subtitle: Text(customer.contactNumber ?? 'No contact number'),
-              trailing: CurrencyText(
-                customer.outstandingBalance,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+    return StreamBuilder<Customer?>(
+      stream: database.watchCustomer(customerId),
+      builder: (context, snapshot) {
+        final customer = snapshot.data;
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (customer == null) {
+          return const Scaffold(
+            body: EmptyState(
+              icon: Icons.error_outline,
+              title: 'Customer not found',
+              message: 'The selected customer is no longer available.',
             ),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: customer.outstandingBalance <= 0
-                ? null
-                : () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => RecordPaymentScreen(customer: customer),
-                    ),
+          );
+        }
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(customer.name),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => EditCustomerScreen(customer: customer),
                   ),
-            icon: const Icon(Icons.payments),
-            label: const Text('Record Payment'),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: () => _confirmDelete(context, ref, customer),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Credit Records',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          StreamBuilder<List<CreditRecord>>(
-            stream: database.watchCreditRecords(customer.id),
-            builder: (context, snapshot) {
-              final records = snapshot.data ?? [];
-              if (records.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text('No credit records yet.'),
-                );
-              }
-              return Column(
-                children: records
-                    .map(
-                      (record) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: CurrencyText(record.amount),
-                        subtitle: Text(record.status),
-                        trailing: record.paidAmount > 0
-                            ? Text(
-                                'Paid ${CurrencyFormatter.format(record.paidAmount)}',
-                              )
-                            : null,
+          body: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Card(
+                child: ListTile(
+                  title: const Text('Outstanding Balance'),
+                  subtitle: Text(customer.contactNumber ?? 'No contact number'),
+                  trailing: CurrencyText(
+                    customer.outstandingBalance,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: customer.outstandingBalance <= 0
+                    ? null
+                    : () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => RecordPaymentScreen(customer: customer),
+                        ),
                       ),
-                    )
-                    .toList(),
-              );
-            },
+                icon: const Icon(Icons.payments),
+                label: const Text('Record Payment'),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Credit Records',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              StreamBuilder<List<CreditRecord>>(
+                stream: database.watchCreditRecords(customer.id),
+                builder: (context, snapshot) {
+                  final records = snapshot.data ?? [];
+                  if (records.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text('No credit records yet.'),
+                    );
+                  }
+                  return Column(
+                    children: records
+                        .map(
+                          (record) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: CurrencyText(record.amount),
+                            subtitle: Text(record.status),
+                            trailing: record.paidAmount > 0
+                                ? Text(
+                                    'Paid ${CurrencyFormatter.format(record.paidAmount)}',
+                                  )
+                                : null,
+                          ),
+                        )
+                        .toList(),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Payment Records',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              StreamBuilder<List<CreditPayment>>(
+                stream: database.watchCreditPayments(customer.id),
+                builder: (context, snapshot) {
+                  final payments = snapshot.data ?? [];
+                  if (payments.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text('No payments yet.'),
+                    );
+                  }
+                  return Column(
+                    children: payments
+                        .map(
+                          (payment) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: CurrencyText(payment.amount),
+                            subtitle: Text(payment.notes ?? 'Payment'),
+                          ),
+                        )
+                        .toList(),
+                  );
+                },
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Payment Records',
-            style: Theme.of(context).textTheme.titleMedium,
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    Customer customer,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Customer?'),
+        content: Text('Are you sure you want to delete ${customer.name}? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
-          StreamBuilder<List<CreditPayment>>(
-            stream: database.watchCreditPayments(customer.id),
-            builder: (context, snapshot) {
-              final payments = snapshot.data ?? [];
-              if (payments.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text('No payments yet.'),
-                );
-              }
-              return Column(
-                children: payments
-                    .map(
-                      (payment) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: CurrencyText(payment.amount),
-                        subtitle: Text(payment.notes ?? 'Payment'),
-                      ),
-                    )
-                    .toList(),
-              );
-            },
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('Delete'),
           ),
         ],
       ),
     );
+
+    if (confirm == true && context.mounted) {
+      try {
+        await ref.read(appDatabaseProvider).deleteCustomer(customer.id);
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Customer ${customer.name} deleted.')),
+          );
+        }
+      } catch (error) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.toString())),
+          );
+        }
+      }
+    }
   }
 }
 
@@ -334,6 +416,87 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
+  }
+}
+
+class EditCustomerScreen extends ConsumerStatefulWidget {
+  const EditCustomerScreen({super.key, required this.customer});
+
+  final Customer customer;
+
+  @override
+  ConsumerState<EditCustomerScreen> createState() => _EditCustomerScreenState();
+}
+
+class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _contactController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.customer.name);
+    _contactController = TextEditingController(text: widget.customer.contactNumber ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _contactController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Edit Customer')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(
+              labelText: 'Customer name',
+              prefixIcon: Icon(Icons.person),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _contactController,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              labelText: 'Contact number (optional)',
+              prefixIcon: Icon(Icons.phone),
+            ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: _save,
+            icon: const Icon(Icons.save),
+            label: const Text('Save Changes'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    try {
+      await ref.read(appDatabaseProvider).updateCustomer(
+            customerId: widget.customer.id,
+            name: _nameController.text,
+            contactNumber: _contactController.text,
+          );
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
   }

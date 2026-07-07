@@ -291,4 +291,68 @@ void main() {
     activeList = await database.getActiveProducts();
     expect(activeList.map((e) => e.id), contains(product.id));
   });
+
+  test('customer CRUD operations work with constraint checks', () async {
+    final customerId = await database.createCustomer(
+      name: 'John Doe',
+      contactNumber: '12345',
+    );
+    var customer = (await database.getCustomer(customerId))!;
+    expect(customer.name, 'John Doe');
+    expect(customer.contactNumber, '12345');
+
+    // Update details
+    await database.updateCustomer(
+      customerId: customerId,
+      name: 'John Smith',
+      contactNumber: '67890',
+    );
+    customer = (await database.getCustomer(customerId))!;
+    expect(customer.name, 'John Smith');
+    expect(customer.contactNumber, '67890');
+
+    // Safe delete when no history and no balance
+    await database.deleteCustomer(customerId);
+    expect(await database.getCustomer(customerId), isNull);
+
+    // Re-create and test constraints
+    final cId = await database.createCustomer(name: 'Jane Doe');
+    
+    // 1. Balance constraint
+    final prod = await createProduct(stock: 5, price: 1000, barcode: 'P-101');
+    await database.completeSale(
+      items: [
+        SaleCartLine(
+          productId: prod.id,
+          productName: prod.name,
+          barcode: prod.barcode,
+          unitPrice: prod.sellingPrice,
+          quantity: 1,
+        ),
+      ],
+      paymentType: PaymentType.credit,
+      saleDate: DateTime.now(),
+      customerId: cId,
+    );
+    // Outstanding balance is now 1000. Deleting should throw.
+    expect(
+      () => database.deleteCustomer(cId),
+      throwsA(isA<StateError>()),
+    );
+
+    // Record a payment to bring balance to 0, but transaction history still exists
+    await database.recordCreditPayment(
+      customerId: cId,
+      amount: 1000,
+      paymentDate: DateTime.now(),
+    );
+    final Jane = (await database.getCustomer(cId))!;
+    expect(Jane.outstandingBalance, 0);
+
+    // Deleting should still throw because of credit history
+    expect(
+      () => database.deleteCustomer(cId),
+      throwsA(isA<StateError>()),
+    );
+  });
 }
