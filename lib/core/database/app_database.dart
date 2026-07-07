@@ -261,10 +261,31 @@ final class AppDatabase extends _$AppDatabase {
     return query.get();
   }
 
-  Future<Product?> findProductByBarcode(String barcode) {
+  Future<Product?> findProductByBarcode(String barcode) async {
+    final cleanBarcode = barcode.replaceAll(RegExp(r'\s+'), '');
+    
+    // 1. Exact match query
     final query = select(products)
-      ..where((tbl) => tbl.barcode.equals(barcode.trim()));
-    return query.getSingleOrNull();
+      ..where((tbl) => tbl.barcode.equals(cleanBarcode));
+    final exactResult = await query.getSingleOrNull();
+    if (exactResult != null) {
+      return exactResult;
+    }
+
+    // 2. Leading-zero fallback matching
+    if (cleanBarcode.length == 13 && cleanBarcode.startsWith('0')) {
+      final fallbackBarcode = cleanBarcode.substring(1);
+      final fallbackQuery = select(products)
+        ..where((tbl) => tbl.barcode.equals(fallbackBarcode));
+      return fallbackQuery.getSingleOrNull();
+    } else if (cleanBarcode.length == 12) {
+      final fallbackBarcode = '0$cleanBarcode';
+      final fallbackQuery = select(products)
+        ..where((tbl) => tbl.barcode.equals(fallbackBarcode));
+      return fallbackQuery.getSingleOrNull();
+    }
+
+    return null;
   }
 
   Future<Product?> getProduct(String productId) {

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart' hide BarcodeType;
 
@@ -995,7 +996,15 @@ class BarcodeScannerScreen extends StatefulWidget {
 class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
     with SingleTickerProviderStateMixin {
   final _manualController = TextEditingController();
-  final _controller = MobileScannerController();
+  final _controller = MobileScannerController(
+    formats: [
+      BarcodeFormat.ean13,
+      BarcodeFormat.ean8,
+      BarcodeFormat.code128,
+      BarcodeFormat.upcA,
+      BarcodeFormat.upcE,
+    ],
+  );
   late final AnimationController _scanLineController;
   bool _locked = false;
 
@@ -1019,7 +1028,15 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan Barcode')),
+      appBar: AppBar(
+        title: const Text('Scan Barcode'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.flash_on),
+            onPressed: () => _controller.toggleTorch(),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -1046,6 +1063,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
                           return;
                         }
                         _locked = true;
+                        HapticFeedback.mediumImpact();
                         Navigator.of(context).pop(code);
                       },
                     ),
