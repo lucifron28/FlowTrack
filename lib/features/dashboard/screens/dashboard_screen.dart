@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_routes.dart';
 import '../../../core/database/app_database.dart';
 import '../../../shared/providers/app_providers.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/section_card.dart';
-import '../../expenses/screens/expenses_screen.dart';
-import '../../inventory/screens/inventory_screen.dart';
-import '../../sales/screens/sales_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -74,9 +73,7 @@ class DashboardScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const NewSaleScreen()),
-                    ),
+                    onPressed: () => context.pushNamed(AppRoutes.newSaleName),
                     icon: const Icon(Icons.add_shopping_cart),
                     label: const Text('Add Sale'),
                   ),
@@ -84,11 +81,8 @@ class DashboardScreen extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: FilledButton.tonalIcon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const AddExpenseScreen(),
-                      ),
-                    ),
+                    onPressed: () =>
+                        context.pushNamed(AppRoutes.addExpenseName),
                     icon: const Icon(Icons.add_card),
                     label: const Text('Expense'),
                   ),
@@ -97,9 +91,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AddProductScreen()),
-              ),
+              onPressed: () => context.pushNamed(AppRoutes.addProductName),
               icon: const Icon(Icons.add_box),
               label: const Text('Add Inventory Item'),
             ),

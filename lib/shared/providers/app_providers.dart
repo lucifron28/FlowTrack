@@ -10,6 +10,11 @@ import '../../core/services/barcode_print_service.dart';
 import '../../core/services/local_auth_service.dart';
 import '../../core/services/sample_data_service.dart';
 import '../../features/auth/screens/auth_gate.dart';
+import '../../features/expenses/screens/expenses_screen.dart';
+import '../../features/inventory/screens/inventory_screen.dart';
+import '../../features/reports/screens/reports_screen.dart';
+import '../../features/sales/screens/sales_screen.dart';
+import '../../features/settings/screens/settings_screen.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final database = AppDatabase.defaults();
@@ -65,8 +70,39 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.root,
     routes: [
       GoRoute(
+        name: AppRoutes.rootName,
         path: AppRoutes.root,
         builder: (context, state) => const AuthGate(),
+      ),
+      GoRoute(
+        name: AppRoutes.newSaleName,
+        path: AppRoutes.newSale,
+        builder: (context, state) => const NewSaleScreen(),
+      ),
+      GoRoute(
+        name: AppRoutes.addProductName,
+        path: AppRoutes.addProduct,
+        builder: (context, state) => const AddProductScreen(),
+      ),
+      GoRoute(
+        name: AppRoutes.addExpenseName,
+        path: AppRoutes.addExpense,
+        builder: (context, state) => const AddExpenseScreen(),
+      ),
+      GoRoute(
+        name: AppRoutes.expensesName,
+        path: AppRoutes.expenses,
+        builder: (context, state) => const ExpensesScreen(showAppBar: true),
+      ),
+      GoRoute(
+        name: AppRoutes.reportsName,
+        path: AppRoutes.reports,
+        builder: (context, state) => const ReportsScreen(showAppBar: true),
+      ),
+      GoRoute(
+        name: AppRoutes.settingsName,
+        path: AppRoutes.settings,
+        builder: (context, state) => const SettingsScreen(showAppBar: true),
       ),
     ],
   );

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_routes.dart';
 import '../../credits/screens/credits_screen.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
-import '../../expenses/screens/expenses_screen.dart';
 import '../../inventory/screens/inventory_screen.dart';
-import '../../reports/screens/reports_screen.dart';
 import '../../sales/screens/sales_screen.dart';
-import '../../settings/screens/settings_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -80,19 +79,19 @@ class MoreScreen extends StatelessWidget {
             icon: Icons.receipt_long,
             title: 'Expenses',
             subtitle: 'Record and review store spending',
-            builder: (_) => const ExpensesScreen(showAppBar: true),
+            routeName: AppRoutes.expensesName,
           ),
           _MoreTile(
             icon: Icons.bar_chart,
             title: 'Reports',
             subtitle: 'Daily, weekly, monthly, and custom summaries',
-            builder: (_) => const ReportsScreen(showAppBar: true),
+            routeName: AppRoutes.reportsName,
           ),
           _MoreTile(
             icon: Icons.settings,
             title: 'Settings',
             subtitle: 'Theme, store profile, sync placeholders, and logout',
-            builder: (_) => const SettingsScreen(showAppBar: true),
+            routeName: AppRoutes.settingsName,
           ),
         ],
       ),
@@ -105,13 +104,13 @@ class _MoreTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.builder,
+    required this.routeName,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
-  final WidgetBuilder builder;
+  final String routeName;
 
   @override
   Widget build(BuildContext context) {
@@ -121,8 +120,7 @@ class _MoreTile extends StatelessWidget {
         title: Text(title),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right),
-        onTap: () =>
-            Navigator.of(context).push(MaterialPageRoute(builder: builder)),
+        onTap: () => context.pushNamed(routeName),
       ),
     );
   }
