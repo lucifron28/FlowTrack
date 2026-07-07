@@ -26,14 +26,14 @@ Settings includes two demo data actions:
 | Product | Barcode | Type | Demo note |
 | --- | --- | --- | --- |
 | Lucky Me Pancit Canton Chilimansi | `4807770271137` | Manufacturer | Good for repeated scan and cash sale. |
-| 555 Sardines Tomato Sauce | `4800110020307` | Manufacturer | Used in credit-sale sample data. |
-| Nescafe Original Stick | `4800361417406` | Manufacturer | Good for multi-quantity sale. |
-| Great Taste White Sachet | `4800016112306` | Manufacturer | Used in credit-sale sample data. |
-| SkyFlakes Crackers | `4800016640706` | Manufacturer | Good for basic sale. |
-| C2 Green Tea Apple 230ml | `4804888801234` | Manufacturer | Good for cash sale demo. |
-| Safeguard White Bar 60g | `4800888206019` | Manufacturer | Normal stock item. |
-| Piattos Cheese 40g | `4800016060218` | Manufacturer | Low-stock item. |
-| Coke Sakto 200ml | `4801981111112` | Manufacturer | Out-of-stock item. |
+| 555 Sardines Tomato Sauce | `4800110020303` | Manufacturer | Used in credit-sale sample data. |
+| Nescafe Original Stick | `4800361417402` | Manufacturer | Good for multi-quantity sale. |
+| Great Taste White Sachet | `4800016112300` | Manufacturer | Used in credit-sale sample data. |
+| SkyFlakes Crackers | `4800016640704` | Manufacturer | Good for basic sale. |
+| C2 Green Tea Apple 230ml | `4804888801232` | Manufacturer | Good for cash sale demo. |
+| Safeguard White Bar 60g | `4800888206015` | Manufacturer | Normal stock item. |
+| Piattos Cheese 40g | `4800016060212` | Manufacturer | Low-stock item. |
+| Coke Sakto 200ml | `4801981111114` | Manufacturer | Out-of-stock item. |
 | Asukal Tingi 1/4 kilo | `FT-TINGI-ASUKAL` | Store-generated | Good for tingi barcode demo. |
 | Mantika Tingi 100ml | `FT-TINGI-MANTIKA` | Store-generated | Good for tingi barcode demo. |
 | Bigas Tingi 1 kilo | `FT-TINGI-BIGAS` | Store-generated | Good for tingi barcode demo. |
@@ -53,7 +53,7 @@ Other records loaded:
 3. Inventory: search Piattos for low stock, search Coke Sakto for out of stock, then open a store-generated tingi item.
 4. Tingi barcode: tap Print Barcode Sheet and show Save PDF / Share PDF.
 5. Sales: start a new sale, scan `4807770271137`, scan it again, and show quantity increment.
-6. Sales stock rule: scan `4801981111112` and show that out-of-stock sale is blocked.
+6. Sales stock rule: scan `4801981111114` and show that out-of-stock sale is blocked.
 7. Cash sale: enter amount received, show change, and complete the sale.
 8. Credit sale: complete a sale for an existing or new customer.
 9. Credits: record a payment and show outstanding balance decrease.

@@ -298,6 +298,16 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   Future<void> _addBarcode(String barcode) async {
     final database = ref.read(appDatabaseProvider);
     final product = await database.findProductByBarcode(barcode);
+    if (product != null && !product.isActive) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Product is deactivated/archived in inventory.'),
+          ),
+        );
+      }
+      return;
+    }
     if (product == null && mounted) {
       final add = await showDialog<bool>(
         context: context,

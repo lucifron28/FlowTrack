@@ -266,6 +266,11 @@ final class AppDatabase extends _$AppDatabase {
     return query.getSingleOrNull();
   }
 
+  Stream<Product?> watchProduct(String productId) {
+    final query = select(products)..where((tbl) => tbl.id.equals(productId));
+    return query.watchSingleOrNull();
+  }
+
   Future<String> createProduct({
     required String name,
     required String barcode,
@@ -336,6 +341,18 @@ final class AppDatabase extends _$AppDatabase {
         sellingPrice: Value(sellingPrice),
         costPrice: Value(costPrice),
         lowStockLevel: Value(lowStockLevel),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> updateProductActive({
+    required String productId,
+    required bool isActive,
+  }) async {
+    await (update(products)..where((tbl) => tbl.id.equals(productId))).write(
+      ProductsCompanion(
+        isActive: Value(isActive),
         updatedAt: Value(DateTime.now()),
       ),
     );
