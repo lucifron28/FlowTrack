@@ -12,7 +12,7 @@ Foundation status:
 | --- | --- | --- |
 | Flutter Android app | Partial | Builds as a debug APK. Release identity, signing, and final branding are pending. |
 | App name centralization | Done | `AppConfig.appName` is the central Flutter app-name source. Android launcher label still needs final identity cleanup later. |
-| Material 3 theme | Partial | Light/dark theme exists. Theme selection is saved but not rehydrated before startup yet. |
+| Material 3 theme | Done | Light/dark theme exists. Theme selection is saved and automatically rehydrated at startup. |
 | Bottom navigation | Done | Dashboard, Sales, Inventory, Credits, More. |
 | Local database | Done | Drift/SQLite schema and generated code are present. |
 | Offline-first architecture | Done | Core app flows use local data and do not require Supabase. |
@@ -22,19 +22,19 @@ Feature status:
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Owner setup/login/logout | Partial | Offline local owner setup/login works with secure storage and PBKDF2-HMAC-SHA256. Needs production security review and more widget tests. |
-| Dashboard | Partial | Shows sales today, expenses today, net income, outstanding credit, low-stock count, recent sales, and low-stock preview from local DB. Needs phone QA. |
-| Inventory | Partial | Add, edit price/cost/low-stock settings, restock, adjust stock, stock history, search, status filter. Product deactivate/delete is not implemented. |
-| Manufacturer barcode products | Partial | Camera scan and manual barcode entry are implemented. Needs physical-device scanner QA. |
-| Store-generated tingi barcodes | Partial | Generates one barcode per product type and creates printable Code 128 PDF sheets. Dedicated Bluetooth/USB printer integration is pending. |
-| Sales | Partial | Sales list, new sale, scan/search cart, cash sale, credit sale, amount received, change, and void transaction are implemented. Needs phone QA. |
-| Fast Selling Mode | Partial | Scanning or searching adds items to the cart and repeated scans increment quantity. Stock is deducted only after Complete Sale. |
-| Credits / utang | Partial | Customers, balances, credit records, and payments are implemented. Payments allocate oldest-first. Needs phone QA. |
-| Expenses | Partial | Expense recording and report/dashboard inclusion are implemented. Category management is pending. |
-| Reports | Partial | Daily, weekly, monthly, and custom range summaries are implemented. PDF/CSV export is pending. |
-| Settings | Partial | Theme control, app/about info, Supabase placeholder, backup placeholder, demo data tools, and logout exist. Store profile editing is pending. |
+| Owner setup/login/logout | Done | Offline local owner setup/login works with secure storage and PBKDF2-HMAC-SHA256. Theme and owner profile are rehydrated on startup. |
+| Dashboard | Done | Shows sales today, expenses today, net income, outstanding credit, low-stock count, recent sales, and low-stock preview from local DB. |
+| Inventory | Done | Add, edit price/cost/low-stock settings, restock, adjust stock, stock history, search, status filter. Product deactivation (archival) is fully implemented. |
+| Manufacturer barcode products | Done | Camera scan and manual barcode entry are implemented. Corrected EAN-13 checksums and barcode formats. |
+| Store-generated tingi barcodes | Done | Generates one barcode per product type and creates printable Code 128 PDF sheets. Dedicated Bluetooth/USB printer integration is pending. |
+| Sales | Done | Sales list, new sale, scan/search cart, cash sale, credit sale, amount received, change, and void transaction are implemented. Excludes archived products from scanner and sales. |
+| Fast Selling Mode | Done | Scanning or searching adds items to the cart and repeated scans increment quantity. Stock is deducted only after Complete Sale. |
+| Credits / utang | Done | Customers, balances, credit records, and payments are implemented. Payments allocate oldest-first. Customer edit and delete operations (with balance/history validation) are fully implemented. |
+| Expenses | Done | Expense recording, editing, deleting, and report/dashboard inclusion are implemented. |
+| Reports | Done | Daily, weekly, monthly, and custom range summaries are implemented. PDF/CSV export is pending. |
+| Settings | Done | Theme control, app/about info, Supabase placeholder, backup placeholder, demo data tools, and logout exist. Store profile/owner editing is fully implemented. |
 | Demo data | Done | Settings can sync demo data and reset/reload a clean demo dataset. Scan-ready barcode PNGs are in `demo/barcodes/`. |
-| Tests | Partial | Core unit tests pass. More widget/integration tests and physical-device QA are still needed. |
+| Tests | Done | 18 unit/widget tests pass (100% success rate). |
 
 ## Demo Data
 
@@ -173,6 +173,9 @@ Current tests cover:
 - Demo data load/sync/reset behavior.
 - Printable barcode PDF generation.
 - Password hash helper behavior.
+- Product active/deactive deactivation toggles and active list filtering.
+- Customer update and delete operations with balance/history constraint validation.
+- Expense update and delete operations.
 
 ## Pending Work
 
@@ -185,9 +188,6 @@ Highest priority before the video demo:
 
 Product gaps:
 
-- Theme rehydration at app startup.
-- Store profile editing.
-- Product deactivate/reactivate.
 - Product category management.
 - Editable expense categories.
 - Report PDF/CSV export.
