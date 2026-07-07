@@ -8,6 +8,7 @@ import '../../../shared/providers/app_providers.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../inventory/screens/inventory_screen.dart';
+import '../controllers/sales_cart_controller.dart';
 
 class SalesScreen extends ConsumerWidget {
   const SalesScreen({super.key});
@@ -75,12 +76,12 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   final _amountReceivedController = TextEditingController();
   final _customerNameController = TextEditingController();
   final _contactController = TextEditingController();
-  final List<SaleCartLine> _cart = [];
+  final SalesCartController _cart = SalesCartController();
   PaymentType _paymentType = PaymentType.cash;
   String? _selectedCustomerId;
   bool _isProcessing = false;
 
-  int get _total => calculateSaleTotal(_cart);
+  int get _total => _cart.total;
 
   @override
   void dispose() {
@@ -143,7 +144,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
               ),
             )
           else
-            ..._cart.map(
+            ..._cart.items.map(
               (item) => Card(
                 child: ListTile(
                   title: Text(item.productName),
@@ -180,7 +181,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${_cart.fold<int>(0, (sum, item) => sum + item.quantity)} items',
+                    '${_cart.itemCount} items',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   CurrencyText(
@@ -342,55 +343,28 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   }
 
   void _addProduct(Product product) {
-    final existingIndex = _cart.indexWhere(
-      (item) => item.productId == product.id,
-    );
-    setState(() {
-      if (existingIndex >= 0) {
-        final existing = _cart[existingIndex];
-        if (existing.quantity + 1 > product.stock) {
-          _showMessage('Not enough stock available.');
-          return;
-        }
-        _cart[existingIndex] = existing.copyWith(
-          quantity: existing.quantity + 1,
-        );
-      } else {
-        if (product.stock <= 0) {
-          _showMessage('Not enough stock available.');
-          return;
-        }
-        _cart.add(
-          SaleCartLine(
-            productId: product.id,
-            productName: product.name,
-            barcode: product.barcode,
-            unitPrice: product.sellingPrice,
-            costPrice: product.costPrice,
-            quantity: 1,
-          ),
-        );
-      }
-    });
+    final result = _cart.addProduct(product);
+    if (result == SalesCartResult.insufficientStock) {
+      _showMessage('Not enough stock available.');
+      return;
+    }
+    setState(() {});
   }
 
   Future<void> _changeQuantity(String productId, int delta) async {
     final product = await ref.read(appDatabaseProvider).getProduct(productId);
-    final index = _cart.indexWhere((item) => item.productId == productId);
-    if (index < 0) {
-      return;
-    }
-    final current = _cart[index];
-    final nextQuantity = current.quantity + delta;
-    if (nextQuantity <= 0) {
-      setState(() => _cart.removeAt(index));
-      return;
-    }
-    if (product != null && nextQuantity > product.stock) {
+    final result = _cart.changeQuantity(
+      productId: productId,
+      delta: delta,
+      availableStock: product?.stock,
+    );
+    if (result == SalesCartResult.insufficientStock) {
       _showMessage('Not enough stock available.');
       return;
     }
-    setState(() => _cart[index] = current.copyWith(quantity: nextQuantity));
+    if (result.succeeded) {
+      setState(() {});
+    }
   }
 
   Future<void> _completeSale() async {
@@ -406,7 +380,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
       await ref
           .read(appDatabaseProvider)
           .completeSale(
-            items: _cart,
+            items: _cart.items,
             paymentType: _paymentType,
             saleDate: DateTime.now(),
             amountReceived: amountReceived,
