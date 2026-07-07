@@ -12,6 +12,7 @@ import '../../../shared/providers/app_providers.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import 'barcode_print_screen.dart';
+import '../controllers/inventory_list_controller.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -21,6 +22,7 @@ class InventoryScreen extends ConsumerStatefulWidget {
 }
 
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
+  final InventoryListController _listController = InventoryListController();
   String _query = '';
   ProductStatus? _filter;
 
@@ -64,22 +66,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             child: StreamBuilder<List<Product>>(
               stream: database.watchProducts(),
               builder: (context, snapshot) {
-                final products = (snapshot.data ?? []).where((product) {
-                  final status = calculateProductStatus(
-                    stock: product.stock,
-                    lowStockLevel: product.lowStockLevel,
-                  );
-                  final matchesQuery =
-                      _query.trim().isEmpty ||
-                      product.name.toLowerCase().contains(
-                        _query.toLowerCase(),
-                      ) ||
-                      product.barcode.toLowerCase().contains(
-                        _query.toLowerCase(),
-                      );
-                  final matchesFilter = _filter == null || status == _filter;
-                  return matchesQuery && matchesFilter;
-                }).toList();
+                final products = _listController.filterProducts(
+                  products: snapshot.data ?? [],
+                  query: _query,
+                  statusFilter: _filter,
+                );
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -96,14 +87,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   itemCount: products.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
-                    final product = products[index];
-                    final status = calculateProductStatus(
-                      stock: product.stock,
-                      lowStockLevel: product.lowStockLevel,
-                    );
+                    final item = products[index];
+                    final product = item.product;
                     return ProductCard(
                       product: product,
-                      status: status,
+                      status: item.status,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) =>
@@ -209,7 +197,9 @@ class ProductCard extends StatelessWidget {
               const SizedBox(width: 8),
               Icon(
                 Icons.chevron_right,
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.6,
+                ),
               ),
             ],
           ),
