@@ -418,7 +418,8 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
         Navigator.of(context).pop();
       }
     } catch (error) {
-      _showMessage(error.toString());
+      final msg = error.toString().replaceFirst('Bad state: ', '');
+      _showMessage(msg);
     } finally {
       if (mounted) {
         setState(() => _isProcessing = false);
