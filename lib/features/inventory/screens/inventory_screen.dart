@@ -205,6 +205,11 @@ class ProductCard extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right,
+                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+              ),
             ],
           ),
         ),
