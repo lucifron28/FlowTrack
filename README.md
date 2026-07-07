@@ -1,6 +1,6 @@
 # FlowTrack
 
-FlowTrack is the temporary name for an offline-first Flutter Android MVP for a sari-sari store owner. It is based on the FRD titled "Development of a Mobile-Based Cash Flow and Credit Monitoring Information System for a Sari-Sari Store."
+FlowTrack is an offline-first Flutter Android MVP for a sari-sari store owner. It is based on the FRD titled "Development of a Mobile-Based Cash Flow and Credit Monitoring Information System for a Sari-Sari Store."
 
 The app is local-first. Drift/SQLite is the source of truth. Supabase is installed only for future backup, schema preparation, or optional sync work after approval. Supabase is not initialized during startup and is not required for daily use.
 
@@ -10,8 +10,8 @@ Foundation status:
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Flutter Android app | Partial | Builds as a debug APK. Release identity, signing, and final branding are pending. |
-| App name centralization | Done | `AppConfig.appName` is the central Flutter app-name source. Android launcher label still needs final identity cleanup later. |
+| Flutter Android app | Partial | Builds as a debug APK. Android app identity is set for FlowTrack. Release signing and final app icon are pending. |
+| App name centralization | Done | `AppConfig.appName` is the central Flutter app-name source. Android launcher label uses the final FlowTrack name. |
 | Material 3 theme | Done | Light/dark theme exists. Theme selection is saved and automatically rehydrated at startup. |
 | Bottom navigation | Done | Dashboard, Sales, Inventory, Credits, More. |
 | Local database | Done | Drift/SQLite schema and generated code are present. |
@@ -195,13 +195,11 @@ Product gaps:
 - Dedicated barcode printer integration.
 - Local backup/export.
 - Supabase backup/sync after approval.
-- Android release signing, final app icon, final application ID, and final app name.
+- Android release signing and final app icon.
 - More widget and integration tests.
 
 ## Decisions Needed
 
-- Final product name.
-- Final Android application ID.
 - Whether Supabase sync should ever be enabled.
 - Whether backup should be local file, Supabase cloud backup, or both.
 - Whether exports should be PDF, CSV, or both.
@@ -215,12 +213,13 @@ Product gaps:
 - Whether profit reports should use cost price.
 - Whether iOS support is needed later.
 
-## Rename FlowTrack Later
+## App Identity
 
-1. Update `AppConfig.appName`.
-2. Update Android launcher label in `android/app/src/main/AndroidManifest.xml`.
-3. Search docs and UI text for remaining literal `FlowTrack` references.
-4. Update Android package/application ID only after the final release identity is approved.
+- Final app name: FlowTrack.
+- Android application ID: `com.flowtrack.app`.
+- Android namespace: `com.flowtrack.app`.
+- Flutter app-name references should continue to use `AppConfig.appName`.
+- Android launcher label is stored in `android/app/src/main/res/values/strings.xml`.
 
 ## Troubleshooting
 

@@ -113,7 +113,7 @@ class SettingsScreen extends ConsumerWidget {
               leading: const Icon(Icons.info_outline),
               title: const Text('About ${AppConfig.appName}'),
               subtitle: const Text(
-                'Temporary app name. Rename from the central config when finalized.',
+                'Offline-first cash flow and credit monitoring for sari-sari stores.',
               ),
             ),
           ),
