@@ -27,6 +27,10 @@ class LocalAuthService {
     return _storage.read(key: _ownerNameKey);
   }
 
+  Future<void> updateOwnerName(String name) async {
+    await _storage.write(key: _ownerNameKey, value: name.trim());
+  }
+
   Future<void> setupOwner({
     required String ownerName,
     required String password,

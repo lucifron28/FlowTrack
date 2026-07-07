@@ -999,6 +999,10 @@ final class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<void> updateStoreName(String name) async {
+    await setSetting('store_name', name.trim());
+  }
+
   Future<String?> getSetting(String key) async {
     final query = select(settings)..where((tbl) => tbl.key.equals(key));
     return (await query.getSingleOrNull())?.value;

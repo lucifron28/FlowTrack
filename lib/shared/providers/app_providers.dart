@@ -133,6 +133,18 @@ class AuthController extends AsyncNotifier<AuthState> {
     });
   }
 
+  Future<void> updateOwnerName(String name) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await _authService.updateOwnerName(name);
+      return AuthState(
+        hasOwner: true,
+        isAuthenticated: true,
+        ownerName: name.trim(),
+      );
+    });
+  }
+
   Future<void> login(String password) async {
     final current =
         state.asData?.value ??
@@ -172,3 +184,9 @@ final authControllerProvider = AsyncNotifierProvider<AuthController, AuthState>(
 );
 
 final todayProvider = Provider<DateTime>((ref) => DateTime.now());
+
+final storeNameProvider = FutureProvider<String>((ref) async {
+  final db = ref.watch(appDatabaseProvider);
+  final name = await db.getSetting('store_name');
+  return name ?? AppConfig.appName;
+});
