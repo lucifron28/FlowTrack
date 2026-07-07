@@ -614,6 +614,16 @@ final class AppDatabase extends _$AppDatabase {
       if (sale.status == SaleStatus.voided.dbValue) {
         throw StateError('Sale is already voided.');
       }
+      if (sale.paymentType == PaymentType.credit.dbValue) {
+        final recordQuery = select(creditRecords)
+          ..where((tbl) => tbl.saleId.equals(saleId));
+        final record = await recordQuery.getSingleOrNull();
+        if (record != null && record.paidAmount > 0) {
+          throw StateError(
+            'Cannot void a credit sale that already has partial payments. Reverse payments first.',
+          );
+        }
+      }
       final items = await getSaleItems(saleId);
       for (final item in items) {
         final product = await getProduct(item.productId);

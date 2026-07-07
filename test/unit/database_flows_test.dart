@@ -391,4 +391,41 @@ void main() {
     list = await database.watchExpenses().first;
     expect(list, isEmpty);
   });
+
+  test('voiding credit sale fails if partial payments exist', () async {
+    final product = await createProduct(
+      stock: 5,
+      price: 1000,
+      barcode: 'P-999',
+    );
+    final saleId = await database.completeSale(
+      items: [
+        SaleCartLine(
+          productId: product.id,
+          productName: product.name,
+          barcode: product.barcode,
+          unitPrice: product.sellingPrice,
+          quantity: 2,
+        ),
+      ],
+      paymentType: PaymentType.credit,
+      saleDate: DateTime(2026, 5, 4),
+      customerName: 'Aling Nena',
+    );
+
+    final customer = (await database.getActiveCustomers()).firstWhere((c) => c.name == 'Aling Nena');
+    
+    // Record a payment of 500 centavos against the credit
+    await database.recordCreditPayment(
+      customerId: customer.id,
+      amount: 500,
+      paymentDate: DateTime.now(),
+    );
+
+    // Attempting to void the sale should throw StateError
+    expect(
+      () => database.voidSale(saleId, reason: 'Test void fail'),
+      throwsA(isA<StateError>()),
+    );
+  });
 }
