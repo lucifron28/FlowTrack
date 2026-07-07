@@ -78,6 +78,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   final List<SaleCartLine> _cart = [];
   PaymentType _paymentType = PaymentType.cash;
   String? _selectedCustomerId;
+  bool _isProcessing = false;
 
   int get _total => calculateSaleTotal(_cart);
 
@@ -264,7 +265,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
             ),
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: _cart.isEmpty ? null : _completeSale,
+            onPressed: (_cart.isEmpty || _isProcessing) ? null : _completeSale,
             icon: const Icon(Icons.check_circle),
             label: const Text('Complete Sale'),
           ),
@@ -374,12 +375,12 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   }
 
   Future<void> _changeQuantity(String productId, int delta) async {
+    final product = await ref.read(appDatabaseProvider).getProduct(productId);
     final index = _cart.indexWhere((item) => item.productId == productId);
     if (index < 0) {
       return;
     }
     final current = _cart[index];
-    final product = await ref.read(appDatabaseProvider).getProduct(productId);
     final nextQuantity = current.quantity + delta;
     if (nextQuantity <= 0) {
       setState(() => _cart.removeAt(index));
@@ -400,6 +401,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
       _showMessage('Enter a valid amount received.');
       return;
     }
+    setState(() => _isProcessing = true);
     try {
       await ref
           .read(appDatabaseProvider)
@@ -417,6 +419,10 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
       }
     } catch (error) {
       _showMessage(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     }
   }
 
