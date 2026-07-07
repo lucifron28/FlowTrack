@@ -126,7 +126,7 @@ ProductStatus calculateProductStatus({
   if (stock <= 0) {
     return ProductStatus.outOfStock;
   }
-  if (stock <= lowStockLevel * 0.25) {
+  if (stock <= lowStockLevel) {
     return ProductStatus.lowStock;
   }
   return ProductStatus.normal;
