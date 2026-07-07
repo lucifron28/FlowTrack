@@ -995,7 +995,15 @@ class BarcodeScannerScreen extends StatefulWidget {
 class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
     with SingleTickerProviderStateMixin {
   final _manualController = TextEditingController();
-  final _controller = MobileScannerController();
+  final _controller = MobileScannerController(
+    formats: [
+      BarcodeFormat.ean13,
+      BarcodeFormat.ean8,
+      BarcodeFormat.code128,
+      BarcodeFormat.upcA,
+      BarcodeFormat.upcE,
+    ],
+  );
   late final AnimationController _scanLineController;
   bool _locked = false;
 
