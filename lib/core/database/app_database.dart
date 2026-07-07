@@ -666,6 +666,47 @@ final class AppDatabase extends _$AppDatabase {
     return query.getSingleOrNull();
   }
 
+  Stream<Customer?> watchCustomer(String customerId) {
+    final query = select(customers)..where((tbl) => tbl.id.equals(customerId));
+    return query.watchSingleOrNull();
+  }
+
+  Future<void> updateCustomer({
+    required String customerId,
+    required String name,
+    String? contactNumber,
+  }) async {
+    _requireText(name, 'Customer name');
+    await (update(customers)..where((tbl) => tbl.id.equals(customerId))).write(
+      CustomersCompanion(
+        name: Value(name.trim()),
+        contactNumber: Value(
+          contactNumber == null || contactNumber.trim().isEmpty
+              ? null
+              : contactNumber.trim(),
+        ),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> deleteCustomer(String customerId) async {
+    final customer = await getCustomer(customerId);
+    if (customer == null) {
+      throw StateError('Customer not found.');
+    }
+    if (customer.outstandingBalance > 0) {
+      throw StateError('Cannot delete customer with outstanding balance.');
+    }
+    final records = await (select(creditRecords)
+          ..where((tbl) => tbl.customerId.equals(customerId)))
+        .get();
+    if (records.isNotEmpty) {
+      throw StateError('Cannot delete customer with active transaction history.');
+    }
+    await (delete(customers)..where((tbl) => tbl.id.equals(customerId))).go();
+  }
+
   Future<String> createCustomer({
     required String name,
     String? contactNumber,
