@@ -375,12 +375,12 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   }
 
   Future<void> _changeQuantity(String productId, int delta) async {
+    final product = await ref.read(appDatabaseProvider).getProduct(productId);
     final index = _cart.indexWhere((item) => item.productId == productId);
     if (index < 0) {
       return;
     }
     final current = _cart[index];
-    final product = await ref.read(appDatabaseProvider).getProduct(productId);
     final nextQuantity = current.quantity + delta;
     if (nextQuantity <= 0) {
       setState(() => _cart.removeAt(index));
