@@ -46,7 +46,14 @@ class ExpensesScreen extends ConsumerWidget {
                   ),
                   title: Text(expense.category),
                   subtitle: Text(expense.description ?? 'No description'),
-                  trailing: CurrencyText(expense.amount),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CurrencyText(expense.amount),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right, size: 20),
+                    ],
+                  ),
                 ),
               );
             },
