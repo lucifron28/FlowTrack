@@ -860,6 +860,35 @@ final class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<Expense?> getExpense(String expenseId) {
+    final query = select(expenses)..where((tbl) => tbl.id.equals(expenseId));
+    return query.getSingleOrNull();
+  }
+
+  Future<void> updateExpense({
+    required String expenseId,
+    required String category,
+    String? description,
+    required int amount,
+    required DateTime expenseDate,
+  }) async {
+    _requireText(category, 'Category');
+    _requirePositive(amount, 'Expense amount');
+    await (update(expenses)..where((tbl) => tbl.id.equals(expenseId))).write(
+      ExpensesCompanion(
+        category: Value(category),
+        description: Value(description),
+        amount: Value(amount),
+        expenseDate: Value(expenseDate),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> deleteExpense(String expenseId) async {
+    await (delete(expenses)..where((tbl) => tbl.id.equals(expenseId))).go();
+  }
+
   Future<DashboardSummary> dashboardSummary(DateTime day) async {
     final start = startOfDay(day);
     final end = endOfDay(day);
