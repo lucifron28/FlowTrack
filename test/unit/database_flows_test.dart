@@ -346,8 +346,8 @@ void main() {
       amount: 1000,
       paymentDate: DateTime.now(),
     );
-    final Jane = (await database.getCustomer(cId))!;
-    expect(Jane.outstandingBalance, 0);
+    final jane = (await database.getCustomer(cId))!;
+    expect(jane.outstandingBalance, 0);
 
     // Deleting should still throw because of credit history
     expect(
