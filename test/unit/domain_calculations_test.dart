@@ -6,17 +6,21 @@ import 'package:flowtrack/core/services/local_auth_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('product status follows FRD literal 25 percent low-stock rule', () {
+  test('product status follows low-stock rule', () {
     expect(
-      calculateProductStatus(stock: 0, lowStockLevel: 20),
+      calculateProductStatus(stock: 0, lowStockLevel: 10),
       ProductStatus.outOfStock,
     );
     expect(
-      calculateProductStatus(stock: 5, lowStockLevel: 20),
+      calculateProductStatus(stock: 6, lowStockLevel: 10),
       ProductStatus.lowStock,
     );
     expect(
-      calculateProductStatus(stock: 6, lowStockLevel: 20),
+      calculateProductStatus(stock: 10, lowStockLevel: 10),
+      ProductStatus.lowStock,
+    );
+    expect(
+      calculateProductStatus(stock: 11, lowStockLevel: 10),
       ProductStatus.normal,
     );
   });
