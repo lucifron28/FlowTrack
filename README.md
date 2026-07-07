@@ -34,7 +34,7 @@ Feature status:
 | Reports | Done | Daily, weekly, monthly, and custom range summaries are implemented. PDF/CSV export is pending. |
 | Settings | Done | Theme control, app/about info, Supabase placeholder, backup placeholder, demo data tools, and logout exist. Store profile/owner editing is fully implemented. |
 | Demo data | Done | Settings can sync demo data and reset/reload a clean demo dataset. Scan-ready barcode PNGs are in `demo/barcodes/`. |
-| Tests | Done | 18 unit/widget tests pass (100% success rate). |
+| Tests | Done | Unit and widget tests pass, including database flows, domain calculations, demo data, barcode PDFs, and high-risk sales/inventory UI paths. |
 
 ## Demo Data
 
