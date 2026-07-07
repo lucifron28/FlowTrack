@@ -3,69 +3,22 @@ from PIL import Image, ImageDraw, ImageFont
 
 SAMPLES = [
     ("Lucky Me Pancit Canton Chilimansi", "4807770271137"),
-    ("555 Sardines Tomato Sauce", "4800110020307"),
-    ("Nescafe Original Stick", "4800361417406"),
-    ("Great Taste White Sachet", "4800016112306"),
-    ("SkyFlakes Crackers", "4800016640706"),
-    ("C2 Green Tea Apple 230ml", "4804888801234"),
-    ("Safeguard White Bar 60g", "4800888206019"),
-    ("Piattos Cheese 40g", "4800016060218"),
-    ("Coke Sakto 200ml", "4801981111112"),
+    ("555 Sardines Tomato Sauce", "4800110020303"),
+    ("Nescafe Original Stick", "4800361417402"),
+    ("Great Taste White Sachet", "4800016112300"),
+    ("SkyFlakes Crackers", "4800016640704"),
+    ("C2 Green Tea Apple 230ml", "4804888801232"),
+    ("Safeguard White Bar 60g", "4800888206015"),
+    ("Piattos Cheese 40g", "4800016060212"),
+    ("Coke Sakto 200ml", "4801981111114"),
     ("Asukal Tingi 1/4 kilo", "FT-TINGI-ASUKAL"),
     ("Mantika Tingi 100ml", "FT-TINGI-MANTIKA"),
     ("Bigas Tingi 1 kilo", "FT-TINGI-BIGAS"),
 ]
 
-CODE39 = {
-    "0": "nnnwwnwnn",
-    "1": "wnnwnnnnw",
-    "2": "nnwwnnnnw",
-    "3": "wnwwnnnnn",
-    "4": "nnnwwnnnw",
-    "5": "wnnwwnnnn",
-    "6": "nnwwwnnnn",
-    "7": "nnnwnnwnw",
-    "8": "wnnwnnwnn",
-    "9": "nnwwnnwnn",
-    "A": "wnnnnwnnw",
-    "B": "nnwnnwnnw",
-    "C": "wnwnnwnnn",
-    "D": "nnnnwwnnw",
-    "E": "wnnnwwnnn",
-    "F": "nnwnwwnnn",
-    "G": "nnnnnwwnw",
-    "H": "wnnnnwwnn",
-    "I": "nnwnnwwnn",
-    "J": "nnnnwwwnn",
-    "K": "wnnnnnnww",
-    "L": "nnwnnnnww",
-    "M": "wnwnnnnwn",
-    "N": "nnnnwnnww",
-    "O": "wnnnwnnwn",
-    "P": "nnwnwnnwn",
-    "Q": "nnnnnnwww",
-    "R": "wnnnnnwwn",
-    "S": "nnwnnnwwn",
-    "T": "nnnnwnwwn",
-    "U": "wwnnnnnnw",
-    "V": "nwwnnnnnw",
-    "W": "wwwnnnnnn",
-    "X": "nwnnwnnnw",
-    "Y": "wwnnwnnnn",
-    "Z": "nwwnwnnnn",
-    "-": "nwnnnnwnw",
-    ".": "wwnnnnwnn",
-    " ": "nwwnnnwnn",
-    "$": "nwnwnwnnn",
-    "/": "nwnwnnnwn",
-    "+": "nwnnnwnwn",
-    "%": "nnnwnwnwn",
-    "*": "nwnnwnwnn",
-}
-
 
 def main():
-    out_dir = Path("docs/qa-barcodes")
+    out_dir = Path("demo/barcodes")
     out_dir.mkdir(parents=True, exist_ok=True)
     for index, (name, value) in enumerate(SAMPLES, 1):
         image = make_card(index, name, value)
@@ -87,7 +40,7 @@ def make_card(index, name, value):
 
     barcode_top = 232
     barcode_height = 250
-    barcode_width = draw_code39(draw, value, 86, barcode_top, barcode_height)
+    barcode_width = draw_barcode(draw, value, 86, barcode_top, barcode_height)
     draw.rectangle((86, barcode_top - 18, 86 + barcode_width, barcode_top - 8), fill="#DDD6FE")
     draw.text((86, barcode_top + barcode_height + 34), value, fill="#0F172A", font=code_font)
     draw.text(
@@ -99,19 +52,22 @@ def make_card(index, name, value):
     return image
 
 
-def draw_code39(draw, value, x, y, height):
+def draw_barcode(draw, value, x, y, height):
+    from barcode import EAN13, Code128
+    is_ean13 = value.isdigit() and len(value) == 13
+    if is_ean13:
+        bc = EAN13(value)
+    else:
+        bc = Code128(value)
+        
+    patterns = bc.build()
+    pattern = patterns[0]
+    
     narrow = 4
     cursor = x
-    encoded = f"*{value.upper()}*"
-    for char in encoded:
-        pattern = CODE39.get(char)
-        if pattern is None:
-            raise ValueError(f"Unsupported Code 39 character: {char}")
-        for i, mark in enumerate(pattern):
-            bar_width = narrow * 3 if mark == "w" else narrow
-            if i % 2 == 0:
-                draw.rectangle((cursor, y, cursor + bar_width - 1, y + height), fill="#0F172A")
-            cursor += bar_width
+    for mark in pattern:
+        if mark == "1":
+            draw.rectangle((cursor, y, cursor + narrow - 1, y + height), fill="#0F172A")
         cursor += narrow
     return cursor - x
 

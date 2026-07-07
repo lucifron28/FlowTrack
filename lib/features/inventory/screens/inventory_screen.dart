@@ -530,11 +530,11 @@ class ProductDetailsScreen extends ConsumerWidget {
     final database = ref.watch(appDatabaseProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Product Details')),
-      body: FutureBuilder<Product?>(
-        future: database.getProduct(productId),
+      body: StreamBuilder<Product?>(
+        stream: database.watchProduct(productId),
         builder: (context, snapshot) {
           final product = snapshot.data;
-          if (snapshot.connectionState != ConnectionState.done) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           if (product == null) {
@@ -580,6 +580,23 @@ class ProductDetailsScreen extends ConsumerWidget {
                             CurrencyText(product.costPrice!),
                           ],
                         ),
+                      const Divider(),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Active Status'),
+                        subtitle: Text(
+                          product.isActive
+                              ? 'Visible in scanner and sales'
+                              : 'Hidden from scanner and sales',
+                        ),
+                        value: product.isActive,
+                        onChanged: (value) async {
+                          await database.updateProductActive(
+                            productId: product.id,
+                            isActive: value,
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),

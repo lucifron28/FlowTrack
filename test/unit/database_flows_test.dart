@@ -270,4 +270,25 @@ void main() {
     expect(report.totalExpenses, 300);
     expect((await database.getProduct(product.id))!.stock, 5);
   });
+
+  test('product can be deactivated and filtered from active list', () async {
+    final product = await createProduct(barcode: 'P-100');
+    expect(product.isActive, isTrue);
+
+    var activeList = await database.getActiveProducts();
+    expect(activeList.map((e) => e.id), contains(product.id));
+
+    await database.updateProductActive(productId: product.id, isActive: false);
+
+    final updated = (await database.getProduct(product.id))!;
+    expect(updated.isActive, isFalse);
+
+    activeList = await database.getActiveProducts();
+    expect(activeList.map((e) => e.id), isNot(contains(product.id)));
+
+    await database.updateProductActive(productId: product.id, isActive: true);
+
+    activeList = await database.getActiveProducts();
+    expect(activeList.map((e) => e.id), contains(product.id));
+  });
 }

@@ -17,7 +17,7 @@ class SampleDataService {
     ),
     _SampleProduct(
       name: '555 Sardines Tomato Sauce',
-      barcode: '4800110020307',
+      barcode: '4800110020303',
       barcodeType: BarcodeType.manufacturer,
       sellingPrice: 2800,
       costPrice: 2350,
@@ -26,7 +26,7 @@ class SampleDataService {
     ),
     _SampleProduct(
       name: 'Nescafe Original Stick',
-      barcode: '4800361417406',
+      barcode: '4800361417402',
       barcodeType: BarcodeType.manufacturer,
       sellingPrice: 800,
       costPrice: 620,
@@ -35,7 +35,7 @@ class SampleDataService {
     ),
     _SampleProduct(
       name: 'Great Taste White Sachet',
-      barcode: '4800016112306',
+      barcode: '4800016112300',
       barcodeType: BarcodeType.manufacturer,
       sellingPrice: 900,
       costPrice: 700,
@@ -44,7 +44,7 @@ class SampleDataService {
     ),
     _SampleProduct(
       name: 'SkyFlakes Crackers',
-      barcode: '4800016640706',
+      barcode: '4800016640704',
       barcodeType: BarcodeType.manufacturer,
       sellingPrice: 1200,
       costPrice: 950,
@@ -53,7 +53,7 @@ class SampleDataService {
     ),
     _SampleProduct(
       name: 'C2 Green Tea Apple 230ml',
-      barcode: '4804888801234',
+      barcode: '4804888801232',
       barcodeType: BarcodeType.manufacturer,
       sellingPrice: 2200,
       costPrice: 1800,
@@ -62,7 +62,7 @@ class SampleDataService {
     ),
     _SampleProduct(
       name: 'Safeguard White Bar 60g',
-      barcode: '4800888206019',
+      barcode: '4800888206015',
       barcodeType: BarcodeType.manufacturer,
       sellingPrice: 3200,
       costPrice: 2650,
@@ -71,7 +71,7 @@ class SampleDataService {
     ),
     _SampleProduct(
       name: 'Piattos Cheese 40g',
-      barcode: '4800016060218',
+      barcode: '4800016060212',
       barcodeType: BarcodeType.manufacturer,
       sellingPrice: 1800,
       costPrice: 1450,
@@ -80,7 +80,7 @@ class SampleDataService {
     ),
     _SampleProduct(
       name: 'Coke Sakto 200ml',
-      barcode: '4801981111112',
+      barcode: '4801981111114',
       barcodeType: BarcodeType.manufacturer,
       sellingPrice: 1500,
       costPrice: 1200,
@@ -165,8 +165,8 @@ class SampleDataService {
     await _database.completeSale(
       items: [
         _cartLine(_products, productIds, '4807770271137', 2),
-        _cartLine(_products, productIds, '4804888801234', 1),
-        _cartLine(_products, productIds, '4800016640706', 1),
+        _cartLine(_products, productIds, '4804888801232', 1),
+        _cartLine(_products, productIds, '4800016640704', 1),
       ],
       paymentType: PaymentType.cash,
       saleDate: now,
@@ -176,8 +176,8 @@ class SampleDataService {
     await _database.completeSale(
       items: [
         _cartLine(_products, productIds, 'FT-TINGI-ASUKAL', 1),
-        _cartLine(_products, productIds, '4800361417406', 4),
-        _cartLine(_products, productIds, '4800110020307', 1),
+        _cartLine(_products, productIds, '4800361417402', 4),
+        _cartLine(_products, productIds, '4800110020303', 1),
       ],
       paymentType: PaymentType.credit,
       saleDate: now.subtract(const Duration(days: 1)),
@@ -188,7 +188,7 @@ class SampleDataService {
       items: [
         _cartLine(_products, productIds, 'FT-TINGI-BIGAS', 1),
         _cartLine(_products, productIds, 'FT-TINGI-MANTIKA', 1),
-        _cartLine(_products, productIds, '4800016112306', 3),
+        _cartLine(_products, productIds, '4800016112300', 3),
       ],
       paymentType: PaymentType.credit,
       saleDate: now.subtract(const Duration(days: 3)),

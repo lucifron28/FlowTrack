@@ -1,69 +1,23 @@
 import 'dart:io';
+import 'package:barcode/barcode.dart' as barcode;
 
 const samples = [
   ('Lucky Me Pancit Canton Chilimansi', '4807770271137'),
-  ('555 Sardines Tomato Sauce', '4800110020307'),
-  ('Nescafe Original Stick', '4800361417406'),
-  ('Great Taste White Sachet', '4800016112306'),
-  ('SkyFlakes Crackers', '4800016640706'),
-  ('C2 Green Tea Apple 230ml', '4804888801234'),
-  ('Safeguard White Bar 60g', '4800888206019'),
-  ('Piattos Cheese 40g', '4800016060218'),
-  ('Coke Sakto 200ml', '4801981111112'),
+  ('555 Sardines Tomato Sauce', '4800110020303'),
+  ('Nescafe Original Stick', '4800361417402'),
+  ('Great Taste White Sachet', '4800016112300'),
+  ('SkyFlakes Crackers', '4800016640704'),
+  ('C2 Green Tea Apple 230ml', '4804888801232'),
+  ('Safeguard White Bar 60g', '4800888206015'),
+  ('Piattos Cheese 40g', '4800016060212'),
+  ('Coke Sakto 200ml', '4801981111114'),
   ('Asukal Tingi 1/4 kilo', 'FT-TINGI-ASUKAL'),
   ('Mantika Tingi 100ml', 'FT-TINGI-MANTIKA'),
   ('Bigas Tingi 1 kilo', 'FT-TINGI-BIGAS'),
 ];
 
-const _code39 = {
-  '0': 'nnnwwnwnn',
-  '1': 'wnnwnnnnw',
-  '2': 'nnwwnnnnw',
-  '3': 'wnwwnnnnn',
-  '4': 'nnnwwnnnw',
-  '5': 'wnnwwnnnn',
-  '6': 'nnwwwnnnn',
-  '7': 'nnnwnnwnw',
-  '8': 'wnnwnnwnn',
-  '9': 'nnwwnnwnn',
-  'A': 'wnnnnwnnw',
-  'B': 'nnwnnwnnw',
-  'C': 'wnwnnwnnn',
-  'D': 'nnnnwwnnw',
-  'E': 'wnnnwwnnn',
-  'F': 'nnwnwwnnn',
-  'G': 'nnnnnwwnw',
-  'H': 'wnnnnwwnn',
-  'I': 'nnwnnwwnn',
-  'J': 'nnnnwwwnn',
-  'K': 'wnnnnnnww',
-  'L': 'nnwnnnnww',
-  'M': 'wnwnnnnwn',
-  'N': 'nnnnwnnww',
-  'O': 'wnnnwnnwn',
-  'P': 'nnwnwnnwn',
-  'Q': 'nnnnnnwww',
-  'R': 'wnnnnnwwn',
-  'S': 'nnwnnnwwn',
-  'T': 'nnnnwnwwn',
-  'U': 'wwnnnnnnw',
-  'V': 'nwwnnnnnw',
-  'W': 'wwwnnnnnn',
-  'X': 'nwnnwnnnw',
-  'Y': 'wwnnwnnnn',
-  'Z': 'nwwnwnnnn',
-  '-': 'nwnnnnwnw',
-  '.': 'wwnnnnwnn',
-  ' ': 'nwwnnnwnn',
-  r'$': 'nwnwnwnnn',
-  '/': 'nwnwnnnwn',
-  '+': 'nwnnnwnwn',
-  '%': 'nnnwnwnwn',
-  '*': 'nwnnwnwnn',
-};
-
 void main() {
-  final output = File('docs/qa-barcode-sheet.svg');
+  final output = File('demo/qa-barcode-sheet.svg');
   output.parent.createSync(recursive: true);
   output.writeAsStringSync(_buildSheet());
 }
@@ -86,7 +40,7 @@ String _buildSheet() {
       '<text x="$margin" y="34" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#0F172A">FlowTrack QA Scan Sheet</text>',
     )
     ..writeln(
-      '<text x="$margin" y="62" font-family="Arial, sans-serif" font-size="14" fill="#64748B">Load QA sample data in Settings, then scan these Code 39 barcodes from Sales or Inventory.</text>',
+      '<text x="$margin" y="62" font-family="Arial, sans-serif" font-size="14" fill="#64748B">Load QA sample data in Settings, then scan these barcodes from Sales or Inventory.</text>',
     );
 
   for (var index = 0; index < samples.length; index++) {
@@ -105,40 +59,33 @@ String _buildSheet() {
       ..writeln(
         '<text x="${x + 18}" y="${y + 54}" font-family="Arial, sans-serif" font-size="13" fill="#64748B">${_escape(value)}</text>',
       );
-    _appendCode39(buffer, value, x + 18, y + 72, 2.2, 64);
+    _appendBarcode(buffer, value, x + 18, y + 72, 330, 64);
   }
 
   buffer.writeln('</svg>');
   return buffer.toString();
 }
 
-void _appendCode39(
+void _appendBarcode(
   StringBuffer buffer,
   String value,
   double startX,
   double y,
-  double narrow,
+  double width,
   double height,
 ) {
-  final encoded = '*${value.toUpperCase()}*';
-  var x = startX;
-  for (final rune in encoded.runes) {
-    final char = String.fromCharCode(rune);
-    final pattern = _code39[char];
-    if (pattern == null) {
-      throw ArgumentError('Unsupported Code 39 character: $char');
-    }
-    for (var i = 0; i < pattern.length; i++) {
-      final width = pattern[i] == 'w' ? narrow * 3 : narrow;
-      if (i.isEven) {
-        buffer.writeln(
-          '<rect x="${x.toStringAsFixed(1)}" y="$y" width="${width.toStringAsFixed(1)}" height="$height" fill="#0F172A"/>',
-        );
-      }
-      x += width;
-    }
-    x += narrow;
-  }
+  final isEan13 = RegExp(r'^\d+$').hasMatch(value) && value.length == 13;
+  final bc = isEan13 ? barcode.Barcode.ean13() : barcode.Barcode.code128();
+  
+  var barcodeSvg = bc.toSvg(value, width: width, height: height, drawText: false);
+  
+  // Customize nested SVG tags and colors
+  barcodeSvg = barcodeSvg
+      .replaceFirst('<svg viewBox=', '<svg x="$startX" y="$y" width="$width" height="$height" viewBox=')
+      .replaceAll('style="fill: #000000"', 'style="fill: #0F172A"');
+      
+  buffer.writeln(barcodeSvg);
+  
   buffer.writeln(
     '<text x="$startX" y="${y + height + 22}" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="#0F172A">${_escape(value)}</text>',
   );

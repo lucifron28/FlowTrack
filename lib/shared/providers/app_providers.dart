@@ -34,7 +34,20 @@ final sampleDataServiceProvider = Provider<SampleDataService>((ref) {
 
 class ThemeModeController extends Notifier<ThemeMode> {
   @override
-  ThemeMode build() => ThemeMode.system;
+  ThemeMode build() {
+    _loadSavedTheme();
+    return ThemeMode.system;
+  }
+
+  Future<void> _loadSavedTheme() async {
+    final val = await ref.read(appDatabaseProvider).getSetting('theme_mode');
+    if (val != null) {
+      state = ThemeMode.values.firstWhere(
+        (e) => e.name == val,
+        orElse: () => ThemeMode.system,
+      );
+    }
+  }
 
   void setThemeMode(ThemeMode value) {
     state = value;
