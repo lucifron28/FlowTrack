@@ -355,4 +355,40 @@ void main() {
       throwsA(isA<StateError>()),
     );
   });
+
+  test('expense CRUD operations work', () async {
+    // Create
+    await database.createExpense(
+      category: 'Utilities',
+      description: 'Water bill',
+      amount: 500,
+      expenseDate: DateTime(2026, 5, 4),
+    );
+    var list = await database.watchExpenses().first;
+    expect(list.length, 1);
+    var exp = list.first;
+    expect(exp.category, 'Utilities');
+    expect(exp.description, 'Water bill');
+    expect(exp.amount, 500);
+
+    // Update
+    await database.updateExpense(
+      expenseId: exp.id,
+      category: 'Rent',
+      description: 'Office rent',
+      amount: 1500,
+      expenseDate: DateTime(2026, 5, 5),
+    );
+
+    final updated = (await database.getExpense(exp.id))!;
+    expect(updated.category, 'Rent');
+    expect(updated.description, 'Office rent');
+    expect(updated.amount, 1500);
+
+    // Delete
+    await database.deleteExpense(exp.id);
+    expect(await database.getExpense(exp.id), isNull);
+    list = await database.watchExpenses().first;
+    expect(list, isEmpty);
+  });
 }

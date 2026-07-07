@@ -39,6 +39,11 @@ class ExpensesScreen extends ConsumerWidget {
               final expense = expenses[index];
               return Card(
                 child: ListTile(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => AddExpenseScreen(expense: expense),
+                    ),
+                  ),
                   title: Text(expense.category),
                   subtitle: Text(expense.description ?? 'No description'),
                   trailing: CurrencyText(expense.amount),
@@ -60,7 +65,9 @@ class ExpensesScreen extends ConsumerWidget {
 }
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
-  const AddExpenseScreen({super.key});
+  const AddExpenseScreen({super.key, this.expense});
+
+  final Expense? expense;
 
   @override
   ConsumerState<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -83,6 +90,19 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   DateTime _date = DateTime.now();
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.expense != null) {
+      _category = categories.contains(widget.expense!.category)
+          ? widget.expense!.category
+          : categories.first;
+      _descriptionController.text = widget.expense!.description ?? '';
+      _amountController.text = (widget.expense!.amount / 100).toStringAsFixed(2);
+      _date = widget.expense!.expenseDate;
+    }
+  }
+
+  @override
   void dispose() {
     _descriptionController.dispose();
     _amountController.dispose();
@@ -91,8 +111,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isEdit = widget.expense != null;
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Expense')),
+      appBar: AppBar(title: Text(isEdit ? 'Edit Expense' : 'Add Expense')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -140,8 +161,20 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           FilledButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.save),
-            label: const Text('Save Expense'),
+            label: Text(isEdit ? 'Save Changes' : 'Save Expense'),
           ),
+          if (isEdit) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _delete,
+              icon: const Icon(Icons.delete),
+              label: const Text('Delete Expense'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+                side: BorderSide(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -161,14 +194,24 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   Future<void> _save() async {
     try {
-      await ref
-          .read(appDatabaseProvider)
-          .createExpense(
-            category: _category,
-            description: _descriptionController.text,
-            amount: CurrencyFormatter.parseToCentavos(_amountController.text),
-            expenseDate: _date,
-          );
+      final db = ref.read(appDatabaseProvider);
+      final amount = CurrencyFormatter.parseToCentavos(_amountController.text);
+      if (widget.expense == null) {
+        await db.createExpense(
+          category: _category,
+          description: _descriptionController.text,
+          amount: amount,
+          expenseDate: _date,
+        );
+      } else {
+        await db.updateExpense(
+          expenseId: widget.expense!.id,
+          category: _category,
+          description: _descriptionController.text,
+          amount: amount,
+          expenseDate: _date,
+        );
+      }
       if (mounted) {
         Navigator.of(context).pop();
       }
@@ -177,6 +220,47 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
+  }
+
+  Future<void> _delete() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Expense?'),
+        content: const Text('Are you sure you want to delete this expense? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      try {
+        await ref
+            .read(appDatabaseProvider)
+            .deleteExpense(widget.expense!.id);
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.toString())),
+          );
+        }
       }
     }
   }
