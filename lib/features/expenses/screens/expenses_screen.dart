@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_routes.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../shared/providers/app_providers.dart';
@@ -39,10 +41,10 @@ class ExpensesScreen extends ConsumerWidget {
               final expense = expenses[index];
               return Card(
                 child: ListTile(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => AddExpenseScreen(expense: expense),
-                    ),
+                  onTap: () => context.pushNamed(
+                    AppRoutes.editExpenseName,
+                    pathParameters: {'expenseId': expense.id},
+                    extra: expense,
                   ),
                   title: Text(expense.category),
                   subtitle: Text(expense.description ?? 'No description'),
@@ -61,9 +63,7 @@ class ExpensesScreen extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const AddExpenseScreen())),
+        onPressed: () => context.pushNamed(AppRoutes.addExpenseName),
         icon: const Icon(Icons.add),
         label: const Text('Add Expense'),
       ),
@@ -104,7 +104,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           ? widget.expense!.category
           : categories.first;
       _descriptionController.text = widget.expense!.description ?? '';
-      _amountController.text = (widget.expense!.amount / 100).toStringAsFixed(2);
+      _amountController.text = (widget.expense!.amount / 100).toStringAsFixed(
+        2,
+      );
       _date = widget.expense!.expenseDate;
     }
   }
@@ -236,7 +238,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Expense?'),
-        content: const Text('Are you sure you want to delete this expense? This action cannot be undone.'),
+        content: const Text(
+          'Are you sure you want to delete this expense? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -256,17 +260,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     if (confirm == true && mounted) {
       try {
-        await ref
-            .read(appDatabaseProvider)
-            .deleteExpense(widget.expense!.id);
+        await ref.read(appDatabaseProvider).deleteExpense(widget.expense!.id);
         if (mounted) {
           Navigator.of(context).pop();
         }
       } catch (error) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error.toString())),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error.toString())));
         }
       }
     }

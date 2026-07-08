@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_routes.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../shared/providers/app_providers.dart';
@@ -37,10 +39,9 @@ class CreditsScreen extends ConsumerWidget {
               final customer = customers[index];
               return Card(
                 child: ListTile(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => CustomerDetailsScreen(customerId: customer.id),
-                    ),
+                  onTap: () => context.pushNamed(
+                    AppRoutes.customerDetailsName,
+                    pathParameters: {'customerId': customer.id},
                   ),
                   title: Text(customer.name),
                   subtitle: Text(customer.contactNumber ?? 'No contact number'),
@@ -52,9 +53,7 @@ class CreditsScreen extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const AddCustomerScreen())),
+        onPressed: () => context.pushNamed(AppRoutes.addCustomerName),
         icon: const Icon(Icons.person_add),
         label: const Text('Add Customer'),
       ),
@@ -167,10 +166,10 @@ class CustomerDetailsScreen extends ConsumerWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.edit),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => EditCustomerScreen(customer: customer),
-                  ),
+                onPressed: () => context.pushNamed(
+                  AppRoutes.editCustomerName,
+                  pathParameters: {'customerId': customer.id},
+                  extra: customer,
                 ),
               ),
               IconButton(
@@ -196,10 +195,10 @@ class CustomerDetailsScreen extends ConsumerWidget {
               FilledButton.icon(
                 onPressed: customer.outstandingBalance <= 0
                     ? null
-                    : () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => RecordPaymentScreen(customer: customer),
-                        ),
+                    : () => context.pushNamed(
+                        AppRoutes.recordPaymentName,
+                        pathParameters: {'customerId': customer.id},
+                        extra: customer,
                       ),
                 icon: const Icon(Icons.payments),
                 label: const Text('Record Payment'),
@@ -281,7 +280,9 @@ class CustomerDetailsScreen extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Customer?'),
-        content: Text('Are you sure you want to delete ${customer.name}? This action cannot be undone.'),
+        content: Text(
+          'Are you sure you want to delete ${customer.name}? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -310,9 +311,9 @@ class CustomerDetailsScreen extends ConsumerWidget {
         }
       } catch (error) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error.toString())),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error.toString())));
         }
       }
     }
@@ -438,7 +439,9 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.customer.name);
-    _contactController = TextEditingController(text: widget.customer.contactNumber ?? '');
+    _contactController = TextEditingController(
+      text: widget.customer.contactNumber ?? '',
+    );
   }
 
   @override
@@ -484,7 +487,9 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
 
   Future<void> _save() async {
     try {
-      await ref.read(appDatabaseProvider).updateCustomer(
+      await ref
+          .read(appDatabaseProvider)
+          .updateCustomer(
             customerId: widget.customer.id,
             name: _nameController.text,
             contactNumber: _contactController.text,
@@ -494,9 +499,9 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
       }
     }
   }

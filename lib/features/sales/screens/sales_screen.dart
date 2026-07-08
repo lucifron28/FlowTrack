@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_routes.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/domain/flowtrack_models.dart';
 import '../../../core/utils/currency_formatter.dart';
@@ -40,10 +42,9 @@ class SalesScreen extends ConsumerWidget {
               final sale = sales[index];
               return Card(
                 child: ListTile(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => SaleDetailsScreen(saleId: sale.id),
-                    ),
+                  onTap: () => context.pushNamed(
+                    AppRoutes.saleDetailsName,
+                    pathParameters: {'saleId': sale.id},
                   ),
                   title: Text(sale.saleNumber),
                   subtitle: Text('${sale.paymentType} • ${sale.status}'),
@@ -55,9 +56,7 @@ class SalesScreen extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const NewSaleScreen())),
+        onPressed: () => context.pushNamed(AppRoutes.newSaleName),
         icon: const Icon(Icons.add),
         label: const Text('New Sale'),
       ),
