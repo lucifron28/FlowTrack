@@ -1,4 +1,4 @@
-package com.example.flowtrack
+package com.flowtrack.app
 
 import android.content.ContentValues
 import android.content.Intent
