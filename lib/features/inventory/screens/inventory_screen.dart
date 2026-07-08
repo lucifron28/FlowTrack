@@ -3,8 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart' hide BarcodeType;
 
+import '../../../core/constants/app_routes.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/domain/flowtrack_models.dart';
 import '../../../core/utils/currency_formatter.dart';
@@ -92,11 +94,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     return ProductCard(
                       product: product,
                       status: item.status,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              ProductDetailsScreen(productId: product.id),
-                        ),
+                      onTap: () => context.pushNamed(
+                        AppRoutes.productDetailsName,
+                        pathParameters: {'productId': product.id},
                       ),
                     );
                   },
@@ -107,9 +107,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const AddProductScreen())),
+        onPressed: () => context.pushNamed(AppRoutes.addProductName),
         icon: const Icon(Icons.add),
         label: const Text('Add Item'),
       ),
@@ -599,38 +597,36 @@ class ProductDetailsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => AddStockScreen(productId: product.id),
-                  ),
+                onPressed: () => context.pushNamed(
+                  AppRoutes.addStockName,
+                  pathParameters: {'productId': product.id},
                 ),
                 icon: const Icon(Icons.add_box),
                 label: const Text('Add Stock'),
               ),
               OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => EditProductScreen(product: product),
-                  ),
+                onPressed: () => context.pushNamed(
+                  AppRoutes.editProductName,
+                  pathParameters: {'productId': product.id},
+                  extra: product,
                 ),
                 icon: const Icon(Icons.edit),
                 label: const Text('Edit Product'),
               ),
               OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => AdjustStockScreen(product: product),
-                  ),
+                onPressed: () => context.pushNamed(
+                  AppRoutes.adjustStockName,
+                  pathParameters: {'productId': product.id},
+                  extra: product,
                 ),
                 icon: const Icon(Icons.tune),
                 label: const Text('Adjust Stock'),
               ),
               if (product.barcodeType == BarcodeType.storeGenerated.dbValue)
                 OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => BarcodePrintScreen(productId: product.id),
-                    ),
+                  onPressed: () => context.pushNamed(
+                    AppRoutes.barcodePrintName,
+                    pathParameters: {'productId': product.id},
                   ),
                   icon: const Icon(Icons.print),
                   label: const Text('Print Barcode Sheet'),

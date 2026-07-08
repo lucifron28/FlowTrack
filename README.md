@@ -10,7 +10,7 @@ Foundation status:
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Flutter Android app | Partial | Builds as a debug APK. Android app identity is set for FlowTrack. Release signing and final app icon are pending. |
+| Flutter Android app | Partial | Builds as a debug APK. Android app identity is set for FlowTrack. Release signing is prepared; final app icon is pending. |
 | App name centralization | Done | `AppConfig.appName` is the central Flutter app-name source. Android launcher label uses the final FlowTrack name. |
 | Material 3 theme | Done | Light/dark theme exists. Theme selection is saved and automatically rehydrated at startup. |
 | Bottom navigation | Done | Dashboard, Sales, Inventory, Credits, More. |
@@ -149,6 +149,7 @@ Money values are stored as integer centavos.
 
 - `README.md`: project status, features, setup, business rules, tests, pending work, and decisions.
 - `docs/demo.md`: phone demo script, QA checklist, sample data, and scan values.
+- `docs/release-checklist.md`: Android identity, release signing, demo QA, and final release blockers.
 - `demo/README.md`: barcode asset manifest aligned with Sync demo data.
 - `demo/qa-barcode-sheet.svg`: printable scan sheet.
 - `demo/barcodes/`: individual PNG barcode cards for phone testing.
@@ -195,7 +196,7 @@ Product gaps:
 - Dedicated barcode printer integration.
 - Local backup/export.
 - Supabase backup/sync after approval.
-- Android release signing and final app icon.
+- Real release keystore/private signing config and final app icon.
 - More widget and integration tests.
 
 ## Decisions Needed

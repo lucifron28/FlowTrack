@@ -10,8 +10,10 @@ import '../../core/services/barcode_print_service.dart';
 import '../../core/services/local_auth_service.dart';
 import '../../core/services/sample_data_service.dart';
 import '../../features/auth/screens/auth_gate.dart';
+import '../../features/credits/screens/credits_screen.dart';
 import '../../features/expenses/screens/expenses_screen.dart';
 import '../../features/inventory/screens/inventory_screen.dart';
+import '../../features/inventory/screens/barcode_print_screen.dart';
 import '../../features/reports/screens/reports_screen.dart';
 import '../../features/sales/screens/sales_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
@@ -80,14 +82,102 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const NewSaleScreen(),
       ),
       GoRoute(
+        name: AppRoutes.saleDetailsName,
+        path: AppRoutes.saleDetails,
+        builder: (context, state) =>
+            SaleDetailsScreen(saleId: state.pathParameters['saleId'] ?? ''),
+      ),
+      GoRoute(
         name: AppRoutes.addProductName,
         path: AppRoutes.addProduct,
         builder: (context, state) => const AddProductScreen(),
       ),
       GoRoute(
+        name: AppRoutes.productDetailsName,
+        path: AppRoutes.productDetails,
+        builder: (context, state) => ProductDetailsScreen(
+          productId: state.pathParameters['productId'] ?? '',
+        ),
+      ),
+      GoRoute(
+        name: AppRoutes.editProductName,
+        path: AppRoutes.editProduct,
+        builder: (context, state) {
+          final product = state.extra;
+          return product is Product
+              ? EditProductScreen(product: product)
+              : const _MissingRouteExtraScreen(label: 'product');
+        },
+      ),
+      GoRoute(
+        name: AppRoutes.addStockName,
+        path: AppRoutes.addStock,
+        builder: (context, state) =>
+            AddStockScreen(productId: state.pathParameters['productId'] ?? ''),
+      ),
+      GoRoute(
+        name: AppRoutes.adjustStockName,
+        path: AppRoutes.adjustStock,
+        builder: (context, state) {
+          final product = state.extra;
+          return product is Product
+              ? AdjustStockScreen(product: product)
+              : const _MissingRouteExtraScreen(label: 'product');
+        },
+      ),
+      GoRoute(
+        name: AppRoutes.barcodePrintName,
+        path: AppRoutes.barcodePrint,
+        builder: (context, state) => BarcodePrintScreen(
+          productId: state.pathParameters['productId'] ?? '',
+        ),
+      ),
+      GoRoute(
+        name: AppRoutes.addCustomerName,
+        path: AppRoutes.addCustomer,
+        builder: (context, state) => const AddCustomerScreen(),
+      ),
+      GoRoute(
+        name: AppRoutes.customerDetailsName,
+        path: AppRoutes.customerDetails,
+        builder: (context, state) => CustomerDetailsScreen(
+          customerId: state.pathParameters['customerId'] ?? '',
+        ),
+      ),
+      GoRoute(
+        name: AppRoutes.editCustomerName,
+        path: AppRoutes.editCustomer,
+        builder: (context, state) {
+          final customer = state.extra;
+          return customer is Customer
+              ? EditCustomerScreen(customer: customer)
+              : const _MissingRouteExtraScreen(label: 'customer');
+        },
+      ),
+      GoRoute(
+        name: AppRoutes.recordPaymentName,
+        path: AppRoutes.recordPayment,
+        builder: (context, state) {
+          final customer = state.extra;
+          return customer is Customer
+              ? RecordPaymentScreen(customer: customer)
+              : const _MissingRouteExtraScreen(label: 'customer');
+        },
+      ),
+      GoRoute(
         name: AppRoutes.addExpenseName,
         path: AppRoutes.addExpense,
         builder: (context, state) => const AddExpenseScreen(),
+      ),
+      GoRoute(
+        name: AppRoutes.editExpenseName,
+        path: AppRoutes.editExpense,
+        builder: (context, state) {
+          final expense = state.extra;
+          return expense is Expense
+              ? AddExpenseScreen(expense: expense)
+              : const _MissingRouteExtraScreen(label: 'expense');
+        },
       ),
       GoRoute(
         name: AppRoutes.expensesName,
@@ -107,6 +197,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class _MissingRouteExtraScreen extends StatelessWidget {
+  const _MissingRouteExtraScreen({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Route unavailable')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text('Missing $label data for this screen.'),
+        ),
+      ),
+    );
+  }
+}
 
 class AuthState {
   const AuthState({

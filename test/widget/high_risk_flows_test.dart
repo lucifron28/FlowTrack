@@ -95,7 +95,10 @@ Future<void> _pumpWithDatabase(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [appDatabaseProvider.overrideWithValue(database)],
-      child: MaterialApp(home: child),
+      child: MaterialApp(
+        theme: ThemeData(splashFactory: NoSplash.splashFactory),
+        home: child,
+      ),
     ),
   );
   await tester.pumpAndSettle();
