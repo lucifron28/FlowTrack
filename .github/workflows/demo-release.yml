@@ -1,0 +1,63 @@
+name: Demo Android Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android-demo-apk:
+    name: Build demo APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate Drift code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build debug APK
+        run: flutter build apk --debug --build-name 1.0.0 --build-number 1
+
+      - name: Rename APK
+        run: mv build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/FlowTrack-demo-${{ github.ref_name }}.apk
+
+      - name: Create GitHub prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          name: FlowTrack Demo ${{ github.ref_name }}
+          prerelease: true
+          generate_release_notes: true
+          body: |
+            FlowTrack Android demo build for QA and walkthrough use.
+
+            This APK is debug-signed and intended for demo testing only.
+            Do not treat this as a production or Play Store release until
+            release signing, final icon assets, and physical-device QA are complete.
+          files: build/app/outputs/flutter-apk/FlowTrack-demo-${{ github.ref_name }}.apk

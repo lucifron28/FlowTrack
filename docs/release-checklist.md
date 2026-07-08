@@ -39,6 +39,23 @@ flutter build apk --release
 
 If `android/key.properties` is missing, the release build falls back to debug signing for local development only. Do not ship a debug-signed APK.
 
+## GitHub Demo Release
+
+The repository includes `.github/workflows/demo-release.yml` for demo APK releases.
+
+- Trigger: push a tag matching `v*`, or run the workflow manually from GitHub Actions.
+- Output: a debug-signed APK attached to a GitHub prerelease.
+- Intended use: phone QA, walkthroughs, and client demo installation.
+- Not intended for production distribution or Play Store upload.
+
+Suggested demo tag pattern:
+
+```bash
+v1.0.0-demo.1
+```
+
+Before tagging, make sure the release branch has been merged into `main`.
+
 ## Final Release Blockers
 
 - Final launcher icon.
