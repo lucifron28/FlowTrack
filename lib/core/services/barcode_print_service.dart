@@ -1,10 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:barcode/barcode.dart' as barcode;
-import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../config/app_config.dart';
 import '../database/app_database.dart';
+import 'pdf_export_service.dart';
 
 class BarcodeLabelData {
   const BarcodeLabelData({
@@ -30,7 +32,7 @@ class BarcodePrintService {
   const BarcodePrintService();
 
   static const labelCopies = 10;
-  static const _channel = MethodChannel('flowtrack/barcode_pdf');
+  static const _pdfExport = PdfExportService();
 
   Future<Uint8List> buildProductBarcodePdf(Product product) async {
     return buildBarcodePdf(BarcodeLabelData.fromProduct(product));
@@ -89,18 +91,18 @@ class BarcodePrintService {
 
   Future<String?> saveProductBarcodePdf(Product product) async {
     final bytes = await buildProductBarcodePdf(product);
-    return _channel.invokeMethod<String>('savePdf', {
-      'fileName': barcodePdfFileName(BarcodeLabelData.fromProduct(product)),
-      'bytes': bytes,
-    });
+    return _pdfExport.save(
+      fileName: barcodePdfFileName(BarcodeLabelData.fromProduct(product)),
+      bytes: bytes,
+    );
   }
 
   Future<void> shareProductBarcodePdf(Product product) async {
     final bytes = await buildProductBarcodePdf(product);
-    await _channel.invokeMethod<void>('sharePdf', {
-      'fileName': barcodePdfFileName(BarcodeLabelData.fromProduct(product)),
-      'bytes': bytes,
-    });
+    await _pdfExport.share(
+      fileName: barcodePdfFileName(BarcodeLabelData.fromProduct(product)),
+      bytes: bytes,
+    );
   }
 
   pw.Widget _barcodeLabel(BarcodeLabelData label, barcode.Barcode code128) {
