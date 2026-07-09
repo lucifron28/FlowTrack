@@ -167,16 +167,6 @@ class AppMetadata extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-class SyncQueue extends Table {
-  TextColumn get id => text()();
-  TextColumn get entityType => text()();
-  TextColumn get entityId => text()();
-  TextColumn get operation => text()();
-  TextColumn get status =>
-      text().withDefault(const Constant('not_configured'))();
-  DateTimeColumn get createdAt => dateTime()();
-}
-
 class AuditLogs extends Table {
   TextColumn get id => text()();
   TextColumn get action => text()();
@@ -201,7 +191,6 @@ class AuditLogs extends Table {
     Expenses,
     Settings,
     AppMetadata,
-    SyncQueue,
     AuditLogs,
   ],
 )
@@ -215,7 +204,7 @@ final class AppDatabase extends _$AppDatabase {
   static const _uuid = Uuid();
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -224,6 +213,9 @@ final class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         await m.addColumn(products, products.isActive);
         await m.addColumn(customers, customers.isActive);
+      }
+      if (from < 3) {
+        await customStatement('DROP TABLE IF EXISTS sync_queue');
       }
     },
     beforeOpen: (details) async {
@@ -948,7 +940,6 @@ final class AppDatabase extends _$AppDatabase {
   Future<void> clearBusinessDataForDemo() async {
     await transaction(() async {
       await delete(auditLogs).go();
-      await delete(syncQueue).go();
       await delete(creditPayments).go();
       await delete(creditRecords).go();
       await delete(saleItems).go();

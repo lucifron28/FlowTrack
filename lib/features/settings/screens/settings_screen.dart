@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_config.dart';
-import '../../../core/services/sync_service.dart';
 import '../../../shared/providers/app_providers.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -15,7 +14,6 @@ class SettingsScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final storeNameAsync = ref.watch(storeNameProvider);
     final authState = ref.watch(authControllerProvider).value;
-    const syncService = SyncService();
     return Scaffold(
       appBar: showAppBar ? AppBar(title: const Text('Settings')) : null,
       body: ListView(
@@ -90,21 +88,18 @@ class SettingsScreen extends ConsumerWidget {
                   title: Text('Currency symbol'),
                   subtitle: Text(AppConfig.currency),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.cloud_off),
-                  title: const Text('Supabase connection'),
-                  subtitle: Text(syncService.currentState.label),
-                ),
                 const ListTile(
                   leading: Icon(Icons.backup),
-                  title: Text('Database backup/export'),
+                  title: Text('Local backup'),
                   subtitle: Text(
-                    'Placeholder pending export and sync approval.',
+                    'Create, share, or restore a FlowTrack backup file.',
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          _BackupToolsCard(),
           const SizedBox(height: 12),
           _QaToolsCard(),
           const SizedBox(height: 12),
@@ -193,6 +188,139 @@ class SettingsScreen extends ConsumerWidget {
       return;
     }
     ref.read(themeModeProvider.notifier).setThemeMode(value);
+  }
+}
+
+class _BackupToolsCard extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_BackupToolsCard> createState() => _BackupToolsCardState();
+}
+
+class _BackupToolsCardState extends ConsumerState<_BackupToolsCard> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.folder_copy),
+              title: const Text('Backup and restore'),
+              subtitle: const Text(
+                'Backups are local JSON files. Save one outside this phone when possible.',
+              ),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: _busy ? null : _shareBackup,
+              icon: _busy
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.ios_share),
+              label: const Text('Create and share backup'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _saveBackup,
+              icon: const Icon(Icons.download),
+              label: const Text('Save backup to Downloads'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _confirmRestore,
+              icon: const Icon(Icons.restore),
+              label: const Text('Restore backup'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveBackup() async {
+    await _runBackupAction(() async {
+      final path = await ref.read(backupServiceProvider).saveBackupFile();
+      return path == null || path.isEmpty
+          ? 'Backup saved.'
+          : 'Backup saved to Downloads.';
+    });
+  }
+
+  Future<void> _shareBackup() async {
+    await _runBackupAction(() async {
+      await ref.read(backupServiceProvider).shareBackupFile();
+      return 'Backup ready to share.';
+    });
+  }
+
+  Future<void> _confirmRestore() async {
+    final restore = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Restore backup?'),
+          content: const Text(
+            'Restoring will replace current products, sales, credits, expenses, settings, and history. Owner login is not changed.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Restore'),
+            ),
+          ],
+        );
+      },
+    );
+    if (restore != true) {
+      return;
+    }
+
+    await _runBackupAction(() async {
+      final restored = await ref
+          .read(backupServiceProvider)
+          .pickAndRestoreBackup();
+      if (!restored) {
+        return 'Restore cancelled.';
+      }
+      ref.invalidate(storeNameProvider);
+      ref.invalidate(todayProvider);
+      return 'Backup restored.';
+    });
+  }
+
+  Future<void> _runBackupAction(Future<String> Function() action) async {
+    setState(() => _busy = true);
+    try {
+      final message = await action();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
   }
 }
 
