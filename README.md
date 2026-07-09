@@ -2,7 +2,7 @@
 
 FlowTrack is an offline-first Flutter Android MVP for a sari-sari store owner. It is based on the FRD titled "Development of a Mobile-Based Cash Flow and Credit Monitoring Information System for a Sari-Sari Store."
 
-The app is local-first. Drift/SQLite is the source of truth. Supabase is installed only for future backup, schema preparation, or optional sync work after approval. Supabase is not initialized during startup and is not required for daily use.
+The app is local-first. Drift/SQLite is the source of truth. There is no required cloud backend. Backups are handled with local `.flowtrack-backup` JSON files that the owner can save or share outside the phone.
 
 ## Current Project State
 
@@ -15,8 +15,8 @@ Foundation status:
 | Material 3 theme | Done | Light/dark theme exists. Theme selection is saved and automatically rehydrated at startup. |
 | Bottom navigation | Done | Dashboard, Sales, Inventory, Credits, More. |
 | Local database | Done | Drift/SQLite schema and generated code are present. |
-| Offline-first architecture | Done | Core app flows use local data and do not require Supabase. |
-| Supabase | Pending | Package installed only. No startup initialization, credentials, service role key, or sync logic. |
+| Offline-first architecture | Done | Core app flows use local data and do not require internet or cloud services. |
+| Local backup | Done | Settings can create/share `.flowtrack-backup` files and restore them with confirmation. |
 
 Feature status:
 
@@ -32,9 +32,28 @@ Feature status:
 | Credits / utang | Done | Customers, balances, credit records, and payments are implemented. Payments allocate oldest-first. Customer edit and delete operations (with balance/history validation) are fully implemented. |
 | Expenses | Done | Expense recording, editing, deleting, and report/dashboard inclusion are implemented. |
 | Reports | Done | Daily, weekly, monthly, and custom range summaries are implemented. PDF/CSV export is pending. |
-| Settings | Done | Theme control, app/about info, Supabase placeholder, backup placeholder, demo data tools, and logout exist. Store profile/owner editing is fully implemented. |
+| Settings | Done | Theme control, app/about info, local backup/restore, demo data tools, and logout exist. Store profile/owner editing is fully implemented. |
 | Demo data | Done | Settings can sync demo data and reset/reload a clean demo dataset. Scan-ready barcode PNGs are in `demo/barcodes/`. |
 | Tests | Done | Unit and widget tests pass, including database flows, domain calculations, demo data, barcode PDFs, and high-risk sales/inventory UI paths. |
+
+## Backup and Restore
+
+FlowTrack supports local JSON backup files with the `.flowtrack-backup` extension.
+
+Included in backup:
+
+- products, stock movements, sales, sale items
+- customers, credit records, credit payments
+- expenses, settings, app metadata, audit logs
+
+Not included:
+
+- owner password and secure-storage credentials
+- generated barcode PDF files
+- temporary cache files
+- cloud sync data
+
+Restore replaces the current local store data after confirmation. Owner login is not changed. Owners should save backup files outside the phone when possible, such as to Google Drive through Android share sheet, email, USB transfer, or another file manager destination.
 
 ## Demo Data
 
@@ -67,12 +86,12 @@ Demo barcode files:
 10. Add an expense.
 11. Open Reports and show daily/weekly/monthly/custom summaries.
 12. Void a completed sale and show that inventory and reports update.
-13. Mention that Supabase is optional and not required for offline use.
+13. Mention that no cloud service is required and backups are local files.
 
 ## Core Business Rules
 
 - Local Drift/SQLite records are the source of truth.
-- Supabase must never block offline use.
+- Cloud services must never block offline use.
 - Stock is deducted only after Complete Sale.
 - Adding an item to the sale cart does not deduct stock.
 - Stock cannot become negative.
@@ -88,7 +107,6 @@ Demo barcode files:
 - Reports exclude voided sales.
 - Expenses reduce net income.
 - Store-generated tingi barcodes are one barcode per product type, not per piece or batch.
-- Supabase service role keys must never be placed in Flutter client code.
 - App-name references should use `AppConfig.appName`.
 
 ## Tech Stack
@@ -102,7 +120,6 @@ Demo barcode files:
 - mobile_scanner
 - flutter_secure_storage
 - barcode and pdf packages for printable tingi barcode sheets
-- Supabase Flutter package installed for future optional work only
 
 Current pinned package versions are in `pubspec.yaml` and `pubspec.lock`.
 
@@ -140,7 +157,6 @@ Tables:
 - `expenses`
 - `settings`
 - `app_metadata`
-- `sync_queue`
 - `audit_logs`
 
 Money values are stored as integer centavos.
@@ -148,6 +164,7 @@ Money values are stored as integer centavos.
 ## Documentation
 
 - `README.md`: project status, features, setup, business rules, tests, pending work, and decisions.
+- `docs/backup.md`: local `.flowtrack-backup` format, owner flow, restore behavior, and limits.
 - `docs/demo.md`: phone demo script, QA checklist, sample data, and scan values.
 - `docs/release-checklist.md`: Android identity, release signing, demo QA, and final release blockers.
 - `demo/README.md`: barcode asset manifest aligned with Sync demo data.
@@ -172,6 +189,7 @@ Current tests cover:
 - Product price snapshots remain stable after price edits.
 - Store-generated barcode uniqueness.
 - Demo data load/sync/reset behavior.
+- Local backup JSON export/restore behavior.
 - Printable barcode PDF generation.
 - Password hash helper behavior.
 - Product active/deactive deactivation toggles and active list filtering.
@@ -194,15 +212,12 @@ Product gaps:
 - Report PDF/CSV export.
 - Receipt printing.
 - Dedicated barcode printer integration.
-- Local backup/export.
-- Supabase backup/sync after approval.
+- CSV/PDF report export.
 - Real release keystore/private signing config and final app icon.
 - More widget and integration tests.
 
 ## Decisions Needed
 
-- Whether Supabase sync should ever be enabled.
-- Whether backup should be local file, Supabase cloud backup, or both.
 - Whether exports should be PDF, CSV, or both.
 - Whether receipt printing is required.
 - Whether barcode PDF output is enough or dedicated printer support is required.

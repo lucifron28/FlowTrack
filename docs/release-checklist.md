@@ -14,6 +14,7 @@ FlowTrack is the final app name. The Android application ID and namespace are `c
 - Add an expense and verify dashboard/report net income.
 - Void a completed sale and verify inventory/report changes.
 - Save or share a tingi barcode PDF from a store-generated product.
+- Create/share a `.flowtrack-backup` file, then restore it on a test install.
 
 ## Android Identity
 
@@ -63,5 +64,5 @@ Before tagging, make sure the release branch has been merged into `main`.
 - Physical Android QA on target phone.
 - Scanner QA under real lighting and barcode sizes.
 - Barcode PDF save/share QA.
-- Backup/export decision.
-- Supabase sync decision, if it will ever be enabled.
+- Backup restore QA with a real `.flowtrack-backup` file.
+- Report export decision.

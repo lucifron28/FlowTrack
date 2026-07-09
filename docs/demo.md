@@ -60,11 +60,11 @@ Other records loaded:
 10. Expenses: add an expense and show report/dashboard impact.
 11. Reports: show daily, weekly, monthly, and custom summaries.
 12. Void sale: void a completed sale and show that stock is restored.
-13. Offline point: mention that Supabase is optional and not required for these flows.
+13. Offline point: mention that no cloud service is required and backups are local files.
 
 ## Current Demo Risks
 
 - Camera scanner framing and focus still need physical-device QA.
 - The visual scanner frame is a guide; detection can still happen elsewhere in the camera image until scanner crop behavior is refined.
 - Theme choice is saved but not restored before startup.
-- Report export, receipt printing, dedicated barcode printer support, cloud backup, and Supabase sync are not implemented.
+- Report export, receipt printing, dedicated barcode printer support, and encrypted backups are not implemented.
