@@ -508,7 +508,6 @@ final class AppDatabase extends _$AppDatabase {
 
     await transaction(() async {
       int total = 0;
-      final productById = <String, Product>{};
 
       final uniqueProductIds = quantitiesByProductId.keys.toList();
       final productsList = await (select(
@@ -529,7 +528,6 @@ final class AppDatabase extends _$AppDatabase {
         if (product.stock < requiredQty) {
           throw StateError('Not enough stock available for ${product.name}.');
         }
-        productById[productId] = product;
         total += product.sellingPrice * requiredQty;
       }
 
@@ -539,7 +537,7 @@ final class AppDatabase extends _$AppDatabase {
         }
         if (amountReceived < total) {
           throw StateError(
-            'Amount received ($amountReceived) is below the current sale total ($total).',
+            'Amount received is below the current sale total.',
           );
         }
       }
