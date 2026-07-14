@@ -331,13 +331,15 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 if (value == null || value.trim().isEmpty) {
                   return 'Barcode is required.';
                 }
-                final norm = value.replaceAll(RegExp(r'\s+'), '');
-                if (norm.isEmpty) {
+                String normalized;
+                try {
+                  normalized = normalizeBarcode(value);
+                } on ArgumentError {
                   return 'Barcode cannot be empty.';
                 }
                 if (_barcodeType == BarcodeType.manufacturer) {
-                  if (isSupportedRetailBarcode(norm) &&
-                      !hasValidRetailBarcodeChecksum(norm)) {
+                  if (isSupportedRetailBarcode(normalized) &&
+                      !hasValidRetailBarcodeChecksum(normalized)) {
                     return 'Invalid EAN/UPC check digit.';
                   }
                 }
