@@ -31,7 +31,7 @@ Feature status:
 | Fast Selling Mode | Done | Scanning or searching adds items to the cart and repeated scans increment quantity. Stock is deducted only after Complete Sale. |
 | Credits / utang | Done | Customers, balances, credit records, and payments are implemented. Payments allocate oldest-first. Customer edit and delete operations (with balance/history validation) are fully implemented. |
 | Expenses | Done | Expense recording, editing, deleting, and report/dashboard inclusion are implemented. |
-| Reports | Done | Daily, weekly, monthly, and custom range summaries are implemented. PDF/CSV export is pending. |
+| Reports | Done | Daily, weekly, monthly, and custom range summaries plus offline PDF save/share are implemented. CSV export and direct printing are pending. |
 | Settings | Done | Theme, profile, backup/restore, and logout are available in production. Demo-data tools appear only in explicit demo mode. |
 | Demo data | Done | Sync/reset tools are available only when built with `FLOWTRACK_MODE=demo`. |
 | Tests | Done | Unit and widget tests pass, including database flows, domain calculations, demo data, barcode PDFs, and high-risk sales/inventory UI paths. |
@@ -95,7 +95,7 @@ Demo barcode files:
 8. Complete a credit sale for a customer.
 9. Open Credits, record a partial payment, and show outstanding balance update.
 10. Add an expense.
-11. Open Reports and show daily/weekly/monthly/custom summaries.
+11. Open Reports, show daily/weekly/monthly/custom summaries, then save or share the selected report as a PDF.
 12. Void a completed sale and show that inventory and reports update.
 13. Mention that no cloud service is required and backups are local files.
 
@@ -260,7 +260,7 @@ Current tests cover:
 Highest priority before the video demo:
 
 - Physical Android QA for scanner framing, lighting, focus, permissions, and manual fallback.
-- Physical Android QA for barcode PDF save/share.
+- Physical Android QA for barcode and report PDF save/share.
 - Small-screen UI pass on Inventory, Reports, Settings, Sales, and scanner screens.
 - Verify the full demo flow in airplane mode.
 
@@ -268,10 +268,9 @@ Product gaps:
 
 - Product category management.
 - Editable expense categories.
-- Report PDF/CSV export.
+- Report CSV export.
 - Receipt printing.
 - Dedicated barcode printer integration.
-- CSV/PDF report export.
 - Real release keystore/private signing config and final app icon.
 - More widget and integration tests.
 

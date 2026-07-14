@@ -15,18 +15,18 @@ import java.io.File
 import java.io.FileOutputStream
 
 class MainActivity : FlutterActivity() {
-    private val barcodeChannelName = "flowtrack/barcode_pdf"
+    private val pdfChannelName = "flowtrack/pdf_export"
     private val backupChannelName = "flowtrack/backup_file"
     private val pickBackupRequestCode = 4101
     private var pendingPickBackupResult: Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, barcodeChannelName).setMethodCallHandler { call, result ->
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, pdfChannelName).setMethodCallHandler { call, result ->
             val fileName = call.argument<String>("fileName")
             val bytes = call.argument<ByteArray>("bytes")
             if (fileName.isNullOrBlank() || bytes == null) {
-                result.error("barcode_pdf_args", "Missing PDF file name or bytes.", null)
+                result.error("pdf_export_args", "Missing PDF file name or bytes.", null)
                 return@setMethodCallHandler
             }
 
@@ -41,7 +41,7 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             } catch (error: Exception) {
-                result.error("barcode_pdf_failed", error.message, null)
+                result.error("pdf_export_failed", error.message, null)
             }
         }
 
@@ -135,14 +135,14 @@ class MainActivity : FlutterActivity() {
 
     private fun sharePdf(uri: Uri) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            throw IllegalStateException("Sharing barcode PDFs requires Android 10 or newer. Use Save PDF instead.")
+            throw IllegalStateException("Sharing PDFs requires Android 10 or newer. Use Save PDF instead.")
         }
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "application/pdf"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        startActivity(Intent.createChooser(intent, "Share barcode PDF"))
+        startActivity(Intent.createChooser(intent, "Share PDF"))
     }
 
     private fun saveBackup(fileName: String, bytes: ByteArray): Uri {

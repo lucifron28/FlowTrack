@@ -9,6 +9,7 @@ import '../../core/services/barcode_service.dart';
 import '../../core/services/barcode_print_service.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/services/local_auth_service.dart';
+import '../../core/services/report_pdf_service.dart';
 import '../../core/services/sample_data_service.dart';
 import '../../features/auth/screens/auth_gate.dart';
 import '../../features/credits/screens/credits_screen.dart';
@@ -35,6 +36,10 @@ final barcodePrintServiceProvider = Provider<BarcodePrintService>((ref) {
 
 final backupServiceProvider = Provider<BackupService>((ref) {
   return BackupService(ref.watch(appDatabaseProvider));
+});
+
+final reportPdfServiceProvider = Provider<ReportPdfService>((ref) {
+  return const ReportPdfService();
 });
 
 final localAuthServiceProvider = Provider<LocalAuthService>((ref) {

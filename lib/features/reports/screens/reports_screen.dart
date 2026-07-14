@@ -22,6 +22,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   ReportRange _range = ReportRange.daily;
   DateTime _start = startOfDay(DateTime.now());
   DateTime _end = endOfDay(DateTime.now());
+  bool _exportBusy = false;
 
   @override
   Widget build(BuildContext context) {
@@ -101,24 +102,50 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           SectionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text('Exports'),
-                SizedBox(height: 8),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.picture_as_pdf),
-                  title: Text('Export PDF'),
-                  subtitle: Text(
-                    'Placeholder pending package and layout approval.',
+              children: [
+                const Text('Exports'),
+                const SizedBox(height: 8),
+                Text(
+                  'Save or share the currently selected report range as a PDF.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
-                ListTile(
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _exportBusy ? null : _savePdf,
+                        icon: _exportBusy
+                            ? const SizedBox.square(
+                                dimension: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.save_alt),
+                        label: const Text('Save PDF'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _exportBusy ? null : _sharePdf,
+                        icon: const Icon(Icons.share),
+                        label: const Text('Share PDF'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.table_chart),
                   title: Text('Export CSV'),
                   subtitle: Text('Placeholder pending export approval.'),
                 ),
-                ListTile(
+                const ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.print),
                   title: Text('Print Report'),
@@ -174,6 +201,82 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         _end = _start.add(const Duration(days: 1));
       }
     });
+  }
+
+  Future<void> _savePdf() async {
+    await _runPdfExport(
+      action: (summary, reportTitle, start, end) async {
+        await ref
+            .read(reportPdfServiceProvider)
+            .saveReportPdf(
+              reportTitle: reportTitle,
+              start: start,
+              end: end,
+              summary: summary,
+            );
+      },
+      successMessage: 'Report PDF saved to Downloads.',
+    );
+  }
+
+  Future<void> _sharePdf() async {
+    await _runPdfExport(
+      action: (summary, reportTitle, start, end) => ref
+          .read(reportPdfServiceProvider)
+          .shareReportPdf(
+            reportTitle: reportTitle,
+            start: start,
+            end: end,
+            summary: summary,
+          ),
+      successMessage: 'Report PDF ready to share.',
+    );
+  }
+
+  Future<void> _runPdfExport({
+    required Future<void> Function(
+      ReportSummary summary,
+      String reportTitle,
+      DateTime start,
+      DateTime end,
+    ) action,
+    required String successMessage,
+  }) async {
+    final reportTitle = _reportTitle;
+    final start = _start;
+    final end = _end;
+    
+    setState(() => _exportBusy = true);
+    try {
+      final summary = await ref
+          .read(appDatabaseProvider)
+          .reportForRange(start: start, end: end);
+      await action(summary, reportTitle, start, end);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(successMessage)));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _exportBusy = false);
+      }
+    }
+  }
+
+  String get _reportTitle {
+    return switch (_range) {
+      ReportRange.daily => 'Daily Report',
+      ReportRange.weekly => 'Weekly Report',
+      ReportRange.monthly => 'Monthly Report',
+      ReportRange.custom => 'Custom Date Range Report',
+    };
   }
 }
 
