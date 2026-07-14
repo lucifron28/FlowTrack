@@ -123,6 +123,11 @@ class CreditPayments extends Table {
   TextColumn get notes => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 
+  BoolColumn get isReversed =>
+      boolean().withDefault(const Constant(false))();
+  DateTimeColumn get reversedAt => dateTime().nullable()();
+  TextColumn get reversalReason => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -206,7 +211,7 @@ final class AppDatabase extends _$AppDatabase {
   static const _uuid = Uuid();
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -218,6 +223,11 @@ final class AppDatabase extends _$AppDatabase {
       }
       if (from < 3) {
         await customStatement('DROP TABLE IF EXISTS sync_queue');
+      }
+      if (from < 4) {
+        await m.addColumn(creditPayments, creditPayments.isReversed);
+        await m.addColumn(creditPayments, creditPayments.reversedAt);
+        await m.addColumn(creditPayments, creditPayments.reversalReason);
       }
     },
     beforeOpen: (details) async {

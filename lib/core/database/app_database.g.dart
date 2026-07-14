@@ -3643,6 +3643,43 @@ class $CreditPaymentsTable extends CreditPayments
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _isReversedMeta = const VerificationMeta(
+    'isReversed',
+  );
+  @override
+  late final GeneratedColumn<bool> isReversed = GeneratedColumn<bool>(
+    'is_reversed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_reversed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _reversedAtMeta = const VerificationMeta(
+    'reversedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> reversedAt = GeneratedColumn<DateTime>(
+    'reversed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reversalReasonMeta = const VerificationMeta(
+    'reversalReason',
+  );
+  @override
+  late final GeneratedColumn<String> reversalReason = GeneratedColumn<String>(
+    'reversal_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3651,6 +3688,9 @@ class $CreditPaymentsTable extends CreditPayments
     paymentDate,
     notes,
     createdAt,
+    isReversed,
+    reversedAt,
+    reversalReason,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3710,6 +3750,27 @@ class $CreditPaymentsTable extends CreditPayments
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('is_reversed')) {
+      context.handle(
+        _isReversedMeta,
+        isReversed.isAcceptableOrUnknown(data['is_reversed']!, _isReversedMeta),
+      );
+    }
+    if (data.containsKey('reversed_at')) {
+      context.handle(
+        _reversedAtMeta,
+        reversedAt.isAcceptableOrUnknown(data['reversed_at']!, _reversedAtMeta),
+      );
+    }
+    if (data.containsKey('reversal_reason')) {
+      context.handle(
+        _reversalReasonMeta,
+        reversalReason.isAcceptableOrUnknown(
+          data['reversal_reason']!,
+          _reversalReasonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -3743,6 +3804,18 @@ class $CreditPaymentsTable extends CreditPayments
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      isReversed: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_reversed'],
+      )!,
+      reversedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}reversed_at'],
+      ),
+      reversalReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reversal_reason'],
+      ),
     );
   }
 
@@ -3759,6 +3832,9 @@ class CreditPayment extends DataClass implements Insertable<CreditPayment> {
   final DateTime paymentDate;
   final String? notes;
   final DateTime createdAt;
+  final bool isReversed;
+  final DateTime? reversedAt;
+  final String? reversalReason;
   const CreditPayment({
     required this.id,
     required this.customerId,
@@ -3766,6 +3842,9 @@ class CreditPayment extends DataClass implements Insertable<CreditPayment> {
     required this.paymentDate,
     this.notes,
     required this.createdAt,
+    required this.isReversed,
+    this.reversedAt,
+    this.reversalReason,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3778,6 +3857,13 @@ class CreditPayment extends DataClass implements Insertable<CreditPayment> {
       map['notes'] = Variable<String>(notes);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['is_reversed'] = Variable<bool>(isReversed);
+    if (!nullToAbsent || reversedAt != null) {
+      map['reversed_at'] = Variable<DateTime>(reversedAt);
+    }
+    if (!nullToAbsent || reversalReason != null) {
+      map['reversal_reason'] = Variable<String>(reversalReason);
+    }
     return map;
   }
 
@@ -3791,6 +3877,13 @@ class CreditPayment extends DataClass implements Insertable<CreditPayment> {
           ? const Value.absent()
           : Value(notes),
       createdAt: Value(createdAt),
+      isReversed: Value(isReversed),
+      reversedAt: reversedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reversedAt),
+      reversalReason: reversalReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reversalReason),
     );
   }
 
@@ -3806,6 +3899,9 @@ class CreditPayment extends DataClass implements Insertable<CreditPayment> {
       paymentDate: serializer.fromJson<DateTime>(json['paymentDate']),
       notes: serializer.fromJson<String?>(json['notes']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      isReversed: serializer.fromJson<bool>(json['isReversed']),
+      reversedAt: serializer.fromJson<DateTime?>(json['reversedAt']),
+      reversalReason: serializer.fromJson<String?>(json['reversalReason']),
     );
   }
   @override
@@ -3818,6 +3914,9 @@ class CreditPayment extends DataClass implements Insertable<CreditPayment> {
       'paymentDate': serializer.toJson<DateTime>(paymentDate),
       'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'isReversed': serializer.toJson<bool>(isReversed),
+      'reversedAt': serializer.toJson<DateTime?>(reversedAt),
+      'reversalReason': serializer.toJson<String?>(reversalReason),
     };
   }
 
@@ -3828,6 +3927,9 @@ class CreditPayment extends DataClass implements Insertable<CreditPayment> {
     DateTime? paymentDate,
     Value<String?> notes = const Value.absent(),
     DateTime? createdAt,
+    bool? isReversed,
+    Value<DateTime?> reversedAt = const Value.absent(),
+    Value<String?> reversalReason = const Value.absent(),
   }) => CreditPayment(
     id: id ?? this.id,
     customerId: customerId ?? this.customerId,
@@ -3835,6 +3937,11 @@ class CreditPayment extends DataClass implements Insertable<CreditPayment> {
     paymentDate: paymentDate ?? this.paymentDate,
     notes: notes.present ? notes.value : this.notes,
     createdAt: createdAt ?? this.createdAt,
+    isReversed: isReversed ?? this.isReversed,
+    reversedAt: reversedAt.present ? reversedAt.value : this.reversedAt,
+    reversalReason: reversalReason.present
+        ? reversalReason.value
+        : this.reversalReason,
   );
   CreditPayment copyWithCompanion(CreditPaymentsCompanion data) {
     return CreditPayment(
@@ -3848,6 +3955,15 @@ class CreditPayment extends DataClass implements Insertable<CreditPayment> {
           : this.paymentDate,
       notes: data.notes.present ? data.notes.value : this.notes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      isReversed: data.isReversed.present
+          ? data.isReversed.value
+          : this.isReversed,
+      reversedAt: data.reversedAt.present
+          ? data.reversedAt.value
+          : this.reversedAt,
+      reversalReason: data.reversalReason.present
+          ? data.reversalReason.value
+          : this.reversalReason,
     );
   }
 
@@ -3859,14 +3975,26 @@ class CreditPayment extends DataClass implements Insertable<CreditPayment> {
           ..write('amount: $amount, ')
           ..write('paymentDate: $paymentDate, ')
           ..write('notes: $notes, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('isReversed: $isReversed, ')
+          ..write('reversedAt: $reversedAt, ')
+          ..write('reversalReason: $reversalReason')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, customerId, amount, paymentDate, notes, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    customerId,
+    amount,
+    paymentDate,
+    notes,
+    createdAt,
+    isReversed,
+    reversedAt,
+    reversalReason,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3876,7 +4004,10 @@ class CreditPayment extends DataClass implements Insertable<CreditPayment> {
           other.amount == this.amount &&
           other.paymentDate == this.paymentDate &&
           other.notes == this.notes &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.isReversed == this.isReversed &&
+          other.reversedAt == this.reversedAt &&
+          other.reversalReason == this.reversalReason);
 }
 
 class CreditPaymentsCompanion extends UpdateCompanion<CreditPayment> {
@@ -3886,6 +4017,9 @@ class CreditPaymentsCompanion extends UpdateCompanion<CreditPayment> {
   final Value<DateTime> paymentDate;
   final Value<String?> notes;
   final Value<DateTime> createdAt;
+  final Value<bool> isReversed;
+  final Value<DateTime?> reversedAt;
+  final Value<String?> reversalReason;
   final Value<int> rowid;
   const CreditPaymentsCompanion({
     this.id = const Value.absent(),
@@ -3894,6 +4028,9 @@ class CreditPaymentsCompanion extends UpdateCompanion<CreditPayment> {
     this.paymentDate = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.isReversed = const Value.absent(),
+    this.reversedAt = const Value.absent(),
+    this.reversalReason = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CreditPaymentsCompanion.insert({
@@ -3903,6 +4040,9 @@ class CreditPaymentsCompanion extends UpdateCompanion<CreditPayment> {
     required DateTime paymentDate,
     this.notes = const Value.absent(),
     required DateTime createdAt,
+    this.isReversed = const Value.absent(),
+    this.reversedAt = const Value.absent(),
+    this.reversalReason = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        customerId = Value(customerId),
@@ -3916,6 +4056,9 @@ class CreditPaymentsCompanion extends UpdateCompanion<CreditPayment> {
     Expression<DateTime>? paymentDate,
     Expression<String>? notes,
     Expression<DateTime>? createdAt,
+    Expression<bool>? isReversed,
+    Expression<DateTime>? reversedAt,
+    Expression<String>? reversalReason,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3925,6 +4068,9 @@ class CreditPaymentsCompanion extends UpdateCompanion<CreditPayment> {
       if (paymentDate != null) 'payment_date': paymentDate,
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
+      if (isReversed != null) 'is_reversed': isReversed,
+      if (reversedAt != null) 'reversed_at': reversedAt,
+      if (reversalReason != null) 'reversal_reason': reversalReason,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3936,6 +4082,9 @@ class CreditPaymentsCompanion extends UpdateCompanion<CreditPayment> {
     Value<DateTime>? paymentDate,
     Value<String?>? notes,
     Value<DateTime>? createdAt,
+    Value<bool>? isReversed,
+    Value<DateTime?>? reversedAt,
+    Value<String?>? reversalReason,
     Value<int>? rowid,
   }) {
     return CreditPaymentsCompanion(
@@ -3945,6 +4094,9 @@ class CreditPaymentsCompanion extends UpdateCompanion<CreditPayment> {
       paymentDate: paymentDate ?? this.paymentDate,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
+      isReversed: isReversed ?? this.isReversed,
+      reversedAt: reversedAt ?? this.reversedAt,
+      reversalReason: reversalReason ?? this.reversalReason,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3970,6 +4122,15 @@ class CreditPaymentsCompanion extends UpdateCompanion<CreditPayment> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (isReversed.present) {
+      map['is_reversed'] = Variable<bool>(isReversed.value);
+    }
+    if (reversedAt.present) {
+      map['reversed_at'] = Variable<DateTime>(reversedAt.value);
+    }
+    if (reversalReason.present) {
+      map['reversal_reason'] = Variable<String>(reversalReason.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3985,6 +4146,9 @@ class CreditPaymentsCompanion extends UpdateCompanion<CreditPayment> {
           ..write('paymentDate: $paymentDate, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
+          ..write('isReversed: $isReversed, ')
+          ..write('reversedAt: $reversedAt, ')
+          ..write('reversalReason: $reversalReason, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8923,6 +9087,9 @@ typedef $$CreditPaymentsTableCreateCompanionBuilder =
       required DateTime paymentDate,
       Value<String?> notes,
       required DateTime createdAt,
+      Value<bool> isReversed,
+      Value<DateTime?> reversedAt,
+      Value<String?> reversalReason,
       Value<int> rowid,
     });
 typedef $$CreditPaymentsTableUpdateCompanionBuilder =
@@ -8933,6 +9100,9 @@ typedef $$CreditPaymentsTableUpdateCompanionBuilder =
       Value<DateTime> paymentDate,
       Value<String?> notes,
       Value<DateTime> createdAt,
+      Value<bool> isReversed,
+      Value<DateTime?> reversedAt,
+      Value<String?> reversalReason,
       Value<int> rowid,
     });
 
@@ -8998,6 +9168,21 @@ class $$CreditPaymentsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get isReversed => $composableBuilder(
+    column: $table.isReversed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get reversedAt => $composableBuilder(
+    column: $table.reversedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reversalReason => $composableBuilder(
+    column: $table.reversalReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$CustomersTableFilterComposer get customerId {
     final $$CustomersTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -9056,6 +9241,21 @@ class $$CreditPaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isReversed => $composableBuilder(
+    column: $table.isReversed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get reversedAt => $composableBuilder(
+    column: $table.reversedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reversalReason => $composableBuilder(
+    column: $table.reversalReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$CustomersTableOrderingComposer get customerId {
     final $$CustomersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -9105,6 +9305,21 @@ class $$CreditPaymentsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isReversed => $composableBuilder(
+    column: $table.isReversed,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get reversedAt => $composableBuilder(
+    column: $table.reversedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reversalReason => $composableBuilder(
+    column: $table.reversalReason,
+    builder: (column) => column,
+  );
 
   $$CustomersTableAnnotationComposer get customerId {
     final $$CustomersTableAnnotationComposer composer = $composerBuilder(
@@ -9166,6 +9381,9 @@ class $$CreditPaymentsTableTableManager
                 Value<DateTime> paymentDate = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<bool> isReversed = const Value.absent(),
+                Value<DateTime?> reversedAt = const Value.absent(),
+                Value<String?> reversalReason = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CreditPaymentsCompanion(
                 id: id,
@@ -9174,6 +9392,9 @@ class $$CreditPaymentsTableTableManager
                 paymentDate: paymentDate,
                 notes: notes,
                 createdAt: createdAt,
+                isReversed: isReversed,
+                reversedAt: reversedAt,
+                reversalReason: reversalReason,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -9184,6 +9405,9 @@ class $$CreditPaymentsTableTableManager
                 required DateTime paymentDate,
                 Value<String?> notes = const Value.absent(),
                 required DateTime createdAt,
+                Value<bool> isReversed = const Value.absent(),
+                Value<DateTime?> reversedAt = const Value.absent(),
+                Value<String?> reversalReason = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CreditPaymentsCompanion.insert(
                 id: id,
@@ -9192,6 +9416,9 @@ class $$CreditPaymentsTableTableManager
                 paymentDate: paymentDate,
                 notes: notes,
                 createdAt: createdAt,
+                isReversed: isReversed,
+                reversedAt: reversedAt,
+                reversalReason: reversalReason,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
