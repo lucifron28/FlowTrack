@@ -27,14 +27,17 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version-file: .flutter-version
           cache: true
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Generate Drift code
-        run: dart run build_runner build
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Verify generated Drift code is committed
+        run: git diff --exit-code
 
       - name: Analyze
         run: flutter analyze
@@ -43,7 +46,7 @@ jobs:
         run: flutter test
 
       - name: Build debug APK
-        run: flutter build apk --debug --build-name 1.0.0 --build-number 1
+        run: flutter build apk --debug --dart-define=FLOWTRACK_MODE=demo --build-name 1.0.0 --build-number 1
 
       - name: Rename APK
         run: mv build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/FlowTrack-demo-${{ github.ref_name }}.apk
@@ -57,7 +60,9 @@ jobs:
           body: |
             FlowTrack Android demo build for QA and walkthrough use.
 
-            This APK is debug-signed and intended for demo testing only.
-            Do not treat this as a production or Play Store release until
-            release signing, final icon assets, and physical-device QA are complete.
+            IMPORTANT DETAILS:
+            - This is a demo-mode build.
+            - Demo data tools are enabled in Settings.
+            - It is debug-signed.
+            - It must not be used as a production store build or with real store data.
           files: build/app/outputs/flutter-apk/FlowTrack-demo-${{ github.ref_name }}.apk
