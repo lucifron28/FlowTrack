@@ -1,6 +1,7 @@
 import 'package:flowtrack/core/database/app_database.dart';
 import 'package:flowtrack/core/domain/flowtrack_models.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart' hide Column;
 
 void main() {
   late AppDatabase database;
@@ -82,6 +83,13 @@ void main() {
     expect((await database.getProduct(product.id))!.stock, 5);
     final salesList = await database.watchSales().first;
     expect(salesList, isEmpty);
+    final saleItemsList = await database.select(database.saleItems).get();
+    expect(saleItemsList, isEmpty);
+    final movements = await database.watchStockMovements(product.id).first;
+    expect(
+      movements.where((m) => m.movementType == StockMovementType.saleDeduction.dbValue),
+      isEmpty,
+    );
   });
 
   test('current database price wins over stale prices', () async {
@@ -131,6 +139,50 @@ void main() {
     );
 
     expect((await database.getProduct(product.id))!.stock, 5);
+    expect(await database.watchSales().first, isEmpty);
+    final saleItemsList = await database.select(database.saleItems).get();
+    expect(saleItemsList, isEmpty);
+    final movements = await database.watchStockMovements(product.id).first;
+    expect(
+      movements.where((m) => m.movementType == StockMovementType.saleDeduction.dbValue),
+      isEmpty,
+    );
+  });
+
+  test('failed credit sale rollback', () async {
+    final product = await createProduct(stock: 5, price: 1000);
+    final customerId = await database.createCustomer(name: 'Ate Joy');
+    await (database.update(database.customers)..where((tbl) => tbl.id.equals(customerId))).write(
+      CustomersCompanion(isActive: const Value(false)),
+    );
+
+    expect(
+      () => database.completeSale(
+        lines: [SaleRequestLine(productId: product.id, quantity: 2)],
+        paymentType: PaymentType.credit,
+        saleDate: DateTime.now(),
+        customerId: customerId,
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    // Verify stock remains unchanged, customer balance remains unchanged
+    expect((await database.getProduct(product.id))!.stock, 5);
+    final customer = await database.getCustomer(customerId);
+    expect(customer!.outstandingBalance, 0);
+
+    // Verify database tables are empty of new sales records
+    final salesList = await database.watchSales().first;
+    expect(salesList, isEmpty);
+    final saleItemsList = await database.select(database.saleItems).get();
+    expect(saleItemsList, isEmpty);
+    final movements = await database.watchStockMovements(product.id).first;
+    expect(
+      movements.where((m) => m.movementType == StockMovementType.saleDeduction.dbValue),
+      isEmpty,
+    );
+    final creditRecords = await database.watchCreditRecords(customerId).first;
+    expect(creditRecords, isEmpty);
   });
 
   test('header and item consistency', () async {
