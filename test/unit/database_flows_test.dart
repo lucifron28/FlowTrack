@@ -121,14 +121,13 @@ void main() {
         saleDate: DateTime(2026, 5, 1),
         customerName: 'Mang Lito',
       );
+      final customer = (await database.getActiveCustomers()).single;
       await database.completeSale(
         lines: [SaleRequestLine(productId: product.id, quantity: 2)],
         paymentType: PaymentType.credit,
         saleDate: DateTime(2026, 5, 2),
-        customerName: 'Mang Lito',
+        customerId: customer.id,
       );
-
-      final customer = (await database.getActiveCustomers()).single;
       await database.recordCreditPayment(
         customerId: customer.id,
         amount: 1500,
