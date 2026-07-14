@@ -712,7 +712,7 @@ final class AppDatabase extends _$AppDatabase {
               updatedAt: Value(now),
             ),
           );
-          await _increaseCustomerBalance(sale.customerId!, -record.amount, now);
+          await _rebuildCustomerCreditState(sale.customerId!, now);
         }
       }
       await into(auditLogs).insert(
@@ -878,6 +878,75 @@ final class AppDatabase extends _$AppDatabase {
     return query.watch();
   }
 
+  Future<void> _rebuildCustomerCreditState(
+    String customerId,
+    DateTime now,
+  ) async {
+    final recordsQuery = select(creditRecords)
+      ..where((tbl) =>
+          tbl.customerId.equals(customerId) &
+          tbl.status.isNotValue(CreditStatus.voided.dbValue))
+      ..orderBy([
+        (tbl) => OrderingTerm.asc(tbl.creditDate),
+        (tbl) => OrderingTerm.asc(tbl.createdAt),
+        (tbl) => OrderingTerm.asc(tbl.id),
+      ]);
+    final records = await recordsQuery.get();
+
+    final paymentsQuery = select(creditPayments)
+      ..where((tbl) =>
+          tbl.customerId.equals(customerId) &
+          tbl.isReversed.equals(false))
+      ..orderBy([
+        (tbl) => OrderingTerm.asc(tbl.paymentDate),
+        (tbl) => OrderingTerm.asc(tbl.createdAt),
+        (tbl) => OrderingTerm.asc(tbl.id),
+      ]);
+    final payments = await paymentsQuery.get();
+
+    var remainingPayment = payments.fold<int>(0, (sum, p) => sum + p.amount);
+    var newOutstandingBalance = 0;
+
+    for (final record in records) {
+      final totalAmount = record.amount;
+      int nextPaid = 0;
+      CreditStatus nextStatus;
+
+      if (remainingPayment >= totalAmount) {
+        nextPaid = totalAmount;
+        nextStatus = CreditStatus.paid;
+        remainingPayment -= totalAmount;
+      } else if (remainingPayment > 0) {
+        nextPaid = remainingPayment;
+        nextStatus = CreditStatus.partiallyPaid;
+        remainingPayment = 0;
+      } else {
+        nextPaid = 0;
+        nextStatus = CreditStatus.unpaid;
+      }
+
+      newOutstandingBalance += (totalAmount - nextPaid);
+
+      await (update(creditRecords)..where((tbl) => tbl.id.equals(record.id)))
+          .write(
+        CreditRecordsCompanion(
+          paidAmount: Value(nextPaid),
+          status: Value(nextStatus.dbValue),
+          updatedAt: Value(now),
+        ),
+      );
+    }
+
+    final finalBalance = max(0, newOutstandingBalance - remainingPayment);
+
+    await (update(customers)..where((tbl) => tbl.id.equals(customerId))).write(
+      CustomersCompanion(
+        outstandingBalance: Value(finalBalance),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
   Future<void> recordCreditPayment({
     required String customerId,
     required int amount,
@@ -903,42 +972,54 @@ final class AppDatabase extends _$AppDatabase {
           paymentDate: paymentDate,
           notes: Value(notes),
           createdAt: now,
+          isReversed: const Value(false),
         ),
       );
 
-      var remaining = amount;
-      final openRecordsQuery = select(creditRecords)
-        ..where((tbl) {
-          return tbl.customerId.equals(customerId) &
-              tbl.status.isIn([
-                CreditStatus.unpaid.dbValue,
-                CreditStatus.partiallyPaid.dbValue,
-              ]);
-        })
-        ..orderBy([(tbl) => OrderingTerm.asc(tbl.creditDate)]);
-      final openRecords = await openRecordsQuery.get();
-      for (final record in openRecords) {
-        if (remaining <= 0) {
-          break;
-        }
-        final balance = record.amount - record.paidAmount;
-        final applied = min(remaining, balance);
-        final paidAmount = record.paidAmount + applied;
-        final nextStatus = paidAmount >= record.amount
-            ? CreditStatus.paid
-            : CreditStatus.partiallyPaid;
-        await (update(
-          creditRecords,
-        )..where((tbl) => tbl.id.equals(record.id))).write(
-          CreditRecordsCompanion(
-            paidAmount: Value(paidAmount),
-            status: Value(nextStatus.dbValue),
-            updatedAt: Value(now),
-          ),
-        );
-        remaining -= applied;
+      await _rebuildCustomerCreditState(customerId, now);
+    });
+  }
+
+  Future<void> reverseCreditPayment({
+    required String paymentId,
+    required String reason,
+  }) async {
+    if (reason.trim().isEmpty) {
+      throw ArgumentError('Reversal reason is required.');
+    }
+    final now = DateTime.now();
+    await transaction(() async {
+      final paymentQuery = select(creditPayments)
+        ..where((tbl) => tbl.id.equals(paymentId));
+      final payment = await paymentQuery.getSingleOrNull();
+      if (payment == null) {
+        throw StateError('Payment not found.');
       }
-      await _increaseCustomerBalance(customerId, -amount, now);
+      if (payment.isReversed) {
+        throw StateError('Payment is already reversed.');
+      }
+
+      await (update(creditPayments)..where((tbl) => tbl.id.equals(paymentId)))
+          .write(
+        CreditPaymentsCompanion(
+          isReversed: const Value(true),
+          reversedAt: Value(now),
+          reversalReason: Value(reason.trim()),
+        ),
+      );
+
+      await _rebuildCustomerCreditState(payment.customerId, now);
+
+      await into(auditLogs).insert(
+        AuditLogsCompanion.insert(
+          id: _id(),
+          action: 'reverse_credit_payment',
+          entityType: 'credit_payment',
+          entityId: paymentId,
+          notes: Value(reason.trim()),
+          createdAt: now,
+        ),
+      );
     });
   }
 
