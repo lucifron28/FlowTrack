@@ -125,6 +125,8 @@ Current pinned package versions are in `pubspec.yaml` and `pubspec.lock`.
 
 ## Setup
 
+Requires Flutter stable version `3.44.5` (compatible with Dart `^3.11.5`).
+
 ```bash
 flutter pub get
 dart run build_runner build
