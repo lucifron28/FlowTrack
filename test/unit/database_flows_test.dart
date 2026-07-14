@@ -32,11 +32,8 @@ void main() {
   test('stock is deducted only after sale completion', () async {
     final product = await createProduct(stock: 5, price: 1000);
     final draft = [
-      SaleCartLine(
+      SaleRequestLine(
         productId: product.id,
-        productName: product.name,
-        barcode: product.barcode,
-        unitPrice: product.sellingPrice,
         quantity: 2,
       ),
     ];
@@ -44,7 +41,7 @@ void main() {
     expect((await database.getProduct(product.id))!.stock, 5);
 
     await database.completeSale(
-      items: draft,
+      lines: draft,
       paymentType: PaymentType.cash,
       saleDate: DateTime(2026, 5, 4),
       amountReceived: 2000,
@@ -62,13 +59,9 @@ void main() {
         barcode: 'P-010',
       );
       final saleId = await database.completeSale(
-        items: [
-          SaleCartLine(
+        lines: [
+          SaleRequestLine(
             productId: product.id,
-            productName: product.name,
-            barcode: product.barcode,
-            unitPrice: product.sellingPrice,
-            costPrice: product.costPrice,
             quantity: 2,
           ),
         ],
@@ -101,12 +94,9 @@ void main() {
         barcode: 'P-002',
       );
       await database.completeSale(
-        items: [
-          SaleCartLine(
+        lines: [
+          SaleRequestLine(
             productId: product.id,
-            productName: product.name,
-            barcode: product.barcode,
-            unitPrice: product.sellingPrice,
             quantity: 1,
           ),
         ],
@@ -141,12 +131,9 @@ void main() {
         barcode: 'P-011',
       );
       await database.completeSale(
-        items: [
-          SaleCartLine(
+        lines: [
+          SaleRequestLine(
             productId: product.id,
-            productName: product.name,
-            barcode: product.barcode,
-            unitPrice: product.sellingPrice,
             quantity: 1,
           ),
         ],
@@ -155,12 +142,9 @@ void main() {
         customerName: 'Mang Lito',
       );
       await database.completeSale(
-        items: [
-          SaleCartLine(
+        lines: [
+          SaleRequestLine(
             productId: product.id,
-            productName: product.name,
-            barcode: product.barcode,
-            unitPrice: product.sellingPrice,
             quantity: 2,
           ),
         ],
@@ -198,12 +182,9 @@ void main() {
         barcode: 'P-012',
       );
       final saleId = await database.completeSale(
-        items: [
-          SaleCartLine(
+        lines: [
+          SaleRequestLine(
             productId: product.id,
-            productName: product.name,
-            barcode: product.barcode,
-            unitPrice: product.sellingPrice,
             quantity: 2,
           ),
         ],
@@ -233,12 +214,9 @@ void main() {
       barcode: 'P-003',
     );
     final saleId = await database.completeSale(
-      items: [
-        SaleCartLine(
+      lines: [
+        SaleRequestLine(
           productId: product.id,
-          productName: product.name,
-          barcode: product.barcode,
-          unitPrice: product.sellingPrice,
           quantity: 1,
         ),
       ],
@@ -321,12 +299,9 @@ void main() {
     // 1. Balance constraint
     final prod = await createProduct(stock: 5, price: 1000, barcode: 'P-101');
     await database.completeSale(
-      items: [
-        SaleCartLine(
+      lines: [
+        SaleRequestLine(
           productId: prod.id,
-          productName: prod.name,
-          barcode: prod.barcode,
-          unitPrice: prod.sellingPrice,
           quantity: 1,
         ),
       ],
@@ -399,12 +374,9 @@ void main() {
       barcode: 'P-999',
     );
     final saleId = await database.completeSale(
-      items: [
-        SaleCartLine(
+      lines: [
+        SaleRequestLine(
           productId: product.id,
-          productName: product.name,
-          barcode: product.barcode,
-          unitPrice: product.sellingPrice,
           quantity: 2,
         ),
       ],

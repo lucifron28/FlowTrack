@@ -109,13 +109,9 @@ void main() {
       );
       final product = await source.getProduct(productId);
       await source.completeSale(
-        items: [
-          SaleCartLine(
+        lines: [
+          SaleRequestLine(
             productId: product!.id,
-            productName: product.name,
-            barcode: product.barcode,
-            unitPrice: product.sellingPrice,
-            costPrice: product.costPrice,
             quantity: 1,
           ),
         ],

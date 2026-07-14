@@ -379,7 +379,14 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
       await ref
           .read(appDatabaseProvider)
           .completeSale(
-            items: _cart.items,
+            lines: _cart.items
+                .map(
+                  (item) => SaleRequestLine(
+                    productId: item.productId,
+                    quantity: item.quantity,
+                  ),
+                )
+                .toList(growable: false),
             paymentType: _paymentType,
             saleDate: DateTime.now(),
             amountReceived: amountReceived,

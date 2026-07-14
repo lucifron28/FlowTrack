@@ -467,7 +467,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Future<String> completeSale({
-    required List<SaleCartLine> items,
+    required List<SaleRequestLine> lines,
     required PaymentType paymentType,
     required DateTime saleDate,
     int? amountReceived,
@@ -475,34 +475,36 @@ final class AppDatabase extends _$AppDatabase {
     String? customerName,
     String? contactNumber,
   }) async {
-    if (items.isEmpty) {
+    if (lines.isEmpty) {
       throw StateError('Cannot complete an empty sale.');
-    }
-    final total = calculateSaleTotal(items);
-    if (paymentType == PaymentType.cash) {
-      if (amountReceived == null) {
-        throw StateError('Cash sale requires amount received.');
-      }
-      if (amountReceived < total) {
-        throw StateError('Amount received cannot be less than total.');
-      }
     }
 
     final now = DateTime.now();
     final saleId = _id();
 
     await transaction(() async {
+      int total = 0;
       final productById = <String, Product>{};
-      for (final item in items) {
-        _requirePositive(item.quantity, 'Quantity');
-        final product = await getProduct(item.productId);
+      for (final line in lines) {
+        _requirePositive(line.quantity, 'Quantity');
+        final product = await getProduct(line.productId);
         if (product == null || !product.isActive) {
-          throw StateError('${item.productName} is not available.');
+          throw StateError('Product is not available.');
         }
-        if (product.stock < item.quantity) {
+        if (product.stock < line.quantity) {
           throw StateError('Not enough stock available for ${product.name}.');
         }
-        productById[item.productId] = product;
+        productById[line.productId] = product;
+        total += product.sellingPrice * line.quantity;
+      }
+
+      if (paymentType == PaymentType.cash) {
+        if (amountReceived == null) {
+          throw StateError('Cash sale requires amount received.');
+        }
+        if (amountReceived < total) {
+          throw StateError('Amount received cannot be less than total.');
+        }
       }
 
       String? finalCustomerId = customerId;
@@ -545,33 +547,31 @@ final class AppDatabase extends _$AppDatabase {
         ),
       );
 
-      for (final item in items) {
-        final product = productById[item.productId]!;
+      for (final line in lines) {
+        final product = productById[line.productId]!;
         await into(saleItems).insert(
           SaleItemsCompanion.insert(
             id: _id(),
             saleId: saleId,
-            productId: item.productId,
+            productId: line.productId,
             productNameSnapshot: product.name,
             barcodeSnapshot: product.barcode,
             unitPriceSnapshot: product.sellingPrice,
             costPriceSnapshot: Value(product.costPrice),
-            quantity: item.quantity,
-            subtotal: product.sellingPrice * item.quantity,
+            quantity: line.quantity,
+            subtotal: product.sellingPrice * line.quantity,
           ),
         );
-        await (update(
-          products,
-        )..where((tbl) => tbl.id.equals(item.productId))).write(
+        await (update(products)..where((tbl) => tbl.id.equals(line.productId))).write(
           ProductsCompanion(
-            stock: Value(product.stock - item.quantity),
+            stock: Value(product.stock - line.quantity),
             updatedAt: Value(now),
           ),
         );
         await _insertStockMovement(
-          productId: item.productId,
+          productId: line.productId,
           movementType: StockMovementType.saleDeduction,
-          quantity: item.quantity,
+          quantity: line.quantity,
           relatedSaleId: saleId,
           createdAt: now,
         );
