@@ -1,5 +1,6 @@
 import '../../../core/database/app_database.dart';
 import '../../../core/domain/flowtrack_models.dart';
+import '../../../core/utils/barcode_utils.dart';
 
 class InventoryListItem {
   const InventoryListItem({required this.product, required this.status});
@@ -28,10 +29,20 @@ class InventoryListController {
         )
         .where((item) {
           final product = item.product;
+          
+          var matchesBarcodeQuery = false;
+          if (normalizedQuery.isNotEmpty) {
+            try {
+              final norm = normalizeBarcode(normalizedQuery);
+              matchesBarcodeQuery = product.barcode.toLowerCase().contains(norm.toLowerCase());
+            } catch (_) {}
+          }
+
           final matchesQuery =
               normalizedQuery.isEmpty ||
               product.name.toLowerCase().contains(normalizedQuery) ||
-              product.barcode.toLowerCase().contains(normalizedQuery);
+              product.barcode.toLowerCase().contains(normalizedQuery) ||
+              matchesBarcodeQuery;
           final matchesStatus =
               statusFilter == null || item.status == statusFilter;
 

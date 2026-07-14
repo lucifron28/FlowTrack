@@ -6,6 +6,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/flowtrack_models.dart';
+import '../utils/barcode_utils.dart';
 
 part 'app_database.g.dart';
 part 'app_database_reports.dart';
@@ -255,7 +256,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Future<Product?> findProductByBarcode(String barcode) async {
-    final cleanBarcode = barcode.replaceAll(RegExp(r'\s+'), '');
+    final cleanBarcode = normalizeBarcode(barcode);
 
     // 1. Exact match query
     final query = select(products)
@@ -309,7 +310,8 @@ final class AppDatabase extends _$AppDatabase {
     _requireNonNegative(initialStock, 'Initial stock');
     _requireNonNegative(lowStockLevel, 'Low stock level');
 
-    final existing = await findProductByBarcode(barcode);
+    final normalizedBarcode = normalizeBarcode(barcode);
+    final existing = await findProductByBarcode(normalizedBarcode);
     if (existing != null) {
       throw StateError('This product already exists. Add stock instead.');
     }
@@ -321,7 +323,7 @@ final class AppDatabase extends _$AppDatabase {
         ProductsCompanion.insert(
           id: productId,
           name: name.trim(),
-          barcode: barcode.trim(),
+          barcode: normalizedBarcode,
           barcodeType: barcodeType.dbValue,
           sellingPrice: sellingPrice,
           costPrice: Value(costPrice),
