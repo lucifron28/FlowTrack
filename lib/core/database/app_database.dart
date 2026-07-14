@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 
 import '../domain/flowtrack_models.dart';
 import '../utils/barcode_utils.dart';
+import '../utils/contact_utils.dart';
 
 part 'app_database.g.dart';
 part 'app_database_reports.dart';
@@ -747,14 +748,24 @@ final class AppDatabase extends _$AppDatabase {
     String? contactNumber,
   }) async {
     _requireText(name, 'Customer name');
+    final normalizedContact = normalizeContactNumber(contactNumber);
+    if (normalizedContact != null) {
+      final existing = await getActiveCustomers();
+      for (final customer in existing) {
+        if (customer.id != customerId &&
+            customer.contactNumber != null &&
+            normalizeContactNumber(customer.contactNumber) ==
+                normalizedContact) {
+          throw StateError(
+            'A customer with this contact number already exists.',
+          );
+        }
+      }
+    }
     await (update(customers)..where((tbl) => tbl.id.equals(customerId))).write(
       CustomersCompanion(
         name: Value(name.trim()),
-        contactNumber: Value(
-          contactNumber == null || contactNumber.trim().isEmpty
-              ? null
-              : contactNumber.trim(),
-        ),
+        contactNumber: Value(normalizedContact),
         updatedAt: Value(DateTime.now()),
       ),
     );
@@ -784,12 +795,31 @@ final class AppDatabase extends _$AppDatabase {
     String? contactNumber,
   }) async {
     _requireText(name, 'Customer name');
+    final normalizedContact = normalizeContactNumber(contactNumber);
+    if (normalizedContact != null) {
+      final existing = await getActiveCustomers();
+      for (final customer in existing) {
+        if (customer.contactNumber != null &&
+            normalizeContactNumber(customer.contactNumber) ==
+                normalizedContact) {
+          throw StateError(
+            'A customer with this contact number already exists.',
+          );
+        }
+      }
+    }
+    final id = _id();
     final now = DateTime.now();
-    return _createCustomerInTransaction(
-      name: name,
-      contactNumber: contactNumber,
-      now: now,
+    await into(customers).insert(
+      CustomersCompanion.insert(
+        id: id,
+        name: name.trim(),
+        contactNumber: Value(normalizedContact),
+        createdAt: now,
+        updatedAt: now,
+      ),
     );
+    return id;
   }
 
   Future<String> _createCustomerInTransaction({
@@ -797,15 +827,17 @@ final class AppDatabase extends _$AppDatabase {
     String? contactNumber,
     required DateTime now,
   }) async {
-    final normalizedName = name.trim().toLowerCase();
-    final existing = await getActiveCustomers();
-    for (final customer in existing) {
-      final sameName = customer.name.trim().toLowerCase() == normalizedName;
-      final sameContact =
-          (contactNumber ?? '').trim().isNotEmpty &&
-          (customer.contactNumber ?? '').trim() == contactNumber!.trim();
-      if (sameName || sameContact) {
-        return customer.id;
+    final normalizedContact = normalizeContactNumber(contactNumber);
+    if (normalizedContact != null) {
+      final existing = await getActiveCustomers();
+      for (final customer in existing) {
+        if (customer.contactNumber != null &&
+            normalizeContactNumber(customer.contactNumber) ==
+                normalizedContact) {
+          throw StateError(
+            'A customer with this contact number already exists. Please select the existing customer instead of creating a new one.',
+          );
+        }
       }
     }
 
@@ -814,11 +846,7 @@ final class AppDatabase extends _$AppDatabase {
       CustomersCompanion.insert(
         id: id,
         name: name.trim(),
-        contactNumber: Value(
-          contactNumber == null || contactNumber.trim().isEmpty
-              ? null
-              : contactNumber.trim(),
-        ),
+        contactNumber: Value(normalizedContact),
         createdAt: now,
         updatedAt: now,
       ),
