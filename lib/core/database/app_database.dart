@@ -479,22 +479,52 @@ final class AppDatabase extends _$AppDatabase {
       throw StateError('Cannot complete an empty sale.');
     }
 
+    final quantitiesByProductId = <String, int>{};
+    for (final line in lines) {
+      if (line.productId.trim().isEmpty) {
+        throw StateError('Product ID cannot be blank.');
+      }
+      if (line.quantity <= 0) {
+        throw StateError('Quantity must be greater than zero.');
+      }
+      quantitiesByProductId.update(
+        line.productId,
+        (current) => current + line.quantity,
+        ifAbsent: () => line.quantity,
+      );
+    }
+
     final now = DateTime.now();
     final saleId = _id();
 
     await transaction(() async {
       int total = 0;
       final productById = <String, Product>{};
-      for (final line in lines) {
-        _requirePositive(line.quantity, 'Quantity');
-        final product = await getProduct(line.productId);
-        if (product == null || !product.isActive) {
+      
+      final uniqueProductIds = quantitiesByProductId.keys.toList();
+      final productsList = await (select(products)
+            ..where((tbl) => tbl.id.isIn(uniqueProductIds)))
+          .get();
+
+      final productMap = {for (final p in productsList) p.id: p};
+
+      for (final productId in uniqueProductIds) {
+        final product = productMap[productId];
+        if (product == null) {
           throw StateError('Product is not available.');
         }
-        if (product.stock < line.quantity) {
+        if (!product.isActive) {
+          throw StateError('${product.name} is not available.');
+        }
+        final requiredQty = quantitiesByProductId[productId]!;
+        if (product.stock < requiredQty) {
           throw StateError('Not enough stock available for ${product.name}.');
         }
-        productById[line.productId] = product;
+        productById[productId] = product;
+      }
+
+      for (final line in lines) {
+        final product = productById[line.productId]!;
         total += product.sellingPrice * line.quantity;
       }
 
