@@ -311,6 +311,13 @@ final class AppDatabase extends _$AppDatabase {
     _requireNonNegative(lowStockLevel, 'Low stock level');
 
     final normalizedBarcode = normalizeBarcode(barcode);
+    if (barcodeType == BarcodeType.manufacturer) {
+      if (isSupportedRetailBarcode(normalizedBarcode) &&
+          !hasValidRetailBarcodeChecksum(normalizedBarcode)) {
+        throw StateError('Invalid EAN/UPC check digit.');
+      }
+    }
+
     final existing = await findProductByBarcode(normalizedBarcode);
     if (existing != null) {
       throw StateError('This product already exists. Add stock instead.');

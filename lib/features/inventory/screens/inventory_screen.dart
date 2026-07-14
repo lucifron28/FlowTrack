@@ -10,6 +10,7 @@ import '../../../core/constants/app_routes.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/domain/flowtrack_models.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/barcode_utils.dart';
 import '../../../shared/providers/app_providers.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
@@ -326,9 +327,22 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                   ),
                 ),
               ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Barcode is required.'
-                  : null,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Barcode is required.';
+                }
+                final norm = value.replaceAll(RegExp(r'\s+'), '');
+                if (norm.isEmpty) {
+                  return 'Barcode cannot be empty.';
+                }
+                if (_barcodeType == BarcodeType.manufacturer) {
+                  if (isSupportedRetailBarcode(norm) &&
+                      !hasValidRetailBarcodeChecksum(norm)) {
+                    return 'Invalid EAN/UPC check digit.';
+                  }
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 12),
             TextFormField(
