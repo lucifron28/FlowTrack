@@ -521,11 +521,7 @@ final class AppDatabase extends _$AppDatabase {
           throw StateError('Not enough stock available for ${product.name}.');
         }
         productById[productId] = product;
-      }
-
-      for (final line in lines) {
-        final product = productById[line.productId]!;
-        total += product.sellingPrice * line.quantity;
+        total += product.sellingPrice * requiredQty;
       }
 
       if (paymentType == PaymentType.cash) {
@@ -533,7 +529,7 @@ final class AppDatabase extends _$AppDatabase {
           throw StateError('Cash sale requires amount received.');
         }
         if (amountReceived < total) {
-          throw StateError('Amount received cannot be less than total.');
+          throw StateError('Amount received ($amountReceived) is below the current sale total ($total).');
         }
       }
 
@@ -577,31 +573,36 @@ final class AppDatabase extends _$AppDatabase {
         ),
       );
 
-      for (final line in lines) {
-        final product = productById[line.productId]!;
+      for (final productId in uniqueProductIds) {
+        final product = productMap[productId]!;
+        final quantity = quantitiesByProductId[productId]!;
+        final subtotal = product.sellingPrice * quantity;
+
         await into(saleItems).insert(
           SaleItemsCompanion.insert(
             id: _id(),
             saleId: saleId,
-            productId: line.productId,
+            productId: productId,
             productNameSnapshot: product.name,
             barcodeSnapshot: product.barcode,
             unitPriceSnapshot: product.sellingPrice,
             costPriceSnapshot: Value(product.costPrice),
-            quantity: line.quantity,
-            subtotal: product.sellingPrice * line.quantity,
+            quantity: quantity,
+            subtotal: subtotal,
           ),
         );
-        await (update(products)..where((tbl) => tbl.id.equals(line.productId))).write(
+
+        await (update(products)..where((tbl) => tbl.id.equals(productId))).write(
           ProductsCompanion(
-            stock: Value(product.stock - line.quantity),
+            stock: Value(product.stock - quantity),
             updatedAt: Value(now),
           ),
         );
+
         await _insertStockMovement(
-          productId: line.productId,
+          productId: productId,
           movementType: StockMovementType.saleDeduction,
-          quantity: line.quantity,
+          quantity: quantity,
           relatedSaleId: saleId,
           createdAt: now,
         );
