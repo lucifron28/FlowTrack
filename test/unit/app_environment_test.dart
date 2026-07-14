@@ -7,6 +7,10 @@ void main() {
       expect(AppEnvironment.parse(''), AppMode.production);
     });
 
+    test('application mode defaults to production without a dart define', () {
+      expect(AppEnvironment.mode, AppMode.production);
+    });
+
     test('production parses as production', () {
       expect(AppEnvironment.parse('production'), AppMode.production);
       expect(AppEnvironment.parse('PRODUCTION '), AppMode.production);

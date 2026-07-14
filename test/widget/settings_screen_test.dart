@@ -42,6 +42,11 @@ void main() {
       expect(find.text('Theme mode'), findsOneWidget);
       expect(find.text('Owner profile'), findsOneWidget);
       expect(find.text('Local backup'), findsOneWidget);
+      expect(find.text('Backup and restore'), findsOneWidget);
+      expect(find.text('Create and share backup'), findsOneWidget);
+      expect(find.text('Save backup to Downloads'), findsOneWidget);
+      expect(find.text('Restore backup'), findsOneWidget);
+      expect(find.text('Logout'), findsOneWidget);
 
       // Verify demo tools are absent
       expect(find.text('Demo data'), findsNothing);
@@ -76,6 +81,8 @@ void main() {
 
     // Verify Theme and Profile settings are visible
     expect(find.text('Theme mode'), findsOneWidget);
+    expect(find.text('Backup and restore'), findsOneWidget);
+    expect(find.text('Logout'), findsOneWidget);
 
     // Verify demo tools are present
     expect(find.text('Demo data'), findsOneWidget);

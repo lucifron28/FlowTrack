@@ -4,6 +4,7 @@ FlowTrack is the final app name. The Android application ID and namespace are `c
 
 ## Demo Readiness
 
+- Run or install FlowTrack with `FLOWTRACK_MODE=demo`.
 - Load or reset demo data from More > Settings > Demo data.
 - Confirm the app opens and works in airplane mode after login.
 - Test scanner permission denial and manual barcode entry.
