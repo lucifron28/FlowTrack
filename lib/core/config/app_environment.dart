@@ -15,7 +15,11 @@ class AppEnvironment {
 
   static AppMode get mode {
     const value = String.fromEnvironment(_modeEnvKey, defaultValue: 'production');
-    switch (value.toLowerCase()) {
+    return parse(value);
+  }
+
+  static AppMode parse(String value) {
+    switch (value.toLowerCase().trim()) {
       case 'demo':
         return AppMode.demo;
       case 'production':
