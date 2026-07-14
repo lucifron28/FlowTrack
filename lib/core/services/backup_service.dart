@@ -115,9 +115,9 @@ class BackupService {
         'creditPayments',
         (json) {
           final Map<String, dynamic> copy = Map<String, dynamic>.from(json);
-          copy['isReversed'] ??= false;
-          copy['reversedAt'] ??= null;
-          copy['reversalReason'] ??= null;
+          copy.putIfAbsent('isReversed', () => false);
+          copy.putIfAbsent('reversedAt', () => null);
+          copy.putIfAbsent('reversalReason', () => null);
           return CreditPayment.fromJson(copy).toCompanion(true);
         },
         _database.creditPayments,
