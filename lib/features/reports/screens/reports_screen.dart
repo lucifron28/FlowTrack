@@ -205,13 +205,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Future<void> _savePdf() async {
     await _runPdfExport(
-      action: (summary) async {
+      action: (summary, reportTitle, start, end) async {
         await ref
             .read(reportPdfServiceProvider)
             .saveReportPdf(
-              reportTitle: _reportTitle,
-              start: _start,
-              end: _end,
+              reportTitle: reportTitle,
+              start: start,
+              end: end,
               summary: summary,
             );
       },
@@ -221,12 +221,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Future<void> _sharePdf() async {
     await _runPdfExport(
-      action: (summary) => ref
+      action: (summary, reportTitle, start, end) => ref
           .read(reportPdfServiceProvider)
           .shareReportPdf(
-            reportTitle: _reportTitle,
-            start: _start,
-            end: _end,
+            reportTitle: reportTitle,
+            start: start,
+            end: end,
             summary: summary,
           ),
       successMessage: 'Report PDF ready to share.',
@@ -234,15 +234,24 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   Future<void> _runPdfExport({
-    required Future<void> Function(ReportSummary summary) action,
+    required Future<void> Function(
+      ReportSummary summary,
+      String reportTitle,
+      DateTime start,
+      DateTime end,
+    ) action,
     required String successMessage,
   }) async {
+    final reportTitle = _reportTitle;
+    final start = _start;
+    final end = _end;
+    
     setState(() => _exportBusy = true);
     try {
       final summary = await ref
           .read(appDatabaseProvider)
-          .reportForRange(start: _start, end: _end);
-      await action(summary);
+          .reportForRange(start: start, end: end);
+      await action(summary, reportTitle, start, end);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
