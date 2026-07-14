@@ -317,7 +317,7 @@ void main() {
 
     // Re-create and test constraints
     final cId = await database.createCustomer(name: 'Jane Doe');
-    
+
     // 1. Balance constraint
     final prod = await createProduct(stock: 5, price: 1000, barcode: 'P-101');
     await database.completeSale(
@@ -335,10 +335,7 @@ void main() {
       customerId: cId,
     );
     // Outstanding balance is now 1000. Deleting should throw.
-    expect(
-      () => database.deleteCustomer(cId),
-      throwsA(isA<StateError>()),
-    );
+    expect(() => database.deleteCustomer(cId), throwsA(isA<StateError>()));
 
     // Record a payment to bring balance to 0, but transaction history still exists
     await database.recordCreditPayment(
@@ -350,10 +347,7 @@ void main() {
     expect(jane.outstandingBalance, 0);
 
     // Deleting should still throw because of credit history
-    expect(
-      () => database.deleteCustomer(cId),
-      throwsA(isA<StateError>()),
-    );
+    expect(() => database.deleteCustomer(cId), throwsA(isA<StateError>()));
   });
 
   test('expense CRUD operations work', () async {
@@ -413,8 +407,10 @@ void main() {
       customerName: 'Aling Nena',
     );
 
-    final customer = (await database.getActiveCustomers()).firstWhere((c) => c.name == 'Aling Nena');
-    
+    final customer = (await database.getActiveCustomers()).firstWhere(
+      (c) => c.name == 'Aling Nena',
+    );
+
     // Record a payment of 500 centavos against the credit
     await database.recordCreditPayment(
       customerId: customer.id,

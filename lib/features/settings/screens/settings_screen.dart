@@ -130,10 +130,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           _BackupToolsCard(),
-          if (isDemo) ...[
-            const SizedBox(height: 12),
-            _QaToolsCard(),
-          ],
+          if (isDemo) ...[const SizedBox(height: 12), _QaToolsCard()],
           const SizedBox(height: 12),
           Card(
             child: ListTile(

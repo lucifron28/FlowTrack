@@ -14,7 +14,10 @@ class AppEnvironment {
   static const String _modeEnvKey = 'FLOWTRACK_MODE';
 
   static AppMode get mode {
-    const value = String.fromEnvironment(_modeEnvKey, defaultValue: 'production');
+    const value = String.fromEnvironment(
+      _modeEnvKey,
+      defaultValue: 'production',
+    );
     return parse(value);
   }
 

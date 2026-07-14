@@ -17,42 +17,41 @@ void main() {
     await database.close();
   });
 
-  testWidgets('SettingsScreen in production mode hides QA/demo tools and badge', (
-    WidgetTester tester,
-  ) async {
-    tester.view.physicalSize = const Size(800, 1200);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+  testWidgets(
+    'SettingsScreen in production mode hides QA/demo tools and badge',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(database),
-          appModeProvider.overrideWithValue(AppMode.production),
-        ],
-        child: const MaterialApp(
-          home: SettingsScreen(),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(database),
+            appModeProvider.overrideWithValue(AppMode.production),
+          ],
+          child: const MaterialApp(home: SettingsScreen()),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    // Verify Theme and Profile settings are visible
-    expect(find.text('Theme mode'), findsOneWidget);
-    expect(find.text('Owner profile'), findsOneWidget);
-    expect(find.text('Local backup'), findsOneWidget);
+      // Verify Theme and Profile settings are visible
+      expect(find.text('Theme mode'), findsOneWidget);
+      expect(find.text('Owner profile'), findsOneWidget);
+      expect(find.text('Local backup'), findsOneWidget);
 
-    // Verify demo tools are absent
-    expect(find.text('Demo data'), findsNothing);
-    expect(find.text('Sync demo data'), findsNothing);
-    expect(find.text('Reset demo data'), findsNothing);
+      // Verify demo tools are absent
+      expect(find.text('Demo data'), findsNothing);
+      expect(find.text('Sync demo data'), findsNothing);
+      expect(find.text('Reset demo data'), findsNothing);
 
-    // Verify DEMO badge is absent
-    expect(find.text('DEMO'), findsNothing);
-  });
+      // Verify DEMO badge is absent
+      expect(find.text('DEMO'), findsNothing);
+    },
+  );
 
   testWidgets('SettingsScreen in demo mode shows QA/demo tools and badge', (
     WidgetTester tester,
@@ -70,9 +69,7 @@ void main() {
           appDatabaseProvider.overrideWithValue(database),
           appModeProvider.overrideWithValue(AppMode.demo),
         ],
-        child: const MaterialApp(
-          home: SettingsScreen(),
-        ),
+        child: const MaterialApp(home: SettingsScreen()),
       ),
     );
     await tester.pumpAndSettle();
