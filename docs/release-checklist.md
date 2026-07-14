@@ -4,6 +4,7 @@ FlowTrack is the final app name. The Android application ID and namespace are `c
 
 ## Demo Readiness
 
+- Run or install FlowTrack with `FLOWTRACK_MODE=demo`.
 - Load or reset demo data from More > Settings > Demo data.
 - Confirm the app opens and works in airplane mode after login.
 - Test scanner permission denial and manual barcode entry.
@@ -35,10 +36,10 @@ Release signing is prepared but not configured with real keys in the repo.
 5. Run:
 
 ```bash
-flutter build apk --release
+flutter build apk --release --dart-define=FLOWTRACK_MODE=production
 ```
 
-If `android/key.properties` is missing, the release build falls back to debug signing for local development only. Do not ship a debug-signed APK.
+If `android/key.properties` is missing, the release build fails immediately to prevent shipping unsigned or debug-signed builds. For local QA/testing, use a debug build instead.
 
 ## GitHub Demo Release
 
