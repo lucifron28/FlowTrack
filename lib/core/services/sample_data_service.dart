@@ -264,10 +264,7 @@ class SampleDataService {
     String barcode,
     int quantity,
   ) {
-    return SaleRequestLine(
-      productId: productIds[barcode]!,
-      quantity: quantity,
-    );
+    return SaleRequestLine(productId: productIds[barcode]!, quantity: quantity);
   }
 }
 

@@ -109,12 +109,7 @@ void main() {
       );
       final product = await source.getProduct(productId);
       await source.completeSale(
-        lines: [
-          SaleRequestLine(
-            productId: product!.id,
-            quantity: 1,
-          ),
-        ],
+        lines: [SaleRequestLine(productId: product!.id, quantity: 1)],
         paymentType: PaymentType.cash,
         saleDate: DateTime.now(),
         amountReceived: 2000,

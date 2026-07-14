@@ -29,12 +29,14 @@ class InventoryListController {
         )
         .where((item) {
           final product = item.product;
-          
+
           var matchesBarcodeQuery = false;
           if (normalizedQuery.isNotEmpty) {
             try {
               final norm = normalizeBarcode(normalizedQuery);
-              matchesBarcodeQuery = product.barcode.toLowerCase().contains(norm.toLowerCase());
+              matchesBarcodeQuery = product.barcode.toLowerCase().contains(
+                norm.toLowerCase(),
+              );
             } catch (_) {}
           }
 

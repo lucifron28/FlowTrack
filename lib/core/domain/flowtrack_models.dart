@@ -149,10 +149,7 @@ DateTime endOfDay(DateTime value) {
 }
 
 class SaleRequestLine {
-  const SaleRequestLine({
-    required this.productId,
-    required this.quantity,
-  });
+  const SaleRequestLine({required this.productId, required this.quantity});
 
   final String productId;
   final int quantity;

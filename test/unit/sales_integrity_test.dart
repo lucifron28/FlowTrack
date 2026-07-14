@@ -55,7 +55,9 @@ void main() {
     expect(items.single.subtotal, 5000);
     expect((await database.getProduct(product.id))!.stock, 0);
 
-    final saleDeductions = movements.where((m) => m.movementType == StockMovementType.saleDeduction.dbValue);
+    final saleDeductions = movements.where(
+      (m) => m.movementType == StockMovementType.saleDeduction.dbValue,
+    );
     expect(saleDeductions.length, 1);
     expect(saleDeductions.single.quantity, 5);
   });
@@ -93,9 +95,7 @@ void main() {
     );
 
     final saleId = await database.completeSale(
-      lines: [
-        SaleRequestLine(productId: product.id, quantity: 2),
-      ],
+      lines: [SaleRequestLine(productId: product.id, quantity: 2)],
       paymentType: PaymentType.cash,
       saleDate: DateTime.now(),
       amountReceived: 2500,
@@ -122,9 +122,7 @@ void main() {
     // Underpay by passing stale price sum (1000 centavos)
     expect(
       () => database.completeSale(
-        lines: [
-          SaleRequestLine(productId: product.id, quantity: 1),
-        ],
+        lines: [SaleRequestLine(productId: product.id, quantity: 1)],
         paymentType: PaymentType.cash,
         saleDate: DateTime.now(),
         amountReceived: 1000,
@@ -162,9 +160,7 @@ void main() {
     final customerId = await database.createCustomer(name: 'Ate Joy');
 
     final saleId = await database.completeSale(
-      lines: [
-        SaleRequestLine(productId: product.id, quantity: 2),
-      ],
+      lines: [SaleRequestLine(productId: product.id, quantity: 2)],
       paymentType: PaymentType.credit,
       saleDate: DateTime.now(),
       customerId: customerId,
@@ -181,7 +177,12 @@ void main() {
 
   test('other negative paths fail', () async {
     final product = await createProduct(stock: 5, price: 1000, isActive: true);
-    final inactiveProduct = await createProduct(stock: 5, price: 1000, barcode: 'P-998', isActive: false);
+    final inactiveProduct = await createProduct(
+      stock: 5,
+      price: 1000,
+      barcode: 'P-998',
+      isActive: false,
+    );
 
     // 1. Empty request
     expect(
@@ -197,9 +198,7 @@ void main() {
     // 2. Missing product
     expect(
       () => database.completeSale(
-        lines: [
-          SaleRequestLine(productId: 'missing-id', quantity: 1),
-        ],
+        lines: [SaleRequestLine(productId: 'missing-id', quantity: 1)],
         paymentType: PaymentType.cash,
         saleDate: DateTime.now(),
         amountReceived: 1000,
@@ -210,9 +209,7 @@ void main() {
     // 3. Inactive product
     expect(
       () => database.completeSale(
-        lines: [
-          SaleRequestLine(productId: inactiveProduct.id, quantity: 1),
-        ],
+        lines: [SaleRequestLine(productId: inactiveProduct.id, quantity: 1)],
         paymentType: PaymentType.cash,
         saleDate: DateTime.now(),
         amountReceived: 1000,
@@ -223,9 +220,7 @@ void main() {
     // 4. Zero quantity
     expect(
       () => database.completeSale(
-        lines: [
-          SaleRequestLine(productId: product.id, quantity: 0),
-        ],
+        lines: [SaleRequestLine(productId: product.id, quantity: 0)],
         paymentType: PaymentType.cash,
         saleDate: DateTime.now(),
         amountReceived: 1000,
@@ -236,9 +231,7 @@ void main() {
     // 5. Negative quantity
     expect(
       () => database.completeSale(
-        lines: [
-          SaleRequestLine(productId: product.id, quantity: -2),
-        ],
+        lines: [SaleRequestLine(productId: product.id, quantity: -2)],
         paymentType: PaymentType.cash,
         saleDate: DateTime.now(),
         amountReceived: 1000,
@@ -249,9 +242,7 @@ void main() {
     // 6. Insufficient stock
     expect(
       () => database.completeSale(
-        lines: [
-          SaleRequestLine(productId: product.id, quantity: 10),
-        ],
+        lines: [SaleRequestLine(productId: product.id, quantity: 10)],
         paymentType: PaymentType.cash,
         saleDate: DateTime.now(),
         amountReceived: 10000,

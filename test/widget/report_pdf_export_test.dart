@@ -27,14 +27,13 @@ void main() {
   ) async {
     final calls = <MethodCall>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('flowtrack/pdf_export'),
-          (call) async {
-            calls.add(call);
-            await Future.delayed(const Duration(milliseconds: 50));
-            return 'content://downloads/flowtrack-report.pdf';
-          },
-        );
+        .setMockMethodCallHandler(const MethodChannel('flowtrack/pdf_export'), (
+          call,
+        ) async {
+          calls.add(call);
+          await Future.delayed(const Duration(milliseconds: 50));
+          return 'content://downloads/flowtrack-report.pdf';
+        });
 
     await tester.pumpWidget(
       ProviderScope(
@@ -48,16 +47,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Save PDF'), findsOneWidget);
-    
+
     await tester.tap(find.text('Save PDF'));
     await tester.pump();
-    
+
     // Check busy state
     final saveButton = tester.widget<FilledButton>(
-      find.ancestor(of: find.text('Save PDF'), matching: find.byType(FilledButton)),
+      find.ancestor(
+        of: find.text('Save PDF'),
+        matching: find.byType(FilledButton),
+      ),
     );
     final shareButton = tester.widget<OutlinedButton>(
-      find.ancestor(of: find.text('Share PDF'), matching: find.byType(OutlinedButton)),
+      find.ancestor(
+        of: find.text('Share PDF'),
+        matching: find.byType(OutlinedButton),
+      ),
     );
     expect(saveButton.onPressed, isNull);
     expect(shareButton.onPressed, isNull);
@@ -75,13 +80,12 @@ void main() {
   ) async {
     final calls = <MethodCall>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('flowtrack/pdf_export'),
-          (call) async {
-            calls.add(call);
-            return 'content://downloads/flowtrack-report.pdf';
-          },
-        );
+        .setMockMethodCallHandler(const MethodChannel('flowtrack/pdf_export'), (
+          call,
+        ) async {
+          calls.add(call);
+          return 'content://downloads/flowtrack-report.pdf';
+        });
 
     await tester.pumpWidget(
       ProviderScope(

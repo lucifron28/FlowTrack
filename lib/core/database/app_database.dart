@@ -509,11 +509,11 @@ final class AppDatabase extends _$AppDatabase {
     await transaction(() async {
       int total = 0;
       final productById = <String, Product>{};
-      
+
       final uniqueProductIds = quantitiesByProductId.keys.toList();
-      final productsList = await (select(products)
-            ..where((tbl) => tbl.id.isIn(uniqueProductIds)))
-          .get();
+      final productsList = await (select(
+        products,
+      )..where((tbl) => tbl.id.isIn(uniqueProductIds))).get();
 
       final productMap = {for (final p in productsList) p.id: p};
 
@@ -538,7 +538,9 @@ final class AppDatabase extends _$AppDatabase {
           throw StateError('Cash sale requires amount received.');
         }
         if (amountReceived < total) {
-          throw StateError('Amount received ($amountReceived) is below the current sale total ($total).');
+          throw StateError(
+            'Amount received ($amountReceived) is below the current sale total ($total).',
+          );
         }
       }
 
@@ -601,7 +603,9 @@ final class AppDatabase extends _$AppDatabase {
           ),
         );
 
-        await (update(products)..where((tbl) => tbl.id.equals(productId))).write(
+        await (update(
+          products,
+        )..where((tbl) => tbl.id.equals(productId))).write(
           ProductsCompanion(
             stock: Value(product.stock - quantity),
             updatedAt: Value(now),

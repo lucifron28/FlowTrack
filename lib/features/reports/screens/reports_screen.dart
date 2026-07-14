@@ -239,13 +239,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       String reportTitle,
       DateTime start,
       DateTime end,
-    ) action,
+    )
+    action,
     required String successMessage,
   }) async {
     final reportTitle = _reportTitle;
     final start = _start;
     final end = _end;
-    
+
     setState(() => _exportBusy = true);
     try {
       final summary = await ref
