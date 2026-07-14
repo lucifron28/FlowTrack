@@ -57,14 +57,25 @@ Restore replaces the current local store data after confirmation. Owner login is
 
 ## Demo Data
 
+> [!WARNING]
+> Demo data tools contain destructive reset functionality and must **never** be used with real store data.
+
+By default, the application runs in `production` mode, which hides all sample-data generation and destructive database reset controls in Settings.
+
+To enable the demo-data tools in Settings (and display a visual `DEMO` badge), the application must be explicitly run or built in demo mode:
+
+```bash
+flutter run --dart-define=FLOWTRACK_MODE=demo
+```
+
 Use this before phone QA or video recording:
 
-1. Install and open the app.
+1. Install and open the app in demo mode.
 2. Log in or create the local owner account.
 3. Go to More, then Settings.
-4. Open the Demo data card.
-5. Tap Sync demo data to load or repair the sample dataset.
-6. Tap Reset demo data when you need a clean recording state. This clears local products, sales, credits, expenses, and stock history, then reloads the demo dataset. Owner login is not changed.
+4. Locate the **Demo data** card.
+5. Tap **Sync demo data** to load or repair the sample dataset.
+6. Tap **Reset demo data** when you need a clean recording state. This clears local products, sales, credits, expenses, and stock history, then reloads the demo dataset. Owner login is not changed.
 
 Demo barcode files:
 
@@ -140,6 +151,52 @@ The debug APK is generated at:
 ```text
 build/app/outputs/flutter-apk/app-debug.apk
 ```
+
+## Build and Release Modes
+
+The codebase separates **production** and **demo** environment behaviors using `--dart-define=FLOWTRACK_MODE`.
+
+### 1. Production Mode (Default)
+Production mode is the default and disables all destructive sample-data generation/reset tools to ensure store data integrity.
+- **Run local debug**:
+  ```bash
+  flutter run --dart-define=FLOWTRACK_MODE=production
+  ```
+- **Build debug APK**:
+  ```bash
+  flutter build apk --debug --dart-define=FLOWTRACK_MODE=production
+  ```
+- **Build production release APK**:
+  ```bash
+  flutter build apk --release --dart-define=FLOWTRACK_MODE=production
+  ```
+  > [!IMPORTANT]
+  > Production release builds **fail closed** if the release keystore properties (`android/key.properties`) are missing.
+
+### 2. Demo Mode
+Demo mode includes sample-data Sync/Reset tools and a visible `DEMO` badge in Settings.
+- **Run local demo**:
+  ```bash
+  flutter run --dart-define=FLOWTRACK_MODE=demo
+  ```
+- **Build debug APK**:
+  ```bash
+  flutter build apk --debug --dart-define=FLOWTRACK_MODE=demo
+  ```
+
+---
+
+## Continuous Integration (CI)
+
+This repository enforces continuous validation on all Pull Requests and pushes to `main` via GitHub Actions:
+- Validates the exact pinned Flutter SDK version (`3.44.5`).
+- Verifies that generated Drift code matches checked-in source files (fails if build runner leaves uncommitted changes).
+- Runs static analysis and the full unit/widget test suite.
+- Performs a dry run of the production mode debug build.
+
+Manual demo APK builds are released via `demo-release.yml` on `v*` tag pushes. These builds are explicitly compiled in demo mode and are debug-signed.
+
+---
 
 Camera scanning uses Android camera permission. Manual barcode entry is required and remains available when camera scanning fails.
 
