@@ -113,7 +113,13 @@ class BackupService {
       await _restoreRows(
         data,
         'creditPayments',
-        (json) => CreditPayment.fromJson(json).toCompanion(true),
+        (json) {
+          final Map<String, dynamic> copy = Map<String, dynamic>.from(json);
+          copy['isReversed'] ??= false;
+          copy['reversedAt'] ??= null;
+          copy['reversalReason'] ??= null;
+          return CreditPayment.fromJson(copy).toCompanion(true);
+        },
         _database.creditPayments,
       );
       await _restoreRows(
