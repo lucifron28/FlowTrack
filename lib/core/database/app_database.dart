@@ -536,9 +536,7 @@ final class AppDatabase extends _$AppDatabase {
           throw StateError('Cash sale requires amount received.');
         }
         if (amountReceived < total) {
-          throw StateError(
-            'Amount received is below the current sale total.',
-          );
+          throw StateError('Amount received is below the current sale total.');
         }
       }
 

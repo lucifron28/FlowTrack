@@ -87,7 +87,9 @@ void main() {
     expect(saleItemsList, isEmpty);
     final movements = await database.watchStockMovements(product.id).first;
     expect(
-      movements.where((m) => m.movementType == StockMovementType.saleDeduction.dbValue),
+      movements.where(
+        (m) => m.movementType == StockMovementType.saleDeduction.dbValue,
+      ),
       isEmpty,
     );
   });
@@ -144,7 +146,9 @@ void main() {
     expect(saleItemsList, isEmpty);
     final movements = await database.watchStockMovements(product.id).first;
     expect(
-      movements.where((m) => m.movementType == StockMovementType.saleDeduction.dbValue),
+      movements.where(
+        (m) => m.movementType == StockMovementType.saleDeduction.dbValue,
+      ),
       isEmpty,
     );
   });
@@ -152,9 +156,9 @@ void main() {
   test('failed credit sale rollback', () async {
     final product = await createProduct(stock: 5, price: 1000);
     final customerId = await database.createCustomer(name: 'Ate Joy');
-    await (database.update(database.customers)..where((tbl) => tbl.id.equals(customerId))).write(
-      CustomersCompanion(isActive: const Value(false)),
-    );
+    await (database.update(database.customers)
+          ..where((tbl) => tbl.id.equals(customerId)))
+        .write(CustomersCompanion(isActive: const Value(false)));
 
     expect(
       () => database.completeSale(
@@ -178,7 +182,9 @@ void main() {
     expect(saleItemsList, isEmpty);
     final movements = await database.watchStockMovements(product.id).first;
     expect(
-      movements.where((m) => m.movementType == StockMovementType.saleDeduction.dbValue),
+      movements.where(
+        (m) => m.movementType == StockMovementType.saleDeduction.dbValue,
+      ),
       isEmpty,
     );
     final creditRecords = await database.watchCreditRecords(customerId).first;
