@@ -76,24 +76,16 @@ void _appendBarcode(
 ) {
   final isEan13 = RegExp(r'^\d+$').hasMatch(value) && value.length == 13;
   final bc = isEan13 ? barcode.Barcode.ean13() : barcode.Barcode.code128();
-
-  var barcodeSvg = bc.toSvg(
-    value,
-    width: width,
-    height: height,
-    drawText: false,
-  );
-
+  
+  var barcodeSvg = bc.toSvg(value, width: width, height: height, drawText: false);
+  
   // Customize nested SVG tags and colors
   barcodeSvg = barcodeSvg
-      .replaceFirst(
-        '<svg viewBox=',
-        '<svg x="$startX" y="$y" width="$width" height="$height" viewBox=',
-      )
+      .replaceFirst('<svg viewBox=', '<svg x="$startX" y="$y" width="$width" height="$height" viewBox=')
       .replaceAll('style="fill: #000000"', 'style="fill: #0F172A"');
-
+      
   buffer.writeln(barcodeSvg);
-
+  
   buffer.writeln(
     '<text x="$startX" y="${y + height + 22}" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="#0F172A">${_escape(value)}</text>',
   );
