@@ -147,3 +147,10 @@ DateTime startOfDay(DateTime value) {
 DateTime endOfDay(DateTime value) {
   return startOfDay(value).add(const Duration(days: 1));
 }
+
+class SaleRequestLine {
+  const SaleRequestLine({required this.productId, required this.quantity});
+
+  final String productId;
+  final int quantity;
+}

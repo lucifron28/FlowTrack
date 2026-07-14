@@ -31,20 +31,12 @@ void main() {
 
   test('stock is deducted only after sale completion', () async {
     final product = await createProduct(stock: 5, price: 1000);
-    final draft = [
-      SaleCartLine(
-        productId: product.id,
-        productName: product.name,
-        barcode: product.barcode,
-        unitPrice: product.sellingPrice,
-        quantity: 2,
-      ),
-    ];
+    final draft = [SaleRequestLine(productId: product.id, quantity: 2)];
 
     expect((await database.getProduct(product.id))!.stock, 5);
 
     await database.completeSale(
-      items: draft,
+      lines: draft,
       paymentType: PaymentType.cash,
       saleDate: DateTime(2026, 5, 4),
       amountReceived: 2000,
@@ -62,16 +54,7 @@ void main() {
         barcode: 'P-010',
       );
       final saleId = await database.completeSale(
-        items: [
-          SaleCartLine(
-            productId: product.id,
-            productName: product.name,
-            barcode: product.barcode,
-            unitPrice: product.sellingPrice,
-            costPrice: product.costPrice,
-            quantity: 2,
-          ),
-        ],
+        lines: [SaleRequestLine(productId: product.id, quantity: 2)],
         paymentType: PaymentType.cash,
         saleDate: DateTime(2026, 5, 4),
         amountReceived: 2500,
@@ -101,15 +84,7 @@ void main() {
         barcode: 'P-002',
       );
       await database.completeSale(
-        items: [
-          SaleCartLine(
-            productId: product.id,
-            productName: product.name,
-            barcode: product.barcode,
-            unitPrice: product.sellingPrice,
-            quantity: 1,
-          ),
-        ],
+        lines: [SaleRequestLine(productId: product.id, quantity: 1)],
         paymentType: PaymentType.credit,
         saleDate: DateTime(2026, 5, 4),
         customerName: 'Aling Nena',
@@ -141,29 +116,13 @@ void main() {
         barcode: 'P-011',
       );
       await database.completeSale(
-        items: [
-          SaleCartLine(
-            productId: product.id,
-            productName: product.name,
-            barcode: product.barcode,
-            unitPrice: product.sellingPrice,
-            quantity: 1,
-          ),
-        ],
+        lines: [SaleRequestLine(productId: product.id, quantity: 1)],
         paymentType: PaymentType.credit,
         saleDate: DateTime(2026, 5, 1),
         customerName: 'Mang Lito',
       );
       await database.completeSale(
-        items: [
-          SaleCartLine(
-            productId: product.id,
-            productName: product.name,
-            barcode: product.barcode,
-            unitPrice: product.sellingPrice,
-            quantity: 2,
-          ),
-        ],
+        lines: [SaleRequestLine(productId: product.id, quantity: 2)],
         paymentType: PaymentType.credit,
         saleDate: DateTime(2026, 5, 2),
         customerName: 'Mang Lito',
@@ -198,15 +157,7 @@ void main() {
         barcode: 'P-012',
       );
       final saleId = await database.completeSale(
-        items: [
-          SaleCartLine(
-            productId: product.id,
-            productName: product.name,
-            barcode: product.barcode,
-            unitPrice: product.sellingPrice,
-            quantity: 2,
-          ),
-        ],
+        lines: [SaleRequestLine(productId: product.id, quantity: 2)],
         paymentType: PaymentType.credit,
         saleDate: DateTime(2026, 5, 4),
         customerName: 'Aling Rosa',
@@ -233,15 +184,7 @@ void main() {
       barcode: 'P-003',
     );
     final saleId = await database.completeSale(
-      items: [
-        SaleCartLine(
-          productId: product.id,
-          productName: product.name,
-          barcode: product.barcode,
-          unitPrice: product.sellingPrice,
-          quantity: 1,
-        ),
-      ],
+      lines: [SaleRequestLine(productId: product.id, quantity: 1)],
       paymentType: PaymentType.cash,
       saleDate: DateTime(2026, 5, 4, 10),
       amountReceived: 1000,
@@ -317,28 +260,17 @@ void main() {
 
     // Re-create and test constraints
     final cId = await database.createCustomer(name: 'Jane Doe');
-    
+
     // 1. Balance constraint
     final prod = await createProduct(stock: 5, price: 1000, barcode: 'P-101');
     await database.completeSale(
-      items: [
-        SaleCartLine(
-          productId: prod.id,
-          productName: prod.name,
-          barcode: prod.barcode,
-          unitPrice: prod.sellingPrice,
-          quantity: 1,
-        ),
-      ],
+      lines: [SaleRequestLine(productId: prod.id, quantity: 1)],
       paymentType: PaymentType.credit,
       saleDate: DateTime.now(),
       customerId: cId,
     );
     // Outstanding balance is now 1000. Deleting should throw.
-    expect(
-      () => database.deleteCustomer(cId),
-      throwsA(isA<StateError>()),
-    );
+    expect(() => database.deleteCustomer(cId), throwsA(isA<StateError>()));
 
     // Record a payment to bring balance to 0, but transaction history still exists
     await database.recordCreditPayment(
@@ -350,10 +282,7 @@ void main() {
     expect(jane.outstandingBalance, 0);
 
     // Deleting should still throw because of credit history
-    expect(
-      () => database.deleteCustomer(cId),
-      throwsA(isA<StateError>()),
-    );
+    expect(() => database.deleteCustomer(cId), throwsA(isA<StateError>()));
   });
 
   test('expense CRUD operations work', () async {
@@ -399,22 +328,16 @@ void main() {
       barcode: 'P-999',
     );
     final saleId = await database.completeSale(
-      items: [
-        SaleCartLine(
-          productId: product.id,
-          productName: product.name,
-          barcode: product.barcode,
-          unitPrice: product.sellingPrice,
-          quantity: 2,
-        ),
-      ],
+      lines: [SaleRequestLine(productId: product.id, quantity: 2)],
       paymentType: PaymentType.credit,
       saleDate: DateTime(2026, 5, 4),
       customerName: 'Aling Nena',
     );
 
-    final customer = (await database.getActiveCustomers()).firstWhere((c) => c.name == 'Aling Nena');
-    
+    final customer = (await database.getActiveCustomers()).firstWhere(
+      (c) => c.name == 'Aling Nena',
+    );
+
     // Record a payment of 500 centavos against the credit
     await database.recordCreditPayment(
       customerId: customer.id,

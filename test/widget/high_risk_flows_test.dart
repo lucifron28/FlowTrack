@@ -64,7 +64,7 @@ void main() {
   testWidgets('add stock screen updates inventory quantity', (tester) async {
     final productId = await database.createProduct(
       name: 'Piattos Test Cheese',
-      barcode: '4800016060218',
+      barcode: '4800016060212',
       barcodeType: BarcodeType.manufacturer,
       sellingPrice: 1800,
       costPrice: 1400,

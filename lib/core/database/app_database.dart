@@ -6,6 +6,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/flowtrack_models.dart';
+import '../utils/barcode_utils.dart';
 
 part 'app_database.g.dart';
 part 'app_database_reports.dart';
@@ -255,7 +256,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Future<Product?> findProductByBarcode(String barcode) async {
-    final cleanBarcode = barcode.replaceAll(RegExp(r'\s+'), '');
+    final cleanBarcode = normalizeBarcode(barcode);
 
     // 1. Exact match query
     final query = select(products)
@@ -309,7 +310,15 @@ final class AppDatabase extends _$AppDatabase {
     _requireNonNegative(initialStock, 'Initial stock');
     _requireNonNegative(lowStockLevel, 'Low stock level');
 
-    final existing = await findProductByBarcode(barcode);
+    final normalizedBarcode = normalizeBarcode(barcode);
+    if (barcodeType == BarcodeType.manufacturer) {
+      if (isSupportedRetailBarcode(normalizedBarcode) &&
+          !hasValidRetailBarcodeChecksum(normalizedBarcode)) {
+        throw StateError('Invalid EAN/UPC check digit.');
+      }
+    }
+
+    final existing = await findProductByBarcode(normalizedBarcode);
     if (existing != null) {
       throw StateError('This product already exists. Add stock instead.');
     }
@@ -321,7 +330,7 @@ final class AppDatabase extends _$AppDatabase {
         ProductsCompanion.insert(
           id: productId,
           name: name.trim(),
-          barcode: barcode.trim(),
+          barcode: normalizedBarcode,
           barcodeType: barcodeType.dbValue,
           sellingPrice: sellingPrice,
           costPrice: Value(costPrice),
@@ -467,7 +476,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Future<String> completeSale({
-    required List<SaleCartLine> items,
+    required List<SaleRequestLine> lines,
     required PaymentType paymentType,
     required DateTime saleDate,
     int? amountReceived,
@@ -475,34 +484,60 @@ final class AppDatabase extends _$AppDatabase {
     String? customerName,
     String? contactNumber,
   }) async {
-    if (items.isEmpty) {
+    if (lines.isEmpty) {
       throw StateError('Cannot complete an empty sale.');
     }
-    final total = calculateSaleTotal(items);
-    if (paymentType == PaymentType.cash) {
-      if (amountReceived == null) {
-        throw StateError('Cash sale requires amount received.');
+
+    final quantitiesByProductId = <String, int>{};
+    for (final line in lines) {
+      if (line.productId.trim().isEmpty) {
+        throw StateError('Product ID cannot be blank.');
       }
-      if (amountReceived < total) {
-        throw StateError('Amount received cannot be less than total.');
+      if (line.quantity <= 0) {
+        throw StateError('Quantity must be greater than zero.');
       }
+      quantitiesByProductId.update(
+        line.productId,
+        (current) => current + line.quantity,
+        ifAbsent: () => line.quantity,
+      );
     }
 
     final now = DateTime.now();
     final saleId = _id();
 
     await transaction(() async {
-      final productById = <String, Product>{};
-      for (final item in items) {
-        _requirePositive(item.quantity, 'Quantity');
-        final product = await getProduct(item.productId);
-        if (product == null || !product.isActive) {
-          throw StateError('${item.productName} is not available.');
+      int total = 0;
+
+      final uniqueProductIds = quantitiesByProductId.keys.toList();
+      final productsList = await (select(
+        products,
+      )..where((tbl) => tbl.id.isIn(uniqueProductIds))).get();
+
+      final productMap = {for (final p in productsList) p.id: p};
+
+      for (final productId in uniqueProductIds) {
+        final product = productMap[productId];
+        if (product == null) {
+          throw StateError('Product is not available.');
         }
-        if (product.stock < item.quantity) {
+        if (!product.isActive) {
+          throw StateError('${product.name} is not available.');
+        }
+        final requiredQty = quantitiesByProductId[productId]!;
+        if (product.stock < requiredQty) {
           throw StateError('Not enough stock available for ${product.name}.');
         }
-        productById[item.productId] = product;
+        total += product.sellingPrice * requiredQty;
+      }
+
+      if (paymentType == PaymentType.cash) {
+        if (amountReceived == null) {
+          throw StateError('Cash sale requires amount received.');
+        }
+        if (amountReceived < total) {
+          throw StateError('Amount received is below the current sale total.');
+        }
       }
 
       String? finalCustomerId = customerId;
@@ -545,33 +580,38 @@ final class AppDatabase extends _$AppDatabase {
         ),
       );
 
-      for (final item in items) {
-        final product = productById[item.productId]!;
+      for (final productId in uniqueProductIds) {
+        final product = productMap[productId]!;
+        final quantity = quantitiesByProductId[productId]!;
+        final subtotal = product.sellingPrice * quantity;
+
         await into(saleItems).insert(
           SaleItemsCompanion.insert(
             id: _id(),
             saleId: saleId,
-            productId: item.productId,
+            productId: productId,
             productNameSnapshot: product.name,
             barcodeSnapshot: product.barcode,
             unitPriceSnapshot: product.sellingPrice,
             costPriceSnapshot: Value(product.costPrice),
-            quantity: item.quantity,
-            subtotal: product.sellingPrice * item.quantity,
+            quantity: quantity,
+            subtotal: subtotal,
           ),
         );
+
         await (update(
           products,
-        )..where((tbl) => tbl.id.equals(item.productId))).write(
+        )..where((tbl) => tbl.id.equals(productId))).write(
           ProductsCompanion(
-            stock: Value(product.stock - item.quantity),
+            stock: Value(product.stock - quantity),
             updatedAt: Value(now),
           ),
         );
+
         await _insertStockMovement(
-          productId: item.productId,
+          productId: productId,
           movementType: StockMovementType.saleDeduction,
-          quantity: item.quantity,
+          quantity: quantity,
           relatedSaleId: saleId,
           createdAt: now,
         );

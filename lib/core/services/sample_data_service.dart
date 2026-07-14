@@ -163,10 +163,10 @@ class SampleDataService {
 
     final now = DateTime.now();
     await _database.completeSale(
-      items: [
-        _cartLine(_products, productIds, '4807770271137', 2),
-        _cartLine(_products, productIds, '4804888801232', 1),
-        _cartLine(_products, productIds, '4800016640704', 1),
+      lines: [
+        _requestLine(productIds, '4807770271137', 2),
+        _requestLine(productIds, '4804888801232', 1),
+        _requestLine(productIds, '4800016640704', 1),
       ],
       paymentType: PaymentType.cash,
       saleDate: now,
@@ -174,10 +174,10 @@ class SampleDataService {
     );
 
     await _database.completeSale(
-      items: [
-        _cartLine(_products, productIds, 'FT-TINGI-ASUKAL', 1),
-        _cartLine(_products, productIds, '4800361417402', 4),
-        _cartLine(_products, productIds, '4800110020303', 1),
+      lines: [
+        _requestLine(productIds, 'FT-TINGI-ASUKAL', 1),
+        _requestLine(productIds, '4800361417402', 4),
+        _requestLine(productIds, '4800110020303', 1),
       ],
       paymentType: PaymentType.credit,
       saleDate: now.subtract(const Duration(days: 1)),
@@ -185,10 +185,10 @@ class SampleDataService {
     );
 
     await _database.completeSale(
-      items: [
-        _cartLine(_products, productIds, 'FT-TINGI-BIGAS', 1),
-        _cartLine(_products, productIds, 'FT-TINGI-MANTIKA', 1),
-        _cartLine(_products, productIds, '4800016112300', 3),
+      lines: [
+        _requestLine(productIds, 'FT-TINGI-BIGAS', 1),
+        _requestLine(productIds, 'FT-TINGI-MANTIKA', 1),
+        _requestLine(productIds, '4800016112300', 3),
       ],
       paymentType: PaymentType.credit,
       saleDate: now.subtract(const Duration(days: 3)),
@@ -259,21 +259,12 @@ class SampleDataService {
     );
   }
 
-  SaleCartLine _cartLine(
-    List<_SampleProduct> products,
+  SaleRequestLine _requestLine(
     Map<String, String> productIds,
     String barcode,
     int quantity,
   ) {
-    final product = products.firstWhere((item) => item.barcode == barcode);
-    return SaleCartLine(
-      productId: productIds[barcode]!,
-      productName: product.name,
-      barcode: product.barcode,
-      unitPrice: product.sellingPrice,
-      costPrice: product.costPrice,
-      quantity: quantity,
-    );
+    return SaleRequestLine(productId: productIds[barcode]!, quantity: quantity);
   }
 }
 
