@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../core/config/app_environment.dart';
 import '../../../shared/providers/app_providers.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -14,6 +15,9 @@ class SettingsScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final storeNameAsync = ref.watch(storeNameProvider);
     final authState = ref.watch(authControllerProvider).value;
+    final appMode = ref.watch(appModeProvider);
+    final isDemo = appMode == AppMode.demo;
+
     return Scaffold(
       appBar: showAppBar ? AppBar(title: const Text('Settings')) : null,
       body: ListView(
@@ -22,7 +26,33 @@ class SettingsScreen extends ConsumerWidget {
           Card(
             child: ListTile(
               leading: const Icon(Icons.storefront),
-              title: Text(storeNameAsync.value ?? AppConfig.appName),
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(storeNameAsync.value ?? AppConfig.appName),
+                  if (isDemo) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'DEMO',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
               subtitle: const Text(AppConfig.appDescription),
               trailing: const Text(AppConfig.appVersion),
             ),
@@ -100,8 +130,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           _BackupToolsCard(),
-          const SizedBox(height: 12),
-          _QaToolsCard(),
+          if (isDemo) ...[const SizedBox(height: 12), _QaToolsCard()],
           const SizedBox(height: 12),
           Card(
             child: ListTile(
