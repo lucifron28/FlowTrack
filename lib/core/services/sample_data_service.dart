@@ -173,7 +173,6 @@ class SampleDataService {
       saleDate: now,
       amountReceived: 7000,
     );
-    await Future.delayed(const Duration(milliseconds: 1));
 
     await _database.completeSale(
       lines: [
@@ -185,7 +184,6 @@ class SampleDataService {
       saleDate: now.subtract(const Duration(days: 1)),
       customerId: alingNenaId,
     );
-    await Future.delayed(const Duration(milliseconds: 1));
 
     await _database.completeSale(
       lines: [

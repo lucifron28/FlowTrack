@@ -5,6 +5,13 @@ import '../../core/utils/contact_utils.dart';
 class BackupValidator {
   const BackupValidator();
 
+  int _requireInt(dynamic value, String field) {
+    if (value is! int) {
+      throw Exception('Field \$field must be an integer, got \${value.runtimeType}.');
+    }
+    return value;
+  }
+
   void validateBackup(Map<String, dynamic> decoded, int expectedBackupVersion) {
     if (!decoded.containsKey('metadata') || !decoded.containsKey('data')) {
       throw Exception('Missing metadata or data blocks.');
@@ -20,9 +27,8 @@ class BackupValidator {
     }
 
     final version = metadata['backupVersion'];
-    // We only support restoring version 1 (legacy plaintext) or version 2 (encrypted).
-    if (version != 1 && version != 2) {
-      throw Exception('Backup version \$version is not supported.');
+    if (version != expectedBackupVersion) {
+      throw Exception('Expected backup version \$expectedBackupVersion, got \$version.');
     }
 
     final data = decoded['data'];
@@ -107,9 +113,9 @@ class BackupValidator {
         }
       }
 
-      final price = (p['sellingPrice'] as num).toInt();
-      final cost = p['costPrice'] != null ? (p['costPrice'] as num).toInt() : 0;
-      final stock = (p['stock'] as num).toInt();
+      final price = _requireInt(p['sellingPrice'], 'sellingPrice');
+      final cost = p['costPrice'] != null ? _requireInt(p['costPrice'], 'costPrice') : 0;
+      final stock = _requireInt(p['stock'], 'stock');
       if (price < 0 || cost < 0 || stock < 0) {
         throw Exception('Negative price, cost, or stock for product \$id.');
       }
@@ -132,7 +138,7 @@ class BackupValidator {
         customerContacts.add(normalized);
       }
 
-      final balance = (c['outstandingBalance'] as num).toInt();
+      final balance = _requireInt(c['outstandingBalance'], 'outstandingBalance');
       if (balance < 0) {
         throw Exception('Negative outstanding balance for customer \$id.');
       }
@@ -157,8 +163,8 @@ class BackupValidator {
       }
       saleNumbers.add(numStr);
 
-      final total = (s['totalAmount'] as num).toInt();
-      final paid = s['amountReceived'] != null ? (s['amountReceived'] as num).toInt() : 0;
+      final total = _requireInt(s['totalAmount'], 'totalAmount');
+      final paid = s['amountReceived'] != null ? _requireInt(s['amountReceived'], 'amountReceived') : 0;
       if (total < 0 || paid < 0) {
         throw Exception('Negative total or paid amount for sale \$id.');
       }
@@ -188,8 +194,8 @@ class BackupValidator {
             'Sale item \$id references missing product \$productId.');
       }
 
-      final qty = (item['quantity'] as num).toInt();
-      final subtotal = (item['subtotal'] as num).toInt();
+      final qty = _requireInt(item['quantity'], 'quantity');
+      final subtotal = _requireInt(item['subtotal'], 'subtotal');
       if (qty <= 0) {
         throw Exception('Non-positive quantity for sale item \$id.');
       }
@@ -203,7 +209,7 @@ class BackupValidator {
     // Check sale header totals
     for (final s in sales) {
       final id = s['id'] as String;
-      final headerTotal = (s['totalAmount'] as num).toInt();
+      final headerTotal = _requireInt(s['totalAmount'], 'totalAmount');
       final calculatedTotal = itemTotals[id] ?? 0;
       if (headerTotal != calculatedTotal) {
         throw Exception('Sale \$id total does not match sum of items.');
@@ -247,8 +253,8 @@ class BackupValidator {
 
       final status = cr['status'] as String? ?? 'active';
       final isVoided = status == 'voided';
-      final amount = (cr['amount'] as num).toInt();
-      final paid = (cr['paidAmount'] as num).toInt();
+      final amount = _requireInt(cr['amount'], 'amount');
+      final paid = _requireInt(cr['paidAmount'], 'paidAmount');
       final remaining = amount - paid;
 
       if (amount <= 0) {
@@ -267,7 +273,7 @@ class BackupValidator {
     // Check customer outstanding balances
     for (final c in customers) {
       final id = c['id'] as String;
-      final headerBalance = (c['outstandingBalance'] as num).toInt();
+      final headerBalance = _requireInt(c['outstandingBalance'], 'outstandingBalance');
       final calculatedBalance = customerRemainingBalances[id] ?? 0;
       if (headerBalance != calculatedBalance) {
         throw Exception(
@@ -286,14 +292,15 @@ class BackupValidator {
             'Credit payment $id references missing customer $customerId.');
       }
 
-      final amount = (cp['amount'] as num).toInt();
+      final amount = _requireInt(cp['amount'], 'amount');
       if (amount <= 0) {
         throw Exception('Non-positive amount for credit payment $id.');
       }
 
       final isReversed = cp['isReversed'] as bool? ?? false;
       if (isReversed) {
-        if (cp['reversedAt'] == null || cp['reversalReason'] == null) {
+        final reason = cp['reversalReason'] as String?;
+        if (cp['reversedAt'] == null || reason == null || reason.trim().isEmpty) {
           throw Exception(
               'Reversed payment $id is missing reversal timestamp or reason.');
         }
@@ -305,7 +312,7 @@ class BackupValidator {
       final id = ex['id'] as String;
       checkId(id, 'expenses');
 
-      final amount = (ex['amount'] as num).toInt();
+      final amount = _requireInt(ex['amount'], 'amount');
       if (amount <= 0) {
         throw Exception('Non-positive amount for expense \$id.');
       }

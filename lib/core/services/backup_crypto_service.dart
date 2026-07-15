@@ -32,7 +32,7 @@ class BackupCryptoService {
       utf8.encode(json),
       secretKey: secretKey,
       nonce: nonce,
-      aad: utf8.encode(formatLabel),
+      aad: utf8.encode('\$formatLabel:v\$formatVersion'),
     );
 
     return jsonEncode({
@@ -86,7 +86,7 @@ class BackupCryptoService {
         throw const FormatException('Invalid encryption field types.');
       }
 
-      if (iterations > 210000 || iterations < 100000) {
+      if (iterations != kdfIterations) {
         throw const FormatException('Unsupported iteration count.');
       }
 
@@ -126,7 +126,7 @@ class BackupCryptoService {
       final clearText = await aesGcm.decrypt(
         secretBox,
         secretKey: secretKey,
-        aad: utf8.encode(formatLabel),
+        aad: utf8.encode('\$formatLabel:v\$formatVersion'),
       );
 
       return utf8.decode(clearText);

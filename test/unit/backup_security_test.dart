@@ -8,6 +8,8 @@ import 'package:flowtrack/core/services/backup_validator.dart';
 import 'package:flowtrack/core/services/sample_data_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'backup_test_utils.dart';
+
 void main() {
   late AppDatabase source;
   late AppDatabase target;
@@ -88,7 +90,7 @@ void main() {
     await SampleDataService(source).syncDemoData();
     await target.updateStoreName('Initial Target Store');
 
-    final json = await sourceService.createUnencryptedBackupJsonForTest();
+    final json = await createUnencryptedBackupJsonForTest(source);
     final decoded = jsonDecode(json) as Map<String, dynamic>;
     final data = decoded['data'] as Map<String, dynamic>;
 
@@ -119,33 +121,45 @@ void main() {
 
   test('legacy restore and versioning', () async {
     await SampleDataService(source).syncDemoData();
-    // Add product with unnormalized barcode and contact
     await source.createProduct(
       name: 'NormTest',
-      barcode: '  aBc-123  ',
+      barcode: 'abc-123',
       barcodeType: BarcodeType.manufacturer,
       sellingPrice: 100,
       initialStock: 10,
       lowStockLevel: 5,
     );
-    await source.createCustomer(name: 'NormCust', contactNumber: ' +63  917  123 4567  ');
+    await source.createCustomer(name: 'NormCust', contactNumber: '09171234567');
     
-    // Create legacy version 1 backup manually by omitting passphrase (test helper)
-    final json = await sourceService.createUnencryptedBackupJsonForTest();
+    // Create legacy version 1 backup manually (test helper)
+    final json = await createUnencryptedBackupJsonForTest(source, backupVersion: 1);
+    final decoded = jsonDecode(json) as Map<String, dynamic>;
+    final data = decoded['data'] as Map<String, dynamic>;
+
+    // Inject unnormalized strings directly into JSON to simulate legacy backups
+    final products = (data['products'] as List).cast<Map<String, dynamic>>();
+    final normProductJson = products.firstWhere((p) => p['name'] == 'NormTest');
+    normProductJson['barcode'] = '  aBc-123  '; // Mixed case, spaces
+
+    final customersJson = (data['customers'] as List).cast<Map<String, dynamic>>();
+    final normCustJson = customersJson.firstWhere((c) => c['name'] == 'NormCust');
+    normCustJson['contactNumber'] = ' +63  917  123 4567  ';
+
+    final unnormalizedJson = jsonEncode(decoded);
     
     // Target starts clean
     await target.updateStoreName('Initial Target Store');
     
     // Validate and restore
-    final payload = await targetService.validateBackupString(json);
+    final payload = await targetService.validateBackupString(unnormalizedJson);
     await targetService.restoreValidatedBackup(payload);
     
-    final products = await target.select(target.products).get();
-    final normProduct = products.firstWhere((p) => p.name == 'NormTest');
+    final targetProducts = await target.select(target.products).get();
+    final normProduct = targetProducts.firstWhere((p) => p.name == 'NormTest');
     expect(normProduct.barcode, 'aBc-123'); // Case is preserved for Code 128
 
-    final customers = await target.select(target.customers).get();
-    final normCust = customers.firstWhere((c) => c.name == 'NormCust');
+    final targetCustomers = await target.select(target.customers).get();
+    final normCust = targetCustomers.firstWhere((c) => c.name == 'NormCust');
     expect(normCust.contactNumber, '+639171234567');
 
     // Create a new backup from target, must be encrypted if passphrase is provided

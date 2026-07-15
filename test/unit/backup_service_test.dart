@@ -9,6 +9,8 @@ import 'package:flowtrack/core/services/sample_data_service.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'backup_test_utils.dart';
+
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
@@ -28,17 +30,13 @@ void main() {
   test('creates versioned JSON backup without sync queue', () async {
     await SampleDataService(source).syncDemoData();
 
-    final json = await BackupService(
-      source,
-      const BackupCryptoService(),
-      const BackupValidator(),
-    ).createUnencryptedBackupJsonForTest(createdAt: DateTime.utc(2026, 7, 9, 1, 2, 3));
+    final json = await createUnencryptedBackupJsonForTest(source, createdAt: DateTime.utc(2026, 7, 9, 1, 2, 3));
     final decoded = jsonDecode(json) as Map<String, Object?>;
     final metadata = decoded['metadata'] as Map<String, Object?>;
     final data = decoded['data'] as Map<String, Object?>;
 
     expect(metadata['appName'], 'FlowTrack');
-    expect(metadata['backupVersion'], BackupService.backupVersion);
+    expect(metadata['backupVersion'], 1);
     expect(metadata['databaseVersion'], source.schemaVersion);
     expect(metadata['createdAt'], '2026-07-09T01:02:03.000Z');
     expect(data.containsKey('syncQueue'), isFalse);
@@ -51,11 +49,7 @@ void main() {
   test('restores products, sales, credits, expenses, and settings', () async {
     await SampleDataService(source).syncDemoData();
     await source.updateStoreName('Ron Sari-Sari Store');
-    final backup = await BackupService(
-      source,
-      const BackupCryptoService(),
-      const BackupValidator(),
-    ).createUnencryptedBackupJsonForTest();
+    final backup = await createUnencryptedBackupJsonForTest(source);
 
     await target.createProduct(
       name: 'Stale Product',
@@ -129,11 +123,7 @@ void main() {
         amountReceived: 2000,
       );
 
-      final backup = await BackupService(
-        source,
-        const BackupCryptoService(),
-        const BackupValidator(),
-      ).createUnencryptedBackupJsonForTest();
+      final backup = await createUnencryptedBackupJsonForTest(source);
       final targetService = BackupService(
         target,
         const BackupCryptoService(),

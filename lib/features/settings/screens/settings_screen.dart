@@ -419,12 +419,9 @@ class _BackupToolsCardState extends ConsumerState<_BackupToolsCard> {
         passphrase: passphrase,
       );
 
-      final metadata = decoded.metadata;
-      final data = decoded.data;
-      final createdAt = metadata['createdAt'] as String? ?? 'Unknown time';
-
-      final productsCount = (data['products'] as List?)?.length ?? 0;
-      final salesCount = (data['sales'] as List?)?.length ?? 0;
+      final createdAt = decoded.createdAt;
+      final productsCount = decoded.productsCount;
+      final salesCount = decoded.salesCount;
 
       if (!mounted) return 'Restore cancelled.';
 

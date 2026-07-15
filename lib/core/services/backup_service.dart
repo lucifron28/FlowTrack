@@ -12,10 +12,18 @@ import 'backup_validator.dart';
 
 class ValidatedBackup {
   final Map<String, dynamic> _data;
-  const ValidatedBackup._(this._data);
+  
+  final int backupVersion;
+  final String createdAt;
+  final int productsCount;
+  final int salesCount;
 
-  Map<String, dynamic> get metadata => _data['metadata'] as Map<String, dynamic>? ?? {};
-  Map<String, dynamic> get data => _data['data'] as Map<String, dynamic>? ?? {};
+  const ValidatedBackup._(this._data, {
+    required this.backupVersion,
+    required this.createdAt,
+    required this.productsCount,
+    required this.salesCount,
+  });
 }
 
 class BackupService {
@@ -25,7 +33,7 @@ class BackupService {
     this._validator,
   );
 
-  static const backupVersion = 1;
+  static const backupVersion = 2;
   static const fileExtension = 'flowtrack-backup';
   static const _channel = MethodChannel('flowtrack/backup_file');
 
@@ -33,11 +41,6 @@ class BackupService {
   final BackupCryptoService _cryptoService;
   final BackupValidator _validator;
 
-  @visibleForTesting
-  Future<String> createUnencryptedBackupJsonForTest({DateTime? createdAt}) async {
-    final backup = await _createBackupMap(createdAt: createdAt);
-    return const JsonEncoder.withIndent('  ').convert(backup);
-  }
 
   Future<String> createBackupJson(String passphrase, {
     DateTime? createdAt,
@@ -132,7 +135,15 @@ class BackupService {
       throw BackupException(e.toString().replaceAll('Exception: ', ''));
     }
 
-    return ValidatedBackup._(decoded);
+    final metadata = decoded['metadata'] as Map<String, dynamic>? ?? {};
+    final data = decoded['data'] as Map<String, dynamic>? ?? {};
+    return ValidatedBackup._(
+      decoded,
+      backupVersion: metadata['backupVersion'] as int? ?? (isEncrypted ? 2 : 1),
+      createdAt: metadata['createdAt'] as String? ?? 'Unknown time',
+      productsCount: (data['products'] as List?)?.length ?? 0,
+      salesCount: (data['sales'] as List?)?.length ?? 0,
+    );
   }
 
   Future<void> restoreValidatedBackup(ValidatedBackup validatedBackup) async {
