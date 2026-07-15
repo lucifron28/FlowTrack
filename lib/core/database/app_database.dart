@@ -123,8 +123,7 @@ class CreditPayments extends Table {
   TextColumn get notes => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 
-  BoolColumn get isReversed =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isReversed => boolean().withDefault(const Constant(false))();
   DateTimeColumn get reversedAt => dateTime().nullable()();
   TextColumn get reversalReason => text().nullable()();
 
@@ -759,26 +758,21 @@ final class AppDatabase extends _$AppDatabase {
   }) async {
     _requireText(name, 'Customer name');
     final normalizedContact = normalizeContactNumber(contactNumber);
-    if (normalizedContact != null) {
-      final existing = await getActiveCustomers();
-      for (final customer in existing) {
-        if (customer.id != customerId &&
-            customer.contactNumber != null &&
-            normalizeContactNumber(customer.contactNumber) ==
-                normalizedContact) {
-          throw StateError(
-            'A customer with this contact number already exists.',
-          );
-        }
-      }
-    }
-    await (update(customers)..where((tbl) => tbl.id.equals(customerId))).write(
-      CustomersCompanion(
-        name: Value(name.trim()),
-        contactNumber: Value(normalizedContact),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+    return transaction(() async {
+      await _ensureContactAvailable(
+        normalizedContact,
+        excludingCustomerId: customerId,
+      );
+      await (update(
+        customers,
+      )..where((tbl) => tbl.id.equals(customerId))).write(
+        CustomersCompanion(
+          name: Value(name.trim()),
+          contactNumber: Value(normalizedContact),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    });
   }
 
   Future<void> deleteCustomer(String customerId) async {
@@ -806,30 +800,43 @@ final class AppDatabase extends _$AppDatabase {
   }) async {
     _requireText(name, 'Customer name');
     final normalizedContact = normalizeContactNumber(contactNumber);
-    if (normalizedContact != null) {
-      final existing = await getActiveCustomers();
-      for (final customer in existing) {
-        if (customer.contactNumber != null &&
-            normalizeContactNumber(customer.contactNumber) ==
-                normalizedContact) {
-          throw StateError(
-            'A customer with this contact number already exists.',
-          );
-        }
+    return transaction(() async {
+      await _ensureContactAvailable(normalizedContact);
+      final id = _id();
+      final now = DateTime.now();
+      await into(customers).insert(
+        CustomersCompanion.insert(
+          id: id,
+          name: name.trim(),
+          contactNumber: Value(normalizedContact),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      return id;
+    });
+  }
+
+  Future<void> _ensureContactAvailable(
+    String? normalizedContact, {
+    String? excludingCustomerId,
+    String? customErrorMessage,
+  }) async {
+    if (normalizedContact == null) return;
+
+    final existing = await getActiveCustomers();
+
+    for (final customer in existing) {
+      if (customer.id == excludingCustomerId) continue;
+
+      if (customer.contactNumber != null &&
+          normalizeContactNumber(customer.contactNumber) == normalizedContact) {
+        throw StateError(
+          customErrorMessage ??
+              'A customer with this contact number already exists.',
+        );
       }
     }
-    final id = _id();
-    final now = DateTime.now();
-    await into(customers).insert(
-      CustomersCompanion.insert(
-        id: id,
-        name: name.trim(),
-        contactNumber: Value(normalizedContact),
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
-    return id;
   }
 
   Future<String> _createCustomerInTransaction({
@@ -838,18 +845,11 @@ final class AppDatabase extends _$AppDatabase {
     required DateTime now,
   }) async {
     final normalizedContact = normalizeContactNumber(contactNumber);
-    if (normalizedContact != null) {
-      final existing = await getActiveCustomers();
-      for (final customer in existing) {
-        if (customer.contactNumber != null &&
-            normalizeContactNumber(customer.contactNumber) ==
-                normalizedContact) {
-          throw StateError(
-            'A customer with this contact number already exists. Please select the existing customer instead of creating a new one.',
-          );
-        }
-      }
-    }
+    await _ensureContactAvailable(
+      normalizedContact,
+      customErrorMessage:
+          'A customer with this contact number already exists. Please select the existing customer instead of creating a new one.',
+    );
 
     final id = _id();
     await into(customers).insert(
@@ -883,9 +883,11 @@ final class AppDatabase extends _$AppDatabase {
     DateTime now,
   ) async {
     final recordsQuery = select(creditRecords)
-      ..where((tbl) =>
-          tbl.customerId.equals(customerId) &
-          tbl.status.isNotValue(CreditStatus.voided.dbValue))
+      ..where(
+        (tbl) =>
+            tbl.customerId.equals(customerId) &
+            tbl.status.isNotValue(CreditStatus.voided.dbValue),
+      )
       ..orderBy([
         (tbl) => OrderingTerm.asc(tbl.creditDate),
         (tbl) => OrderingTerm.asc(tbl.createdAt),
@@ -894,9 +896,10 @@ final class AppDatabase extends _$AppDatabase {
     final records = await recordsQuery.get();
 
     final paymentsQuery = select(creditPayments)
-      ..where((tbl) =>
-          tbl.customerId.equals(customerId) &
-          tbl.isReversed.equals(false))
+      ..where(
+        (tbl) =>
+            tbl.customerId.equals(customerId) & tbl.isReversed.equals(false),
+      )
       ..orderBy([
         (tbl) => OrderingTerm.asc(tbl.paymentDate),
         (tbl) => OrderingTerm.asc(tbl.createdAt),
@@ -927,8 +930,9 @@ final class AppDatabase extends _$AppDatabase {
 
       newOutstandingBalance += (totalAmount - nextPaid);
 
-      await (update(creditRecords)..where((tbl) => tbl.id.equals(record.id)))
-          .write(
+      await (update(
+        creditRecords,
+      )..where((tbl) => tbl.id.equals(record.id))).write(
         CreditRecordsCompanion(
           paidAmount: Value(nextPaid),
           status: Value(nextStatus.dbValue),
@@ -999,8 +1003,9 @@ final class AppDatabase extends _$AppDatabase {
         throw StateError('Payment is already reversed.');
       }
 
-      await (update(creditPayments)..where((tbl) => tbl.id.equals(paymentId)))
-          .write(
+      await (update(
+        creditPayments,
+      )..where((tbl) => tbl.id.equals(paymentId))).write(
         CreditPaymentsCompanion(
           isReversed: const Value(true),
           reversedAt: Value(now),
