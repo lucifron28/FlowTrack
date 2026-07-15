@@ -207,8 +207,9 @@ class BackupValidator {
     for (final item in saleItems) {
       if (item['id'] == null) throw Exception('item id is null: $item');
       if (item['saleId'] == null) throw Exception('item saleId is null: $item');
-      if (item['productId'] == null)
+      if (item['productId'] == null) {
         throw Exception('item productId is null: $item');
+      }
 
       final id = item['id'] as String;
       checkId(id, 'saleItems');
@@ -268,12 +269,10 @@ class BackupValidator {
     }
 
     // Credit Records
-    final creditRecordIds = <String>{};
     final customerRemainingBalances = <String, int>{};
     for (final cr in creditRecords) {
       final id = cr['id'] as String;
       checkId(id, 'creditRecords');
-      creditRecordIds.add(id);
 
       final customerId = cr['customerId'] as String;
       if (!customerIds.contains(customerId)) {
