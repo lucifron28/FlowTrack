@@ -32,7 +32,7 @@ void main() {
       source,
       const BackupCryptoService(),
       const BackupValidator(),
-    ).createBackupJson(createdAt: DateTime.utc(2026, 7, 9, 1, 2, 3));
+    ).createUnencryptedBackupJsonForTest(createdAt: DateTime.utc(2026, 7, 9, 1, 2, 3));
     final decoded = jsonDecode(json) as Map<String, Object?>;
     final metadata = decoded['metadata'] as Map<String, Object?>;
     final data = decoded['data'] as Map<String, Object?>;
@@ -55,7 +55,7 @@ void main() {
       source,
       const BackupCryptoService(),
       const BackupValidator(),
-    ).createBackupJson();
+    ).createUnencryptedBackupJsonForTest();
 
     await target.createProduct(
       name: 'Stale Product',
@@ -66,11 +66,13 @@ void main() {
       lowStockLevel: 1,
     );
 
-    await BackupService(
+    final targetService = BackupService(
       target,
       const BackupCryptoService(),
       const BackupValidator(),
-    ).restoreValidatedBackup(jsonDecode(backup));
+    );
+    final payload = await targetService.validateBackupString(backup);
+    await targetService.restoreValidatedBackup(payload);
 
     final products = await target.select(target.products).get();
     final customers = await target.select(target.customers).get();
@@ -131,12 +133,14 @@ void main() {
         source,
         const BackupCryptoService(),
         const BackupValidator(),
-      ).createBackupJson();
-      await BackupService(
+      ).createUnencryptedBackupJsonForTest();
+      final targetService = BackupService(
         target,
         const BackupCryptoService(),
         const BackupValidator(),
-      ).restoreValidatedBackup(jsonDecode(backup));
+      );
+      final payload = await targetService.validateBackupString(backup);
+      await targetService.restoreValidatedBackup(payload);
       await target.editProduct(
         productId: productId,
         sellingPrice: 2500,

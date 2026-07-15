@@ -34,6 +34,13 @@ void main() {
     await target.close();
   });
 
+  test('plaintext creation without valid passphrase is impossible', () async {
+    await expectLater(
+      () => sourceService.createBackupJson('short'),
+      throwsA(isA<BackupException>()),
+    );
+  });
+
   test('encrypted round trip and tampering detection', () async {
     await SampleDataService(source).syncDemoData();
     await source.updateStoreName('Secure Store');
@@ -41,7 +48,7 @@ void main() {
 
     final passphrase = 'my_secure_passphrase';
     final encryptedBackup =
-        await sourceService.createBackupJson(passphrase: passphrase);
+        await sourceService.createBackupJson(passphrase);
 
     // Verify plaintext data is not exposed
     expect(encryptedBackup.contains('Secret Customer'), isFalse);
@@ -81,7 +88,7 @@ void main() {
     await SampleDataService(source).syncDemoData();
     await target.updateStoreName('Initial Target Store');
 
-    final json = await sourceService.createBackupJson();
+    final json = await sourceService.createUnencryptedBackupJsonForTest();
     final decoded = jsonDecode(json) as Map<String, dynamic>;
     final data = decoded['data'] as Map<String, dynamic>;
 
@@ -112,9 +119,19 @@ void main() {
 
   test('legacy restore and versioning', () async {
     await SampleDataService(source).syncDemoData();
+    // Add product with unnormalized barcode and contact
+    await source.createProduct(
+      name: 'NormTest',
+      barcode: '  aBc-123  ',
+      barcodeType: BarcodeType.manufacturer,
+      sellingPrice: 100,
+      initialStock: 10,
+      lowStockLevel: 5,
+    );
+    await source.createCustomer(name: 'NormCust', contactNumber: ' +63  917  123 4567  ');
     
-    // Create legacy version 1 backup manually by omitting passphrase
-    final json = await sourceService.createBackupJson();
+    // Create legacy version 1 backup manually by omitting passphrase (test helper)
+    final json = await sourceService.createUnencryptedBackupJsonForTest();
     
     // Target starts clean
     await target.updateStoreName('Initial Target Store');
@@ -124,10 +141,15 @@ void main() {
     await targetService.restoreValidatedBackup(payload);
     
     final products = await target.select(target.products).get();
-    expect(products.isNotEmpty, isTrue);
+    final normProduct = products.firstWhere((p) => p.name == 'NormTest');
+    expect(normProduct.barcode, 'aBc-123'); // Case is preserved for Code 128
+
+    final customers = await target.select(target.customers).get();
+    final normCust = customers.firstWhere((c) => c.name == 'NormCust');
+    expect(normCust.contactNumber, '+639171234567');
 
     // Create a new backup from target, must be encrypted if passphrase is provided
-    final newBackup = await targetService.createBackupJson(passphrase: 'pass1234');
+    final newBackup = await targetService.createBackupJson('pass1234');
     expect(newBackup.contains('"formatVersion":2'), isTrue);
   });
 }

@@ -76,11 +76,34 @@ class BackupCryptoService {
     }
 
     try {
-      final salt = base64Decode(kdf['salt'] as String);
-      final iterations = kdf['iterations'] as int;
-      final nonce = base64Decode(cipher['nonce'] as String);
-      final cipherText = base64Decode(cipher['cipherText'] as String);
-      final macBytes = base64Decode(cipher['mac'] as String);
+      final saltStr = kdf['salt'];
+      final iterations = kdf['iterations'];
+      final nonceStr = cipher['nonce'];
+      final cipherTextStr = cipher['cipherText'];
+      final macStr = cipher['mac'];
+      
+      if (saltStr is! String || iterations is! int || nonceStr is! String || cipherTextStr is! String || macStr is! String) {
+        throw const FormatException('Invalid encryption field types.');
+      }
+
+      if (iterations > 210000 || iterations < 100000) {
+        throw const FormatException('Unsupported iteration count.');
+      }
+
+      final salt = base64Decode(saltStr);
+      final nonce = base64Decode(nonceStr);
+      final cipherText = base64Decode(cipherTextStr);
+      final macBytes = base64Decode(macStr);
+
+      if (salt.length != 16) {
+        throw const FormatException('Invalid salt length.');
+      }
+      if (nonce.length != 12) {
+        throw const FormatException('Invalid nonce length.');
+      }
+      if (macBytes.length != 16) {
+        throw const FormatException('Invalid MAC length.');
+      }
 
       final pbkdf2 = Pbkdf2(
         macAlgorithm: Hmac.sha256(),

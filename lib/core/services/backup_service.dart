@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../config/app_config.dart';
@@ -8,6 +9,14 @@ import '../database/app_database.dart';
 
 import 'backup_crypto_service.dart';
 import 'backup_validator.dart';
+
+class ValidatedBackup {
+  final Map<String, dynamic> _data;
+  const ValidatedBackup._(this._data);
+
+  Map<String, dynamic> get metadata => _data['metadata'] as Map<String, dynamic>? ?? {};
+  Map<String, dynamic> get data => _data['data'] as Map<String, dynamic>? ?? {};
+}
 
 class BackupService {
   const BackupService(
@@ -24,20 +33,25 @@ class BackupService {
   final BackupCryptoService _cryptoService;
   final BackupValidator _validator;
 
-  Future<String> createBackupJson({
+  @visibleForTesting
+  Future<String> createUnencryptedBackupJsonForTest({DateTime? createdAt}) async {
+    final backup = await _createBackupMap(createdAt: createdAt);
+    return const JsonEncoder.withIndent('  ').convert(backup);
+  }
+
+  Future<String> createBackupJson(String passphrase, {
     DateTime? createdAt,
-    String? passphrase,
   }) async {
+    if (passphrase.length < 8) {
+      throw const BackupException('Passphrase must be at least 8 characters.');
+    }
     final backup = await _createBackupMap(createdAt: createdAt);
     final jsonString = const JsonEncoder.withIndent('  ').convert(backup);
-    if (passphrase != null && passphrase.isNotEmpty) {
-      return _cryptoService.encryptBackup(jsonString, passphrase);
-    }
-    return jsonString;
+    return _cryptoService.encryptBackup(jsonString, passphrase);
   }
 
   Future<String?> saveBackupFile(String passphrase) async {
-    final json = await createBackupJson(passphrase: passphrase);
+    final json = await createBackupJson(passphrase);
     final bytes = Uint8List.fromList(utf8.encode(json));
     return _channel.invokeMethod<String>('saveBackup', {
       'fileName': _backupFileName(DateTime.now()),
@@ -46,7 +60,7 @@ class BackupService {
   }
 
   Future<void> shareBackupFile(String passphrase) async {
-    final json = await createBackupJson(passphrase: passphrase);
+    final json = await createBackupJson(passphrase);
     final bytes = Uint8List.fromList(utf8.encode(json));
     await _channel.invokeMethod<void>('shareBackup', {
       'fileName': _backupFileName(DateTime.now()),
@@ -66,10 +80,15 @@ class BackupService {
     return utf8.decode(bytes);
   }
 
-  Future<Map<String, dynamic>> validateBackupString(
+  Future<ValidatedBackup> validateBackupString(
     String fileContents, {
     String? passphrase,
   }) async {
+    // Limit to 25 MiB in Dart as well
+    if (utf8.encode(fileContents).length > 25 * 1024 * 1024) {
+      throw const BackupException('Backup file is too large (exceeds 25 MiB).');
+    }
+
     String jsonString = fileContents;
     bool isEncrypted = false;
     
@@ -84,9 +103,12 @@ class BackupService {
       throw const BackupException('Backup file is not valid JSON.');
     }
 
-    if (envelope != null &&
-        envelope['format'] == BackupCryptoService.formatLabel &&
-        envelope['formatVersion'] == BackupCryptoService.formatVersion) {
+    // Malformed encrypted envelopes can fall through as legacy files:
+    // Any file containing the encrypted format marker must be handled as encrypted and rejected if its envelope is malformed or unsupported.
+    if (envelope != null && envelope['format'] == BackupCryptoService.formatLabel) {
+      if (envelope['formatVersion'] != BackupCryptoService.formatVersion) {
+        throw const BackupException('Incorrect passphrase or corrupted backup.');
+      }
       isEncrypted = true;
       if (passphrase == null || passphrase.isEmpty) {
         throw const BackupException('Passphrase required.'); // Need passphrase signal
@@ -94,7 +116,8 @@ class BackupService {
       try {
         jsonString = await _cryptoService.decryptBackup(fileContents, passphrase);
       } catch (e) {
-        throw BackupException(e.toString());
+        // Return exactly "Incorrect passphrase or corrupted backup."
+        throw const BackupException('Incorrect passphrase or corrupted backup.');
       }
     }
 
@@ -105,16 +128,15 @@ class BackupService {
 
     try {
       _validator.validateBackup(decoded, isEncrypted ? 2 : 1);
-    } catch (e, stackTrace) {
-      print('BackupValidation Error: \$e');
-      print(stackTrace);
+    } catch (e) {
       throw BackupException(e.toString().replaceAll('Exception: ', ''));
     }
 
-    return decoded;
+    return ValidatedBackup._(decoded);
   }
 
-  Future<void> restoreValidatedBackup(Map<String, dynamic> decoded) async {
+  Future<void> restoreValidatedBackup(ValidatedBackup validatedBackup) async {
+    final decoded = validatedBackup._data;
     final data = _readMap(decoded, 'data');
 
     await _database.transaction(() async {

@@ -281,6 +281,7 @@ class _BackupToolsCardState extends ConsumerState<_BackupToolsCard> {
     bool isRestore = false,
   }) async {
     String passphrase = '';
+    String confirmPassphrase = '';
     String? errorText;
     return showDialog<String>(
       context: context,
@@ -310,6 +311,19 @@ class _BackupToolsCardState extends ConsumerState<_BackupToolsCard> {
                       if (errorText != null) setState(() => errorText = null);
                     },
                   ),
+                  if (!isRestore) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Confirm Passphrase',
+                      ),
+                      onChanged: (val) {
+                        confirmPassphrase = val;
+                        if (errorText != null) setState(() => errorText = null);
+                      },
+                    ),
+                  ],
                 ],
               ),
               actions: [
@@ -323,6 +337,12 @@ class _BackupToolsCardState extends ConsumerState<_BackupToolsCard> {
                       setState(
                         () => errorText =
                             'Passphrase must be at least 8 characters',
+                      );
+                      return;
+                    }
+                    if (!isRestore && passphrase != confirmPassphrase) {
+                      setState(
+                        () => errorText = 'Passphrases do not match',
                       );
                       return;
                     }
@@ -399,8 +419,8 @@ class _BackupToolsCardState extends ConsumerState<_BackupToolsCard> {
         passphrase: passphrase,
       );
 
-      final metadata = decoded['metadata'] as Map<String, dynamic>? ?? {};
-      final data = decoded['data'] as Map<String, dynamic>? ?? {};
+      final metadata = decoded.metadata;
+      final data = decoded.data;
       final createdAt = metadata['createdAt'] as String? ?? 'Unknown time';
 
       final productsCount = (data['products'] as List?)?.length ?? 0;
