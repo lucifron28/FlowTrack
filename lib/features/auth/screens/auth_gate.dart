@@ -16,11 +16,8 @@ class AuthGate extends ConsumerWidget {
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, stackTrace) => _AuthError(message: error.toString()),
       data: (state) {
-        if (!state.hasOwner) {
-          return const OwnerSetupScreen();
-        }
-        if (!state.isAuthenticated) {
-          return const LoginScreen();
+        if (state.status == AuthStatus.initializing) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         return const MainShell();
       },
@@ -50,7 +47,9 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
+    final isLoading = ref.watch(authControllerProvider).isLoading;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -83,6 +82,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                     const SizedBox(height: 24),
                     TextFormField(
                       controller: _ownerController,
+                      enabled: !isLoading,
                       decoration: const InputDecoration(
                         labelText: 'Owner name',
                         prefixIcon: Icon(Icons.person),
@@ -96,6 +96,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: true,
+                      enabled: !isLoading,
                       decoration: const InputDecoration(
                         labelText: 'Password',
                         prefixIcon: Icon(Icons.lock),
@@ -111,6 +112,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                     TextFormField(
                       controller: _confirmController,
                       obscureText: true,
+                      enabled: !isLoading,
                       decoration: const InputDecoration(
                         labelText: 'Confirm password',
                         prefixIcon: Icon(Icons.lock_outline),
@@ -121,9 +123,18 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                     ),
                     const SizedBox(height: 20),
                     FilledButton.icon(
-                      onPressed: _submit,
-                      icon: const Icon(Icons.check),
-                      label: const Text('Create owner account'),
+                      onPressed: isLoading ? null : _submit,
+                      icon: isLoading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.check),
+                      label: Text(isLoading ? 'Creating...' : 'Create owner account'),
                     ),
                   ],
                 ),
@@ -174,7 +185,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
       }
     });
-    final owner = ref.watch(authControllerProvider).asData?.value.ownerName;
+    final authState = ref.watch(authControllerProvider).asData?.value;
+    final isAuthenticating = authState?.status == AuthStatus.authenticating;
+    final owner = authState?.ownerName;
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -208,6 +222,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   TextField(
                     controller: _passwordController,
                     obscureText: true,
+                    enabled: !isAuthenticating,
                     decoration: const InputDecoration(
                       labelText: 'Password',
                       prefixIcon: Icon(Icons.lock),
@@ -217,13 +232,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         setState(() => _passwordError = null);
                       }
                     },
-                    onSubmitted: (_) => _login(),
+                    onSubmitted: (_) => isAuthenticating ? null : _login(),
                   ),
                   const SizedBox(height: 20),
                   FilledButton.icon(
-                    onPressed: _login,
-                    icon: const Icon(Icons.login),
-                    label: const Text('Login'),
+                    onPressed: isAuthenticating ? null : _login,
+                    icon: isAuthenticating
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.login),
+                    label: Text(isAuthenticating ? 'Logging in...' : 'Login'),
                   ),
                   const SizedBox(height: 8),
                   TextButton(
@@ -240,12 +264,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
+    setState(() => _passwordError = null);
     try {
       await ref
           .read(authControllerProvider.notifier)
           .login(_passwordController.text);
     } on AuthException catch (error) {
+      if (!mounted) return;
       setState(() => _passwordError = error.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _passwordError = 'An unexpected error occurred.');
     }
   }
 }

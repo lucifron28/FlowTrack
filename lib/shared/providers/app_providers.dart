@@ -21,6 +21,11 @@ import '../../features/inventory/screens/barcode_print_screen.dart';
 import '../../features/reports/screens/reports_screen.dart';
 import '../../features/sales/screens/sales_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
+import '../../features/auth/domain/auth_state.dart';
+import '../../features/auth/application/auth_controller.dart';
+
+export '../../features/auth/domain/auth_state.dart';
+export '../../features/auth/application/auth_controller.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final database = AppDatabase.defaults();
@@ -85,7 +90,7 @@ final themeModeProvider = NotifierProvider<ThemeModeController, ThemeMode>(
 
 class RouterTransitionListenable extends ChangeNotifier {
   RouterTransitionListenable(Ref ref) {
-    ref.listen(authControllerProvider, (_, __) {
+    ref.listen(authControllerProvider, (previous, next) {
       notifyListeners();
     });
   }
@@ -297,8 +302,7 @@ class _MissingRouteExtraScreen extends StatelessWidget {
   }
 }
 
-export '../../features/auth/domain/auth_state.dart';
-export '../../features/auth/application/auth_controller.dart';
+
 
 final todayProvider = Provider<DateTime>((ref) => DateTime.now());
 

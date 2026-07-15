@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/local_auth_service.dart';
 import '../../../shared/providers/app_providers.dart';
-import '../domain/auth_state.dart';
+
 
 class AuthController extends AsyncNotifier<AuthState> {
   LocalAuthService get _authService => ref.read(localAuthServiceProvider);
@@ -42,7 +42,7 @@ class AuthController extends AsyncNotifier<AuthState> {
   }
 
   Future<void> updateOwnerName(String name) async {
-    final current = state.valueOrNull;
+    final current = state.asData?.value;
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       await _authService.updateOwnerName(name);
@@ -55,7 +55,7 @@ class AuthController extends AsyncNotifier<AuthState> {
   }
 
   Future<void> login(String password) async {
-    final current = state.valueOrNull ??
+    final current = state.asData?.value ??
         AuthState(
           status: AuthStatus.unauthenticated,
           hasOwner: await _authService.hasOwnerAccount(),
@@ -84,7 +84,7 @@ class AuthController extends AsyncNotifier<AuthState> {
   }
 
   void logout() {
-    final current = state.valueOrNull;
+    final current = state.asData?.value;
     state = AsyncValue.data(
       AuthState(
         status: AuthStatus.unauthenticated,
