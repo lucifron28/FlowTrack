@@ -83,14 +83,78 @@ final themeModeProvider = NotifierProvider<ThemeModeController, ThemeMode>(
   ThemeModeController.new,
 );
 
+class RouterTransitionListenable extends ChangeNotifier {
+  RouterTransitionListenable(Ref ref) {
+    ref.listen(authControllerProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+}
+
+final routerTransitionListenableProvider =
+    Provider<RouterTransitionListenable>((ref) {
+  return RouterTransitionListenable(ref);
+});
+
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final listenable = ref.watch(routerTransitionListenableProvider);
+
   return GoRouter(
     initialLocation: AppRoutes.root,
+    refreshListenable: listenable,
+    redirect: (context, state) {
+      final authState = ref.read(authControllerProvider);
+
+      final status = authState.maybeWhen(
+        data: (state) => state.status,
+        orElse: () => AuthStatus.initializing,
+      );
+      final hasOwner = authState.maybeWhen(
+        data: (state) => state.hasOwner,
+        orElse: () => false,
+      );
+
+      final isLoginRoute = state.matchedLocation == AppRoutes.login;
+      final isOwnerSetupRoute = state.matchedLocation == AppRoutes.ownerSetup;
+      final isRootRoute = state.matchedLocation == AppRoutes.root;
+
+      if (status == AuthStatus.initializing) {
+        return isRootRoute ? null : AppRoutes.root;
+      }
+
+      if (!hasOwner) {
+        return isOwnerSetupRoute ? null : AppRoutes.ownerSetup;
+      }
+
+      if (status == AuthStatus.unauthenticated ||
+          status == AuthStatus.authenticating) {
+        return isLoginRoute ? null : AppRoutes.login;
+      }
+
+      if (status == AuthStatus.authenticated) {
+        if (isLoginRoute || isOwnerSetupRoute) {
+          return AppRoutes.root;
+        }
+        return null;
+      }
+
+      return null;
+    },
     routes: [
       GoRoute(
         name: AppRoutes.rootName,
         path: AppRoutes.root,
         builder: (context, state) => const AuthGate(),
+      ),
+      GoRoute(
+        name: AppRoutes.loginName,
+        path: AppRoutes.login,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        name: AppRoutes.ownerSetupName,
+        path: AppRoutes.ownerSetup,
+        builder: (context, state) => const OwnerSetupScreen(),
       ),
       GoRoute(
         name: AppRoutes.newSaleName,

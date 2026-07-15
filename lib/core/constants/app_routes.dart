@@ -2,6 +2,8 @@ class AppRoutes {
   const AppRoutes._();
 
   static const root = '/';
+  static const login = '/login';
+  static const ownerSetup = '/owner-setup';
   static const newSale = '/sales/new';
   static const saleDetails = '/sales/:saleId';
   static const addProduct = '/inventory/add';
@@ -21,6 +23,8 @@ class AppRoutes {
   static const settings = '/settings';
 
   static const rootName = 'root';
+  static const loginName = 'login';
+  static const ownerSetupName = 'owner-setup';
   static const newSaleName = 'new-sale';
   static const saleDetailsName = 'sale-details';
   static const addProductName = 'add-product';
