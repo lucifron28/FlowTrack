@@ -1,6 +1,6 @@
 # FlowTrack Backup and Restore
 
-FlowTrack uses local JSON backup files with the `.flowtrack-backup` extension.
+FlowTrack uses local encrypted backup files with the `.flowtrack-backup` extension.
 No cloud service is required.
 
 ## Backup Contents
@@ -28,16 +28,30 @@ Not included:
 
 ## Backup Format
 
-The backup file is JSON with two top-level sections:
+The new backup file (version 2) is a JSON envelope containing securely encrypted business data:
 
+- `format`: `flowtrack-encrypted-backup`
+- `formatVersion`: 2
+- `kdf`: Key derivation function details (PBKDF2-HMAC-SHA256, 210,000 iterations, 16-byte random salt)
+- `cipher`: Encryption details (AES-256-GCM, 12-byte random nonce, Base64 ciphertext, Base64 MAC)
+
+The encrypted payload internally contains the standard backup JSON structure:
 - `metadata`: app name, app version, backup version, database version, and creation time
 - `data`: arrays for each backed-up table
 
 Current backup version:
 
 ```text
-1
+2
 ```
+
+**Legacy Format Support:**
+Legacy version 1 plaintext backups are still supported for restoring, but generating new backups will only produce encrypted version 2 files. The app will warn you before restoring an unencrypted backup.
+
+## Passphrase Responsibility
+
+You must provide a secure passphrase (at least 8 characters) when creating a backup.
+**Do not lose your passphrase; a forgotten passphrase cannot be recovered, and your backup will be permanently inaccessible.**
 
 ## Owner Flow
 
@@ -46,33 +60,37 @@ Create or share a backup:
 1. Open More > Settings.
 2. Open Backup and restore.
 3. Tap Create and share backup, or Save backup to Downloads.
-4. Save the file somewhere outside the phone when possible.
+4. Enter a secure passphrase.
+5. Save the file somewhere outside the phone when possible.
 
 Restore a backup:
 
 1. Open More > Settings.
 2. Open Backup and restore.
 3. Tap Restore backup.
-4. Confirm the overwrite warning.
-5. Choose a `.flowtrack-backup` file.
+4. Choose a `.flowtrack-backup` file.
+5. If encrypted, enter the correct passphrase.
+6. Review the backup preview (creation time, row counts).
+7. Confirm the overwrite warning.
 
-Restore replaces current local store data. Owner login is not changed.
+Restore replaces current local store data transactionally. Owner login is not changed.
 
-## Restore Safety
+## Restore Safety & Atomicity
 
-The app rejects:
+The app performs complete preflight validation before any current data is cleared:
 
-- invalid JSON
-- backups not marked for FlowTrack
-- unsupported backup versions
-- backups missing required table sections
+- expected app name and supported format version
+- required metadata fields
+- every required table exists and is structurally valid
+- constraints are checked: no duplicate primary IDs, barcodes, contacts, sale numbers
+- financial data integrity: no negative stock/prices, no over-payments, sale total equals sum of items, customer balance equals active credit remaining
+- reversal validity
+- 25 MiB file size limit is enforced
 
-Rows are restored directly so product IDs, sale IDs, sale item snapshots,
-customer balances, credit payment status, and audit history remain intact.
+If any error occurs during parsing, decryption, or validation, the restore is aborted and the current database remains entirely unchanged.
 
 ## Current Limits
 
-- Backups are not encrypted yet.
 - Restore has Android file picker QA pending on target devices.
 - There is no CSV export yet.
 - There is no automatic scheduled backup yet.

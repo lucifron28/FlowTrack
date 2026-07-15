@@ -3,9 +3,12 @@ import 'dart:convert';
 import 'package:flowtrack/core/database/app_database.dart';
 import 'package:flowtrack/core/domain/flowtrack_models.dart';
 import 'package:flowtrack/core/services/backup_service.dart';
-import 'package:flowtrack/core/services/sample_data_service.dart';
+import 'package:flowtrack/core/services/backup_crypto_service.dart';
+import 'package:flowtrack/core/services/backup_validator.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'backup_test_utils.dart';
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -24,17 +27,15 @@ void main() {
   });
 
   test('creates versioned JSON backup without sync queue', () async {
-    await SampleDataService(source).syncDemoData();
+    await setupBackupTestFixtures(source);
 
-    final json = await BackupService(
-      source,
-    ).createBackupJson(createdAt: DateTime.utc(2026, 7, 9, 1, 2, 3));
+    final json = await createUnencryptedBackupJsonForTest(source, createdAt: DateTime.utc(2026, 7, 9, 1, 2, 3));
     final decoded = jsonDecode(json) as Map<String, Object?>;
     final metadata = decoded['metadata'] as Map<String, Object?>;
     final data = decoded['data'] as Map<String, Object?>;
 
     expect(metadata['appName'], 'FlowTrack');
-    expect(metadata['backupVersion'], BackupService.backupVersion);
+    expect(metadata['backupVersion'], 1);
     expect(metadata['databaseVersion'], source.schemaVersion);
     expect(metadata['createdAt'], '2026-07-09T01:02:03.000Z');
     expect(data.containsKey('syncQueue'), isFalse);
@@ -45,9 +46,9 @@ void main() {
   });
 
   test('restores products, sales, credits, expenses, and settings', () async {
-    await SampleDataService(source).syncDemoData();
+    await setupBackupTestFixtures(source);
     await source.updateStoreName('Ron Sari-Sari Store');
-    final backup = await BackupService(source).createBackupJson();
+    final backup = await createUnencryptedBackupJsonForTest(source);
 
     await target.createProduct(
       name: 'Stale Product',
@@ -58,7 +59,13 @@ void main() {
       lowStockLevel: 1,
     );
 
-    await BackupService(target).restoreFromJsonString(backup);
+    final targetService = BackupService(
+      target,
+      const BackupCryptoService(),
+      const BackupValidator(),
+    );
+    final payload = await targetService.validateBackupString(backup);
+    await targetService.restoreValidatedBackup(payload);
 
     final products = await target.select(target.products).get();
     final customers = await target.select(target.customers).get();
@@ -69,30 +76,30 @@ void main() {
     final expenses = await target.select(target.expenses).get();
     final movements = await target.select(target.stockMovements).get();
 
-    expect(products, hasLength(12));
+    expect(products, hasLength(2)); // 2 explicit
     expect(products.any((product) => product.barcode == 'STALE-001'), isFalse);
-    expect(customers, hasLength(3));
-    expect(sales, hasLength(3));
-    expect(saleItems, hasLength(9));
-    expect(creditRecords, hasLength(2));
+    expect(customers, hasLength(1));
+    expect(sales, hasLength(2));
+    expect(saleItems, hasLength(2));
+    expect(creditRecords, hasLength(1));
     expect(creditPayments, hasLength(1));
-    expect(expenses, hasLength(3));
-    expect(movements, hasLength(20));
+    expect(expenses, hasLength(1));
+    expect(movements, hasLength(4)); // 2 initial + 2 sales
     expect(await target.getSetting('store_name'), 'Ron Sari-Sari Store');
 
     final alingNena = customers.singleWhere(
       (customer) => customer.name == 'Aling Nena',
     );
-    expect(alingNena.outstandingBalance, 8500);
+    expect(alingNena.outstandingBalance, 0); // 700 credit - 700 paid = 0
 
     final restoredReport = await target.reportForRange(
       start: DateTime.now().subtract(const Duration(days: 7)),
       end: DateTime.now().add(const Duration(days: 1)),
     );
-    expect(restoredReport.totalSales, 26000);
-    expect(restoredReport.totalExpenses, 238000);
-    expect(restoredReport.totalCreditGiven, 19000);
-    expect(restoredReport.totalCreditCollected, 5000);
+    expect(restoredReport.totalSales, 3700);
+    expect(restoredReport.totalExpenses, 10000);
+    expect(restoredReport.totalCreditGiven, 700);
+    expect(restoredReport.totalCreditCollected, 700);
   });
 
   test(
@@ -115,8 +122,14 @@ void main() {
         amountReceived: 2000,
       );
 
-      final backup = await BackupService(source).createBackupJson();
-      await BackupService(target).restoreFromJsonString(backup);
+      final backup = await createUnencryptedBackupJsonForTest(source);
+      final targetService = BackupService(
+        target,
+        const BackupCryptoService(),
+        const BackupValidator(),
+      );
+      final payload = await targetService.validateBackupString(backup);
+      await targetService.restoreValidatedBackup(payload);
       await target.editProduct(
         productId: productId,
         sellingPrice: 2500,
@@ -134,14 +147,18 @@ void main() {
   );
 
   test('rejects invalid and unsupported backup files', () async {
-    final service = BackupService(target);
+    final service = BackupService(
+      target,
+      const BackupCryptoService(),
+      const BackupValidator(),
+    );
 
     await expectLater(
-      () => service.restoreFromJsonString('[]'),
+      () => service.validateBackupString('[]'),
       throwsA(isA<BackupException>()),
     );
     await expectLater(
-      () => service.restoreFromJsonString(
+      () => service.validateBackupString(
         jsonEncode({
           'metadata': {
             'appName': 'OtherApp',
@@ -153,7 +170,7 @@ void main() {
       throwsA(isA<BackupException>()),
     );
     await expectLater(
-      () => service.restoreFromJsonString(
+      () => service.validateBackupString(
         jsonEncode({
           'metadata': {'appName': 'FlowTrack', 'backupVersion': 999},
           'data': <String, Object?>{},
