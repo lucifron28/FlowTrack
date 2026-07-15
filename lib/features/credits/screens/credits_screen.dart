@@ -254,11 +254,52 @@ class CustomerDetailsScreen extends ConsumerWidget {
                   return Column(
                     children: payments
                         .map(
-                          (payment) => ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: CurrencyText(payment.amount),
-                            subtitle: Text(payment.notes ?? 'Payment'),
-                          ),
+                          (payment) {
+                            final isRev = payment.isReversed;
+                            final notesText = payment.notes ?? 'Payment';
+                            final subtitleText = isRev
+                                ? '$notesText\nReversed: ${payment.reversalReason ?? ""}'
+                                : notesText;
+
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Row(
+                                children: [
+                                  CurrencyText(payment.amount),
+                                  if (isRev) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'Reversed',
+                                        style: TextStyle(
+                                          color: Colors.red.shade900,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              subtitle: Text(subtitleText),
+                              trailing: isRev
+                                  ? null
+                                  : IconButton(
+                                      icon: const Icon(Icons.undo),
+                                      tooltip: 'Reverse Payment',
+                                      onPressed: () =>
+                                          _reversePayment(context, ref, payment),
+                                    ),
+                            );
+                          },
                         )
                         .toList(),
                   );
@@ -314,6 +355,88 @@ class CustomerDetailsScreen extends ConsumerWidget {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text(error.toString())));
+        }
+      }
+    }
+  }
+
+  Future<void> _reversePayment(
+    BuildContext context,
+    WidgetRef ref,
+    CreditPayment payment,
+  ) async {
+    final reasonController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reverse Payment?'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Are you sure you want to reverse this payment of ${CurrencyFormatter.format(payment.amount)}?\n\n'
+                'This will restore the customer\'s outstanding balance.',
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: reasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Reversal Reason',
+                  hintText: 'Enter the reason for reversal',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Reversal reason is required.';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.of(context).pop(true);
+              }
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('Reverse'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final database = ref.read(appDatabaseProvider);
+      try {
+        await database.reverseCreditPayment(
+          paymentId: payment.id,
+          reason: reasonController.text,
+        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Payment reversed successfully.')),
+          );
+        }
+      } catch (error) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.toString())),
+          );
         }
       }
     }

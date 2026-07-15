@@ -1,5 +1,6 @@
 import '../database/app_database.dart';
 import '../domain/flowtrack_models.dart';
+import '../utils/contact_utils.dart';
 
 class SampleDataService {
   const SampleDataService(this._database);
@@ -148,17 +149,17 @@ class SampleDataService {
       productIds[product.barcode] = await _ensureProduct(product);
     }
 
-    final alingNenaId = await _database.createCustomer(
-      name: 'Aling Nena',
-      contactNumber: '0917 111 2233',
+    final alingNenaId = await _ensureCustomer(
+      'Aling Nena',
+      '0917 111 2233',
     );
-    final mangLitoId = await _database.createCustomer(
-      name: 'Mang Lito',
-      contactNumber: '0928 444 5566',
+    final mangLitoId = await _ensureCustomer(
+      'Mang Lito',
+      '0928 444 5566',
     );
-    await _database.createCustomer(
-      name: 'Ate Joy',
-      contactNumber: '0999 777 8888',
+    await _ensureCustomer(
+      'Ate Joy',
+      '0999 777 8888',
     );
 
     final now = DateTime.now();
@@ -229,17 +230,24 @@ class SampleDataService {
       await _ensureProduct(product);
     }
 
-    await _database.createCustomer(
-      name: 'Aling Nena',
-      contactNumber: '0917 111 2233',
-    );
-    await _database.createCustomer(
-      name: 'Mang Lito',
-      contactNumber: '0928 444 5566',
-    );
-    await _database.createCustomer(
-      name: 'Ate Joy',
-      contactNumber: '0999 777 8888',
+    await _ensureCustomer('Aling Nena', '0917 111 2233');
+    await _ensureCustomer('Mang Lito', '0928 444 5566');
+    await _ensureCustomer('Ate Joy', '0999 777 8888');
+  }
+
+  Future<String> _ensureCustomer(String name, String? contactNumber) async {
+    final normalized = normalizeContactNumber(contactNumber);
+    final existing = await _database.getActiveCustomers();
+    for (final customer in existing) {
+      if (normalized != null &&
+          customer.contactNumber != null &&
+          normalizeContactNumber(customer.contactNumber) == normalized) {
+        return customer.id;
+      }
+    }
+    return _database.createCustomer(
+      name: name,
+      contactNumber: contactNumber,
     );
   }
 
