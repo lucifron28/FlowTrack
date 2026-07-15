@@ -11,7 +11,7 @@ class BackupCryptoService {
   static const int kdfIterations = 210000;
   static const int saltLength = 16;
   static const int nonceLength = 12;
-  static const aadLabel = '\$formatLabel:v\$formatVersion';
+  static const aadLabel = '$formatLabel:v$formatVersion';
 
   Future<String> encryptBackup(String json, String passphrase) async {
     final pbkdf2 = Pbkdf2(
@@ -49,7 +49,7 @@ class BackupCryptoService {
         'nonce': base64Encode(nonce),
         'cipherText': base64Encode(secretBox.cipherText),
         'mac': base64Encode(secretBox.mac.bytes),
-      }
+      },
     });
   }
 
@@ -82,8 +82,12 @@ class BackupCryptoService {
       final nonceStr = cipher['nonce'];
       final cipherTextStr = cipher['cipherText'];
       final macStr = cipher['mac'];
-      
-      if (saltStr is! String || iterations is! int || nonceStr is! String || cipherTextStr is! String || macStr is! String) {
+
+      if (saltStr is! String ||
+          iterations is! int ||
+          nonceStr is! String ||
+          cipherTextStr is! String ||
+          macStr is! String) {
         throw const FormatException('Invalid encryption field types.');
       }
 
@@ -117,12 +121,8 @@ class BackupCryptoService {
         nonce: salt,
       );
 
-      final secretBox = SecretBox(
-        cipherText,
-        nonce: nonce,
-        mac: Mac(macBytes),
-      );
-      
+      final secretBox = SecretBox(cipherText, nonce: nonce, mac: Mac(macBytes));
+
       final aesGcm = AesGcm.with256bits();
       final clearText = await aesGcm.decrypt(
         secretBox,

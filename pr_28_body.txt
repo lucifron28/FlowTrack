@@ -1,0 +1,15 @@
+Fixes critical backup security and data integrity vulnerabilities.
+
+### Security fixes
+*   **Enforce AES-256-GCM Encryption**: Backup files are now securely encrypted using AES-256-GCM by default.
+*   **Strict PBKDF2 Key Derivation**: Enforces exactly 210,000 iterations for PBKDF2-HMAC-SHA256 to prevent downgrade attacks.
+*   **Versioned Authenticated Data (AAD)**: Uses `flowtrack-encrypted-backup:v2` as the AAD to bind the ciphertext to the exact backup version and format.
+*   **Passphrase Requirements**: Encrypted backup creation requires a strong passphrase (minimum 8 characters).
+
+### Integrity fixes
+*   **Immutable Payload Validation**: Validation now returns a private `ValidatedBackup` object that cannot be tampered with by the caller before restoration.
+*   **Strict Integer Enforcement**: All financial, balance, price, and stock values are strictly validated as integers to prevent silent float-to-int truncation.
+*   **Preflight Primary-Key Checks**: `auditLogs` and `appMetadata` IDs are rigorously checked for duplicates *before* initiating destructive restore operations.
+*   **Bounded Android Memory Reads**: Platform channels limit maximum file size reads to prevent out-of-memory crashes from maliciously large backup files.
+*   **Credit Amount Bounds**: Validates that `paidAmount` on credit records is neither negative nor exceeding the total amount.
+*   **Legacy Plaintext Protection**: Test utilities generating unencrypted (v1) backups have been entirely removed from the production codebase.

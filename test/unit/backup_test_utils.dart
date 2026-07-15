@@ -24,7 +24,10 @@ Future<void> setupBackupTestFixtures(AppDatabase db) async {
     lowStockLevel: 50,
   );
 
-  final c1 = await db.createCustomer(name: 'Aling Nena', contactNumber: '0917 111 2233');
+  final c1 = await db.createCustomer(
+    name: 'Aling Nena',
+    contactNumber: '0917 111 2233',
+  );
 
   // Add delays between completeSale to guarantee unique sale numbers
   await db.completeSale(
@@ -60,7 +63,11 @@ Future<void> setupBackupTestFixtures(AppDatabase db) async {
   await db.setSetting('store_name', 'Default Store');
 }
 
-Future<String> createUnencryptedBackupJsonForTest(AppDatabase db, {DateTime? createdAt, int backupVersion = 1}) async {
+Future<String> createUnencryptedBackupJsonForTest(
+  AppDatabase db, {
+  DateTime? createdAt,
+  int backupVersion = 1,
+}) async {
   final created = createdAt ?? DateTime.now();
   final backup = {
     'metadata': {
@@ -71,18 +78,40 @@ Future<String> createUnencryptedBackupJsonForTest(AppDatabase db, {DateTime? cre
       'createdAt': created.toUtc().toIso8601String(),
     },
     'data': {
-      'products': (await db.select(db.products).get()).map((e) => e.toJson(serializer: const ValueSerializer.defaults())).toList(),
-      'stockMovements': (await db.select(db.stockMovements).get()).map((e) => e.toJson(serializer: const ValueSerializer.defaults())).toList(),
-      'sales': (await db.select(db.sales).get()).map((e) => e.toJson(serializer: const ValueSerializer.defaults())).toList(),
-      'saleItems': (await db.select(db.saleItems).get()).map((e) => e.toJson(serializer: const ValueSerializer.defaults())).toList(),
-      'customers': (await db.select(db.customers).get()).map((e) => e.toJson(serializer: const ValueSerializer.defaults())).toList(),
-      'creditRecords': (await db.select(db.creditRecords).get()).map((e) => e.toJson(serializer: const ValueSerializer.defaults())).toList(),
-      'creditPayments': (await db.select(db.creditPayments).get()).map((e) => e.toJson(serializer: const ValueSerializer.defaults())).toList(),
-      'expenses': (await db.select(db.expenses).get()).map((e) => e.toJson(serializer: const ValueSerializer.defaults())).toList(),
-      'settings': (await db.select(db.settings).get()).map((e) => e.toJson(serializer: const ValueSerializer.defaults())).toList(),
-      'appMetadata': (await db.select(db.appMetadata).get()).map((e) => e.toJson(serializer: const ValueSerializer.defaults())).toList(),
-      'auditLogs': (await db.select(db.auditLogs).get()).map((e) => e.toJson(serializer: const ValueSerializer.defaults())).toList(),
-    }
+      'products': (await db.select(db.products).get())
+          .map((e) => e.toJson(serializer: const ValueSerializer.defaults()))
+          .toList(),
+      'stockMovements': (await db.select(db.stockMovements).get())
+          .map((e) => e.toJson(serializer: const ValueSerializer.defaults()))
+          .toList(),
+      'sales': (await db.select(db.sales).get())
+          .map((e) => e.toJson(serializer: const ValueSerializer.defaults()))
+          .toList(),
+      'saleItems': (await db.select(db.saleItems).get())
+          .map((e) => e.toJson(serializer: const ValueSerializer.defaults()))
+          .toList(),
+      'customers': (await db.select(db.customers).get())
+          .map((e) => e.toJson(serializer: const ValueSerializer.defaults()))
+          .toList(),
+      'creditRecords': (await db.select(db.creditRecords).get())
+          .map((e) => e.toJson(serializer: const ValueSerializer.defaults()))
+          .toList(),
+      'creditPayments': (await db.select(db.creditPayments).get())
+          .map((e) => e.toJson(serializer: const ValueSerializer.defaults()))
+          .toList(),
+      'expenses': (await db.select(db.expenses).get())
+          .map((e) => e.toJson(serializer: const ValueSerializer.defaults()))
+          .toList(),
+      'settings': (await db.select(db.settings).get())
+          .map((e) => e.toJson(serializer: const ValueSerializer.defaults()))
+          .toList(),
+      'appMetadata': (await db.select(db.appMetadata).get())
+          .map((e) => e.toJson(serializer: const ValueSerializer.defaults()))
+          .toList(),
+      'auditLogs': (await db.select(db.auditLogs).get())
+          .map((e) => e.toJson(serializer: const ValueSerializer.defaults()))
+          .toList(),
+    },
   };
   return const JsonEncoder.withIndent('  ').convert(backup);
 }

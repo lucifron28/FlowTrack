@@ -7,7 +7,9 @@ class BackupValidator {
 
   int _requireInt(dynamic value, String field) {
     if (value is! int) {
-      throw Exception('Field \$field must be an integer, got \${value.runtimeType}.');
+      throw Exception(
+        'Field $field must be an integer, got ${value.runtimeType}.',
+      );
     }
     return value;
   }
@@ -28,7 +30,9 @@ class BackupValidator {
 
     final version = metadata['backupVersion'];
     if (version != expectedBackupVersion) {
-      throw Exception('Expected backup version \$expectedBackupVersion, got \$version.');
+      throw Exception(
+        'Expected backup version $expectedBackupVersion, got $version.',
+      );
     }
 
     final data = decoded['data'];
@@ -52,36 +56,38 @@ class BackupValidator {
 
     for (final table in requiredTables) {
       if (!data.containsKey(table)) {
-        throw Exception('Missing required table: \$table.');
+        throw Exception('Missing required table: $table.');
       }
       if (data[table] is! List) {
-        throw Exception('Table \$table must be a list.');
+        throw Exception('Table $table must be a list.');
       }
       for (final row in (data[table] as List)) {
         if (row is! Map<String, dynamic>) {
-          throw Exception('Rows in \$table must be objects.');
+          throw Exception('Rows in $table must be objects.');
         }
       }
     }
 
     final products = (data['products'] as List).cast<Map<String, dynamic>>();
-    final stockMovements = (data['stockMovements'] as List).cast<Map<String, dynamic>>();
+    final stockMovements = (data['stockMovements'] as List)
+        .cast<Map<String, dynamic>>();
     final customers = (data['customers'] as List).cast<Map<String, dynamic>>();
     final sales = (data['sales'] as List).cast<Map<String, dynamic>>();
     final saleItems = (data['saleItems'] as List).cast<Map<String, dynamic>>();
-    final creditRecords =
-        (data['creditRecords'] as List).cast<Map<String, dynamic>>();
-    final creditPayments =
-        (data['creditPayments'] as List).cast<Map<String, dynamic>>();
+    final creditRecords = (data['creditRecords'] as List)
+        .cast<Map<String, dynamic>>();
+    final creditPayments = (data['creditPayments'] as List)
+        .cast<Map<String, dynamic>>();
     final expenses = (data['expenses'] as List).cast<Map<String, dynamic>>();
     final settings = (data['settings'] as List).cast<Map<String, dynamic>>();
     final auditLogs = (data['auditLogs'] as List).cast<Map<String, dynamic>>();
-    final appMetadata = (data['appMetadata'] as List).cast<Map<String, dynamic>>();
+    final appMetadata = (data['appMetadata'] as List)
+        .cast<Map<String, dynamic>>();
 
     final allIds = <String>{};
     void checkId(String id, String table) {
       if (allIds.contains(id)) {
-        throw Exception('Duplicate primary ID \$id found in \$table.');
+        throw Exception('Duplicate primary ID $id found in $table.');
       }
       allIds.add(id);
     }
@@ -91,7 +97,7 @@ class BackupValidator {
     for (final s in settings) {
       final key = s['key'] as String;
       if (settingKeys.contains(key)) {
-        throw Exception('Duplicate setting key \$key.');
+        throw Exception('Duplicate setting key $key.');
       }
       settingKeys.add(key);
     }
@@ -121,17 +127,21 @@ class BackupValidator {
         final normalized = normalizeBarcode(barcode);
         if (normalized.isNotEmpty) {
           if (productBarcodes.contains(normalized)) {
-            throw Exception('Duplicate normalized product barcode \$normalized.');
+            throw Exception(
+              'Duplicate normalized product barcode $normalized.',
+            );
           }
           productBarcodes.add(normalized);
         }
       }
 
       final price = _requireInt(p['sellingPrice'], 'sellingPrice');
-      final cost = p['costPrice'] != null ? _requireInt(p['costPrice'], 'costPrice') : 0;
+      final cost = p['costPrice'] != null
+          ? _requireInt(p['costPrice'], 'costPrice')
+          : 0;
       final stock = _requireInt(p['stock'], 'stock');
       if (price < 0 || cost < 0 || stock < 0) {
-        throw Exception('Negative price, cost, or stock for product \$id.');
+        throw Exception('Negative price, cost, or stock for product $id.');
       }
     }
 
@@ -147,14 +157,17 @@ class BackupValidator {
       final normalized = normalizeContactNumber(contact);
       if (normalized != null) {
         if (customerContacts.contains(normalized)) {
-          throw Exception('Duplicate normalized customer contact \$normalized.');
+          throw Exception('Duplicate normalized customer contact $normalized.');
         }
         customerContacts.add(normalized);
       }
 
-      final balance = _requireInt(c['outstandingBalance'], 'outstandingBalance');
+      final balance = _requireInt(
+        c['outstandingBalance'],
+        'outstandingBalance',
+      );
       if (balance < 0) {
-        throw Exception('Negative outstanding balance for customer \$id.');
+        throw Exception('Negative outstanding balance for customer $id.');
       }
     }
 
@@ -168,53 +181,55 @@ class BackupValidator {
 
       final customerId = s['customerId'] as String?;
       if (customerId != null && !customerIds.contains(customerId)) {
-        throw Exception('Sale \$id references missing customer \$customerId.');
+        throw Exception('Sale $id references missing customer $customerId.');
       }
 
       final numStr = s['saleNumber'] as String;
       if (saleNumbers.contains(numStr)) {
-        throw Exception('Duplicate sale number \$numStr.');
+        throw Exception('Duplicate sale number $numStr.');
       }
       saleNumbers.add(numStr);
 
       final total = _requireInt(s['totalAmount'], 'totalAmount');
-      final paid = s['amountReceived'] != null ? _requireInt(s['amountReceived'], 'amountReceived') : 0;
+      final paid = s['amountReceived'] != null
+          ? _requireInt(s['amountReceived'], 'amountReceived')
+          : 0;
       if (total < 0 || paid < 0) {
-        throw Exception('Negative total or paid amount for sale \$id.');
+        throw Exception('Negative total or paid amount for sale $id.');
       }
       if (s['paymentType'] == 'credit' && paid > total) {
-        throw Exception('Paid amount exceeds total for sale \$id.');
+        throw Exception('Paid amount exceeds total for sale $id.');
       }
     }
 
     // Sale Items
     final itemTotals = <String, int>{};
     for (final item in saleItems) {
-      if (item['id'] == null) throw Exception('item id is null: \$item');
-      if (item['saleId'] == null) throw Exception('item saleId is null: \$item');
-      if (item['productId'] == null) throw Exception('item productId is null: \$item');
+      if (item['id'] == null) throw Exception('item id is null: $item');
+      if (item['saleId'] == null) throw Exception('item saleId is null: $item');
+      if (item['productId'] == null)
+        throw Exception('item productId is null: $item');
 
       final id = item['id'] as String;
       checkId(id, 'saleItems');
 
       final saleId = item['saleId'] as String;
       if (!saleIds.contains(saleId)) {
-        throw Exception('Sale item \$id references missing sale \$saleId.');
+        throw Exception('Sale item $id references missing sale $saleId.');
       }
 
       final productId = item['productId'] as String;
       if (!productIds.contains(productId)) {
-        throw Exception(
-            'Sale item \$id references missing product \$productId.');
+        throw Exception('Sale item $id references missing product $productId.');
       }
 
       final qty = _requireInt(item['quantity'], 'quantity');
       final subtotal = _requireInt(item['subtotal'], 'subtotal');
       if (qty <= 0) {
-        throw Exception('Non-positive quantity for sale item \$id.');
+        throw Exception('Non-positive quantity for sale item $id.');
       }
       if (subtotal < 0) {
-        throw Exception('Negative subtotal for sale item \$id.');
+        throw Exception('Negative subtotal for sale item $id.');
       }
 
       itemTotals[saleId] = (itemTotals[saleId] ?? 0) + subtotal;
@@ -226,7 +241,7 @@ class BackupValidator {
       final headerTotal = _requireInt(s['totalAmount'], 'totalAmount');
       final calculatedTotal = itemTotals[id] ?? 0;
       if (headerTotal != calculatedTotal) {
-        throw Exception('Sale \$id total does not match sum of items.');
+        throw Exception('Sale $id total does not match sum of items.');
       }
     }
 
@@ -239,12 +254,16 @@ class BackupValidator {
 
       final productId = sm['productId'] as String;
       if (!productIds.contains(productId)) {
-        throw Exception('Stock movement \$id references missing product \$productId.');
+        throw Exception(
+          'Stock movement $id references missing product $productId.',
+        );
       }
 
       final smSaleId = sm['relatedSaleId'] as String?;
       if (smSaleId != null && !saleIds.contains(smSaleId)) {
-        throw Exception('Stock movement \$id references missing sale \$smSaleId.');
+        throw Exception(
+          'Stock movement $id references missing sale $smSaleId.',
+        );
       }
     }
 
@@ -259,12 +278,13 @@ class BackupValidator {
       final customerId = cr['customerId'] as String;
       if (!customerIds.contains(customerId)) {
         throw Exception(
-            'Credit record \$id references missing customer \$customerId.');
+          'Credit record $id references missing customer $customerId.',
+        );
       }
 
       final crSaleId = cr['saleId'] as String?;
       if (crSaleId != null && !saleIds.contains(crSaleId)) {
-        throw Exception('Credit record \$id references missing sale \$crSaleId.');
+        throw Exception('Credit record $id references missing sale $crSaleId.');
       }
 
       final status = cr['status'] as String? ?? 'active';
@@ -274,10 +294,10 @@ class BackupValidator {
       final remaining = amount - paid;
 
       if (amount <= 0) {
-        throw Exception('Non-positive amount for credit record \$id.');
+        throw Exception('Non-positive amount for credit record $id.');
       }
       if (paid < 0 || paid > amount) {
-        throw Exception('Invalid paid amount for credit record \$id.');
+        throw Exception('Invalid paid amount for credit record $id.');
       }
 
       if (!isVoided) {
@@ -289,11 +309,15 @@ class BackupValidator {
     // Check customer outstanding balances
     for (final c in customers) {
       final id = c['id'] as String;
-      final headerBalance = _requireInt(c['outstandingBalance'], 'outstandingBalance');
+      final headerBalance = _requireInt(
+        c['outstandingBalance'],
+        'outstandingBalance',
+      );
       final calculatedBalance = customerRemainingBalances[id] ?? 0;
       if (headerBalance != calculatedBalance) {
         throw Exception(
-            'Customer \$id balance does not match active credit records.');
+          'Customer $id balance does not match active credit records.',
+        );
       }
     }
 
@@ -305,7 +329,8 @@ class BackupValidator {
       final customerId = cp['customerId'] as String;
       if (!customerIds.contains(customerId)) {
         throw Exception(
-            'Credit payment $id references missing customer $customerId.');
+          'Credit payment $id references missing customer $customerId.',
+        );
       }
 
       final amount = _requireInt(cp['amount'], 'amount');
@@ -316,9 +341,12 @@ class BackupValidator {
       final isReversed = cp['isReversed'] as bool? ?? false;
       if (isReversed) {
         final reason = cp['reversalReason'] as String?;
-        if (cp['reversedAt'] == null || reason == null || reason.trim().isEmpty) {
+        if (cp['reversedAt'] == null ||
+            reason == null ||
+            reason.trim().isEmpty) {
           throw Exception(
-              'Reversed payment $id is missing reversal timestamp or reason.');
+            'Reversed payment $id is missing reversal timestamp or reason.',
+          );
         }
       }
     }
@@ -330,10 +358,10 @@ class BackupValidator {
 
       final amount = _requireInt(ex['amount'], 'amount');
       if (amount <= 0) {
-        throw Exception('Non-positive amount for expense \$id.');
+        throw Exception('Non-positive amount for expense $id.');
       }
     }
-    
+
     // Normalize data (modifies the map in-place)
     for (final p in products) {
       final barcode = p['barcode'] as String?;
