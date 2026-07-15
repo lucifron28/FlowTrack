@@ -6,22 +6,38 @@ import 'package:flutter/services.dart';
 import '../config/app_config.dart';
 import '../database/app_database.dart';
 
+import 'backup_crypto_service.dart';
+import 'backup_validator.dart';
+
 class BackupService {
-  const BackupService(this._database);
+  const BackupService(
+    this._database,
+    this._cryptoService,
+    this._validator,
+  );
 
   static const backupVersion = 1;
   static const fileExtension = 'flowtrack-backup';
   static const _channel = MethodChannel('flowtrack/backup_file');
 
   final AppDatabase _database;
+  final BackupCryptoService _cryptoService;
+  final BackupValidator _validator;
 
-  Future<String> createBackupJson({DateTime? createdAt}) async {
+  Future<String> createBackupJson({
+    DateTime? createdAt,
+    String? passphrase,
+  }) async {
     final backup = await _createBackupMap(createdAt: createdAt);
-    return const JsonEncoder.withIndent('  ').convert(backup);
+    final jsonString = const JsonEncoder.withIndent('  ').convert(backup);
+    if (passphrase != null && passphrase.isNotEmpty) {
+      return _cryptoService.encryptBackup(jsonString, passphrase);
+    }
+    return jsonString;
   }
 
-  Future<String?> saveBackupFile() async {
-    final json = await createBackupJson();
+  Future<String?> saveBackupFile(String passphrase) async {
+    final json = await createBackupJson(passphrase: passphrase);
     final bytes = Uint8List.fromList(utf8.encode(json));
     return _channel.invokeMethod<String>('saveBackup', {
       'fileName': _backupFileName(DateTime.now()),
@@ -29,8 +45,8 @@ class BackupService {
     });
   }
 
-  Future<void> shareBackupFile() async {
-    final json = await createBackupJson();
+  Future<void> shareBackupFile(String passphrase) async {
+    final json = await createBackupJson(passphrase: passphrase);
     final bytes = Uint8List.fromList(utf8.encode(json));
     await _channel.invokeMethod<void>('shareBackup', {
       'fileName': _backupFileName(DateTime.now()),
@@ -38,33 +54,68 @@ class BackupService {
     });
   }
 
-  Future<bool> pickAndRestoreBackup() async {
+  Future<String?> pickBackupFile() async {
     final bytes = await _channel.invokeMethod<Uint8List>('pickBackup');
     if (bytes == null || bytes.isEmpty) {
-      return false;
+      return null;
     }
-    await restoreFromJsonString(utf8.decode(bytes));
-    return true;
+    // Limit to 25 MiB
+    if (bytes.length > 25 * 1024 * 1024) {
+      throw const BackupException('Backup file is too large (exceeds 25 MiB).');
+    }
+    return utf8.decode(bytes);
   }
 
-  Future<void> restoreFromJsonString(String json) async {
-    final decoded = jsonDecode(json);
-    if (decoded is! Map<String, Object?>) {
-      throw const BackupException(
-        'Backup file is not a valid FlowTrack backup.',
-      );
+  Future<Map<String, dynamic>> validateBackupString(
+    String fileContents, {
+    String? passphrase,
+  }) async {
+    String jsonString = fileContents;
+    bool isEncrypted = false;
+    
+    Map<String, dynamic>? envelope;
+    try {
+      final decoded = jsonDecode(fileContents);
+      if (decoded is Map<String, dynamic>) {
+        envelope = decoded;
+      }
+    } catch (e) {
+      // Not JSON, might be corrupt
+      throw const BackupException('Backup file is not valid JSON.');
     }
 
-    final metadata = _readMap(decoded, 'metadata');
+    if (envelope != null &&
+        envelope['format'] == BackupCryptoService.formatLabel &&
+        envelope['formatVersion'] == BackupCryptoService.formatVersion) {
+      isEncrypted = true;
+      if (passphrase == null || passphrase.isEmpty) {
+        throw const BackupException('Passphrase required.'); // Need passphrase signal
+      }
+      try {
+        jsonString = await _cryptoService.decryptBackup(fileContents, passphrase);
+      } catch (e) {
+        throw BackupException(e.toString());
+      }
+    }
+
+    final decoded = jsonDecode(jsonString);
+    if (decoded is! Map<String, dynamic>) {
+      throw const BackupException('Backup file is not a valid FlowTrack backup.');
+    }
+
+    try {
+      _validator.validateBackup(decoded, isEncrypted ? 2 : 1);
+    } catch (e, stackTrace) {
+      print('BackupValidation Error: \$e');
+      print(stackTrace);
+      throw BackupException(e.toString().replaceAll('Exception: ', ''));
+    }
+
+    return decoded;
+  }
+
+  Future<void> restoreValidatedBackup(Map<String, dynamic> decoded) async {
     final data = _readMap(decoded, 'data');
-    final appName = metadata['appName'];
-    final version = metadata['backupVersion'];
-    if (appName != AppConfig.appName) {
-      throw const BackupException('Backup file is not for FlowTrack.');
-    }
-    if (version != backupVersion) {
-      throw BackupException('Backup version $version is not supported.');
-    }
 
     await _database.transaction(() async {
       await _clearRestorableData();
@@ -139,6 +190,17 @@ class BackupService {
         'auditLogs',
         (json) => AuditLog.fromJson(json).toCompanion(true),
         _database.auditLogs,
+      );
+      
+      await _database.into(_database.auditLogs).insert(
+        AuditLogsCompanion.insert(
+          id: _database.generateId(),
+          action: 'restore_backup',
+          entityType: 'database',
+          entityId: 'backup',
+          notes: const Value('Database restored from backup.'),
+          createdAt: DateTime.now(),
+        ),
       );
     });
   }

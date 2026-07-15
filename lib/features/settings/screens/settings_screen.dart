@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/config/app_environment.dart';
+import '../../../core/services/backup_crypto_service.dart';
 import '../../../shared/providers/app_providers.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -241,7 +244,7 @@ class _BackupToolsCardState extends ConsumerState<_BackupToolsCard> {
               leading: const Icon(Icons.folder_copy),
               title: const Text('Backup and restore'),
               subtitle: const Text(
-                'Backups are local JSON files. Save one outside this phone when possible.',
+                'Backups are secure files. Save one outside this phone when possible.',
               ),
             ),
             const SizedBox(height: 8),
@@ -273,9 +276,76 @@ class _BackupToolsCardState extends ConsumerState<_BackupToolsCard> {
     );
   }
 
+  Future<String?> _promptPassphrase(
+    String title, {
+    bool isRestore = false,
+  }) async {
+    String passphrase = '';
+    String? errorText;
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(title),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isRestore)
+                    const Text('Enter the passphrase to decrypt this backup.')
+                  else
+                    const Text(
+                      'Create a secure passphrase (at least 8 characters). Do not lose it; it cannot be recovered.',
+                    ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'Passphrase',
+                      errorText: errorText,
+                    ),
+                    onChanged: (val) {
+                      passphrase = val;
+                      if (errorText != null) setState(() => errorText = null);
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(null),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (passphrase.length < 8) {
+                      setState(
+                        () => errorText =
+                            'Passphrase must be at least 8 characters',
+                      );
+                      return;
+                    }
+                    Navigator.of(context).pop(passphrase);
+                  },
+                  child: const Text('Confirm'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _saveBackup() async {
+    final passphrase = await _promptPassphrase('Secure Backup');
+    if (passphrase == null) return;
+
     await _runBackupAction(() async {
-      final path = await ref.read(backupServiceProvider).saveBackupFile();
+      final path = await ref
+          .read(backupServiceProvider)
+          .saveBackupFile(passphrase);
       return path == null || path.isEmpty
           ? 'Backup saved.'
           : 'Backup saved to Downloads.';
@@ -283,45 +353,110 @@ class _BackupToolsCardState extends ConsumerState<_BackupToolsCard> {
   }
 
   Future<void> _shareBackup() async {
+    final passphrase = await _promptPassphrase('Secure Backup');
+    if (passphrase == null) return;
+
     await _runBackupAction(() async {
-      await ref.read(backupServiceProvider).shareBackupFile();
+      await ref.read(backupServiceProvider).shareBackupFile(passphrase);
       return 'Backup ready to share.';
     });
   }
 
   Future<void> _confirmRestore() async {
-    final restore = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Restore backup?'),
-          content: const Text(
-            'Restoring will replace current products, sales, credits, expenses, settings, and history. Owner login is not changed.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Restore'),
-            ),
-          ],
-        );
-      },
-    );
-    if (restore != true) {
+    final backupService = ref.read(backupServiceProvider);
+
+    String? fileContents;
+    try {
+      fileContents = await backupService.pickBackupFile();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
       return;
+    }
+    if (fileContents == null) return;
+
+    bool isEncrypted = false;
+    try {
+      final decoded = jsonDecode(fileContents);
+      if (decoded is Map<String, dynamic> &&
+          decoded['format'] == BackupCryptoService.formatLabel) {
+        isEncrypted = true;
+      }
+    } catch (_) {}
+
+    String? passphrase;
+    if (isEncrypted) {
+      passphrase = await _promptPassphrase('Decrypt Backup', isRestore: true);
+      if (passphrase == null) return;
     }
 
     await _runBackupAction(() async {
-      final restored = await ref
-          .read(backupServiceProvider)
-          .pickAndRestoreBackup();
-      if (!restored) {
+      final decoded = await backupService.validateBackupString(
+        fileContents!,
+        passphrase: passphrase,
+      );
+
+      final metadata = decoded['metadata'] as Map<String, dynamic>? ?? {};
+      final data = decoded['data'] as Map<String, dynamic>? ?? {};
+      final createdAt = metadata['createdAt'] as String? ?? 'Unknown time';
+
+      final productsCount = (data['products'] as List?)?.length ?? 0;
+      final salesCount = (data['sales'] as List?)?.length ?? 0;
+
+      if (!mounted) return 'Restore cancelled.';
+
+      final restore = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Restore backup?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!isEncrypted)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      'Legacy unencrypted backup',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                Text('Created: $createdAt'),
+                Text('Products: $productsCount'),
+                Text('Sales: $salesCount'),
+                const SizedBox(height: 16),
+                const Text(
+                  'Restoring will replace current products, sales, credits, expenses, settings, and history. Owner login is not changed.',
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Restore'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (restore != true) {
         return 'Restore cancelled.';
       }
+
+      await backupService.restoreValidatedBackup(decoded);
+
       ref.invalidate(storeNameProvider);
       ref.invalidate(todayProvider);
       return 'Backup restored.';

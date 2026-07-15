@@ -96,7 +96,20 @@ class MainActivity : FlutterActivity() {
         }
         try {
             val bytes = applicationContext.contentResolver.openInputStream(uri)?.use { input ->
-                input.readBytes()
+                val limit = 25 * 1024 * 1024
+                var size = 0
+                val buffer = java.io.ByteArrayOutputStream()
+                val chunk = ByteArray(8192)
+                var read = input.read(chunk)
+                while (read != -1) {
+                    size += read
+                    if (size > limit) {
+                        throw IllegalStateException("Backup file is too large (exceeds 25 MiB).")
+                    }
+                    buffer.write(chunk, 0, read)
+                    read = input.read(chunk)
+                }
+                buffer.toByteArray()
             } ?: throw IllegalStateException("Could not read backup file.")
             pending.success(bytes)
         } catch (error: Exception) {
@@ -146,7 +159,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun saveBackup(fileName: String, bytes: ByteArray): Uri {
-        val mimeType = "application/json"
+        val mimeType = "application/octet-stream"
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, fileName)
@@ -180,7 +193,7 @@ class MainActivity : FlutterActivity() {
             throw IllegalStateException("Sharing backup files requires Android 10 or newer. Use Save backup instead.")
         }
         val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/json"
+            type = "application/octet-stream"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
@@ -198,7 +211,7 @@ class MainActivity : FlutterActivity() {
             type = "*/*"
             putExtra(
                 Intent.EXTRA_MIME_TYPES,
-                arrayOf("application/json", "application/octet-stream", "text/plain")
+                arrayOf("application/json", "text/plain", "application/octet-stream")
             )
         }
         startActivityForResult(Intent.createChooser(intent, "Choose FlowTrack backup"), pickBackupRequestCode)

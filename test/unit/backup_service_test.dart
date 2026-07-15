@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flowtrack/core/database/app_database.dart';
 import 'package:flowtrack/core/domain/flowtrack_models.dart';
 import 'package:flowtrack/core/services/backup_service.dart';
+import 'package:flowtrack/core/services/backup_crypto_service.dart';
+import 'package:flowtrack/core/services/backup_validator.dart';
 import 'package:flowtrack/core/services/sample_data_service.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,6 +30,8 @@ void main() {
 
     final json = await BackupService(
       source,
+      const BackupCryptoService(),
+      const BackupValidator(),
     ).createBackupJson(createdAt: DateTime.utc(2026, 7, 9, 1, 2, 3));
     final decoded = jsonDecode(json) as Map<String, Object?>;
     final metadata = decoded['metadata'] as Map<String, Object?>;
@@ -47,7 +51,11 @@ void main() {
   test('restores products, sales, credits, expenses, and settings', () async {
     await SampleDataService(source).syncDemoData();
     await source.updateStoreName('Ron Sari-Sari Store');
-    final backup = await BackupService(source).createBackupJson();
+    final backup = await BackupService(
+      source,
+      const BackupCryptoService(),
+      const BackupValidator(),
+    ).createBackupJson();
 
     await target.createProduct(
       name: 'Stale Product',
@@ -58,7 +66,11 @@ void main() {
       lowStockLevel: 1,
     );
 
-    await BackupService(target).restoreFromJsonString(backup);
+    await BackupService(
+      target,
+      const BackupCryptoService(),
+      const BackupValidator(),
+    ).restoreValidatedBackup(jsonDecode(backup));
 
     final products = await target.select(target.products).get();
     final customers = await target.select(target.customers).get();
@@ -115,8 +127,16 @@ void main() {
         amountReceived: 2000,
       );
 
-      final backup = await BackupService(source).createBackupJson();
-      await BackupService(target).restoreFromJsonString(backup);
+      final backup = await BackupService(
+        source,
+        const BackupCryptoService(),
+        const BackupValidator(),
+      ).createBackupJson();
+      await BackupService(
+        target,
+        const BackupCryptoService(),
+        const BackupValidator(),
+      ).restoreValidatedBackup(jsonDecode(backup));
       await target.editProduct(
         productId: productId,
         sellingPrice: 2500,
@@ -134,14 +154,18 @@ void main() {
   );
 
   test('rejects invalid and unsupported backup files', () async {
-    final service = BackupService(target);
+    final service = BackupService(
+      target,
+      const BackupCryptoService(),
+      const BackupValidator(),
+    );
 
     await expectLater(
-      () => service.restoreFromJsonString('[]'),
+      () => service.validateBackupString('[]'),
       throwsA(isA<BackupException>()),
     );
     await expectLater(
-      () => service.restoreFromJsonString(
+      () => service.validateBackupString(
         jsonEncode({
           'metadata': {
             'appName': 'OtherApp',
@@ -153,7 +177,7 @@ void main() {
       throwsA(isA<BackupException>()),
     );
     await expectLater(
-      () => service.restoreFromJsonString(
+      () => service.validateBackupString(
         jsonEncode({
           'metadata': {'appName': 'FlowTrack', 'backupVersion': 999},
           'data': <String, Object?>{},
