@@ -75,6 +75,8 @@ class BackupValidator {
         (data['creditPayments'] as List).cast<Map<String, dynamic>>();
     final expenses = (data['expenses'] as List).cast<Map<String, dynamic>>();
     final settings = (data['settings'] as List).cast<Map<String, dynamic>>();
+    final auditLogs = (data['auditLogs'] as List).cast<Map<String, dynamic>>();
+    final appMetadata = (data['appMetadata'] as List).cast<Map<String, dynamic>>();
 
     final allIds = <String>{};
     void checkId(String id, String table) {
@@ -92,6 +94,18 @@ class BackupValidator {
         throw Exception('Duplicate setting key \$key.');
       }
       settingKeys.add(key);
+    }
+
+    // AppMetadata
+    for (final am in appMetadata) {
+      final id = am['id'] as String;
+      checkId(id, 'appMetadata');
+    }
+
+    // AuditLogs
+    for (final al in auditLogs) {
+      final id = al['id'] as String;
+      checkId(id, 'auditLogs');
     }
 
     // Products
@@ -221,6 +235,8 @@ class BackupValidator {
       final id = sm['id'] as String;
       checkId(id, 'stockMovements');
 
+      _requireInt(sm['quantity'], 'quantity');
+
       final productId = sm['productId'] as String;
       if (!productIds.contains(productId)) {
         throw Exception('Stock movement \$id references missing product \$productId.');
@@ -260,8 +276,8 @@ class BackupValidator {
       if (amount <= 0) {
         throw Exception('Non-positive amount for credit record \$id.');
       }
-      if (remaining < 0) {
-        throw Exception('Negative remaining amount for credit record \$id.');
+      if (paid < 0 || paid > amount) {
+        throw Exception('Invalid paid amount for credit record \$id.');
       }
 
       if (!isVoided) {

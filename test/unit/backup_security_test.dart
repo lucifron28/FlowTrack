@@ -5,7 +5,6 @@ import 'package:flowtrack/core/domain/flowtrack_models.dart';
 import 'package:flowtrack/core/services/backup_crypto_service.dart';
 import 'package:flowtrack/core/services/backup_service.dart';
 import 'package:flowtrack/core/services/backup_validator.dart';
-import 'package:flowtrack/core/services/sample_data_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'backup_test_utils.dart';
@@ -44,7 +43,7 @@ void main() {
   });
 
   test('encrypted round trip and tampering detection', () async {
-    await SampleDataService(source).syncDemoData();
+    await setupBackupTestFixtures(source);
     await source.updateStoreName('Secure Store');
     await source.createCustomer(name: 'Secret Customer');
 
@@ -87,7 +86,7 @@ void main() {
   });
 
   test('invalid backup restore is atomic', () async {
-    await SampleDataService(source).syncDemoData();
+    await setupBackupTestFixtures(source);
     await target.updateStoreName('Initial Target Store');
 
     final json = await createUnencryptedBackupJsonForTest(source);
@@ -120,7 +119,7 @@ void main() {
   });
 
   test('legacy restore and versioning', () async {
-    await SampleDataService(source).syncDemoData();
+    await setupBackupTestFixtures(source);
     await source.createProduct(
       name: 'NormTest',
       barcode: 'abc-123',

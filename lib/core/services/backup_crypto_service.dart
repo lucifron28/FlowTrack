@@ -11,6 +11,7 @@ class BackupCryptoService {
   static const int kdfIterations = 210000;
   static const int saltLength = 16;
   static const int nonceLength = 12;
+  static const aadLabel = '\$formatLabel:v\$formatVersion';
 
   Future<String> encryptBackup(String json, String passphrase) async {
     final pbkdf2 = Pbkdf2(
@@ -32,7 +33,7 @@ class BackupCryptoService {
       utf8.encode(json),
       secretKey: secretKey,
       nonce: nonce,
-      aad: utf8.encode('\$formatLabel:v\$formatVersion'),
+      aad: utf8.encode(aadLabel),
     );
 
     return jsonEncode({
@@ -126,7 +127,7 @@ class BackupCryptoService {
       final clearText = await aesGcm.decrypt(
         secretBox,
         secretKey: secretKey,
-        aad: utf8.encode('\$formatLabel:v\$formatVersion'),
+        aad: utf8.encode(aadLabel),
       );
 
       return utf8.decode(clearText);

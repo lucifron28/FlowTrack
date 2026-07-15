@@ -248,15 +248,8 @@ final class AppDatabase extends _$AppDatabase {
   String _id() => _uuid.v4();
   String generateId() => _id();
 
-  static int _lastSaleMicroseconds = 0;
-
   String _saleNumber(DateTime now) {
-    int micros = now.microsecondsSinceEpoch;
-    if (micros <= _lastSaleMicroseconds) {
-      micros = _lastSaleMicroseconds + 1;
-    }
-    _lastSaleMicroseconds = micros;
-    return 'S-$micros';
+    return 'S-${now.microsecondsSinceEpoch}';
   }
 
   Stream<List<Product>> watchProducts() {
