@@ -359,6 +359,19 @@ class BackupValidator {
       if (amount <= 0) {
         throw Exception('Non-positive amount for expense $id.');
       }
+
+      final isVoided = ex['isVoided'] as bool? ?? false;
+      final voidedAt = ex['voidedAt'];
+      final voidReason = ex['voidReason'] as String?;
+      if (isVoided) {
+        if (voidedAt == null || voidReason == null || voidReason.trim().isEmpty) {
+          throw Exception(
+            'Voided expense $id is missing void timestamp or reason.',
+          );
+        }
+      } else if (voidedAt != null || voidReason != null) {
+        throw Exception('Active expense $id contains void metadata.');
+      }
     }
 
     // Normalize data (modifies the map in-place)

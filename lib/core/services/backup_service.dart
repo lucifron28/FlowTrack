@@ -208,7 +208,13 @@ class BackupService {
       await _restoreRows(
         data,
         'expenses',
-        (json) => Expense.fromJson(json).toCompanion(true),
+        (json) {
+          final copy = Map<String, Object?>.from(json);
+          copy.putIfAbsent('isVoided', () => false);
+          copy.putIfAbsent('voidedAt', () => null);
+          copy.putIfAbsent('voidReason', () => null);
+          return Expense.fromJson(copy).toCompanion(true);
+        },
         _database.expenses,
       );
       await _restoreRows(
