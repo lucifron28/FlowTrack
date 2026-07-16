@@ -219,19 +219,19 @@ final class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async => m.createAll(),
     onUpgrade: (m, from, to) async {
-      if (from < 2) {
+      if (from < 2 && to >= 2) {
         await m.addColumn(products, products.isActive);
         await m.addColumn(customers, customers.isActive);
       }
-      if (from < 3) {
+      if (from < 3 && to >= 3) {
         await customStatement('DROP TABLE IF EXISTS sync_queue');
       }
-      if (from < 4) {
+      if (from < 4 && to >= 4) {
         await m.addColumn(creditPayments, creditPayments.isReversed);
         await m.addColumn(creditPayments, creditPayments.reversedAt);
         await m.addColumn(creditPayments, creditPayments.reversalReason);
       }
-      if (from < 5) {
+      if (from < 5 && to >= 5) {
         await m.addColumn(expenses, expenses.isVoided);
         await m.addColumn(expenses, expenses.voidedAt);
         await m.addColumn(expenses, expenses.voidReason);
