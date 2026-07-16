@@ -23,10 +23,13 @@ extension AppDatabaseReports on AppDatabase {
     );
     return DashboardSummary(
       totalSalesToday: report.totalSales,
+      costOfGoodsSoldToday: report.costOfGoodsSold,
+      grossProfitToday: report.grossProfit,
       totalExpensesToday: report.totalExpenses,
       netIncomeToday: report.netIncome,
       totalOutstandingCredit: outstanding,
-      lowStockItemsCount: lowStockCount,
+      stockAlertItemsCount: lowStockCount,
+      hasIncompleteCostData: report.hasIncompleteCostData,
     );
   }
 
@@ -97,10 +100,13 @@ extension AppDatabaseReports on AppDatabase {
 
     return ReportSummary(
       totalSales: totalSales,
+      costOfGoodsSold: 0,
+      grossProfit: totalSales,
       totalExpenses: totalExpenses,
       netIncome: totalSales - totalExpenses,
       totalCreditGiven: totalCreditGiven,
       totalCreditCollected: totalCreditCollected,
+      missingCostItemCount: 0,
     );
   }
 }

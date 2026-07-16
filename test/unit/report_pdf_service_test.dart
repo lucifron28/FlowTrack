@@ -6,10 +6,13 @@ void main() {
   test('builds a valid offline report PDF for a date range', () async {
     const summary = ReportSummary(
       totalSales: 12500,
+      costOfGoodsSold: 5000,
+      grossProfit: 7500,
       totalExpenses: 2500,
       netIncome: 10000,
       totalCreditGiven: 3000,
       totalCreditCollected: 1500,
+      missingCostItemCount: 0,
     );
     final service = const ReportPdfService();
     final start = DateTime(2026, 7, 1);

@@ -61,7 +61,7 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     _CountCard(
                       label: 'Low Stock Items',
-                      count: summary.lowStockItemsCount,
+                      count: summary.stockAlertItemsCount,
                       icon: Icons.warning_amber,
                     ),
                   ],

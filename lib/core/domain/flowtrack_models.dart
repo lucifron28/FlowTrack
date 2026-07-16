@@ -90,33 +90,47 @@ class SaleCartLine {
 class DashboardSummary {
   const DashboardSummary({
     required this.totalSalesToday,
+    required this.costOfGoodsSoldToday,
+    required this.grossProfitToday,
     required this.totalExpensesToday,
     required this.netIncomeToday,
     required this.totalOutstandingCredit,
-    required this.lowStockItemsCount,
+    required this.stockAlertItemsCount,
+    required this.hasIncompleteCostData,
   });
 
   final int totalSalesToday;
+  final int costOfGoodsSoldToday;
+  final int grossProfitToday;
   final int totalExpensesToday;
   final int netIncomeToday;
   final int totalOutstandingCredit;
-  final int lowStockItemsCount;
+  final int stockAlertItemsCount;
+  final bool hasIncompleteCostData;
 }
 
 class ReportSummary {
   const ReportSummary({
     required this.totalSales,
+    required this.costOfGoodsSold,
+    required this.grossProfit,
     required this.totalExpenses,
     required this.netIncome,
     required this.totalCreditGiven,
     required this.totalCreditCollected,
+    required this.missingCostItemCount,
   });
 
   final int totalSales;
+  final int costOfGoodsSold;
+  final int grossProfit;
   final int totalExpenses;
   final int netIncome;
   final int totalCreditGiven;
   final int totalCreditCollected;
+  final int missingCostItemCount;
+
+  bool get hasIncompleteCostData => missingCostItemCount > 0;
 }
 
 ProductStatus calculateProductStatus({
