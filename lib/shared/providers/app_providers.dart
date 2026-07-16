@@ -21,6 +21,11 @@ import '../../features/inventory/screens/barcode_print_screen.dart';
 import '../../features/reports/screens/reports_screen.dart';
 import '../../features/sales/screens/sales_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
+import '../../features/auth/domain/auth_state.dart';
+import '../../features/auth/application/auth_controller.dart';
+
+export '../../features/auth/domain/auth_state.dart';
+export '../../features/auth/application/auth_controller.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final database = AppDatabase.defaults();
@@ -83,14 +88,78 @@ final themeModeProvider = NotifierProvider<ThemeModeController, ThemeMode>(
   ThemeModeController.new,
 );
 
+class RouterTransitionListenable extends ChangeNotifier {
+  RouterTransitionListenable(Ref ref) {
+    ref.listen(authControllerProvider, (previous, next) {
+      notifyListeners();
+    });
+  }
+}
+
+final routerTransitionListenableProvider =
+    Provider<RouterTransitionListenable>((ref) {
+  return RouterTransitionListenable(ref);
+});
+
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final listenable = ref.watch(routerTransitionListenableProvider);
+
   return GoRouter(
     initialLocation: AppRoutes.root,
+    refreshListenable: listenable,
+    redirect: (context, state) {
+      final authState = ref.read(authControllerProvider);
+
+      final status = authState.maybeWhen(
+        data: (state) => state.status,
+        orElse: () => AuthStatus.initializing,
+      );
+      final hasOwner = authState.maybeWhen(
+        data: (state) => state.hasOwner,
+        orElse: () => false,
+      );
+
+      final isLoginRoute = state.matchedLocation == AppRoutes.login;
+      final isOwnerSetupRoute = state.matchedLocation == AppRoutes.ownerSetup;
+      final isRootRoute = state.matchedLocation == AppRoutes.root;
+
+      if (status == AuthStatus.initializing) {
+        return isRootRoute ? null : AppRoutes.root;
+      }
+
+      if (!hasOwner) {
+        return isOwnerSetupRoute ? null : AppRoutes.ownerSetup;
+      }
+
+      if (status == AuthStatus.unauthenticated ||
+          status == AuthStatus.authenticating) {
+        return isLoginRoute ? null : AppRoutes.login;
+      }
+
+      if (status == AuthStatus.authenticated) {
+        if (isLoginRoute || isOwnerSetupRoute) {
+          return AppRoutes.root;
+        }
+        return null;
+      }
+
+      return null;
+    },
     routes: [
       GoRoute(
         name: AppRoutes.rootName,
         path: AppRoutes.root,
         builder: (context, state) => const AuthGate(),
+      ),
+      GoRoute(
+        name: AppRoutes.loginName,
+        path: AppRoutes.login,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        name: AppRoutes.ownerSetupName,
+        path: AppRoutes.ownerSetup,
+        builder: (context, state) => const OwnerSetupScreen(),
       ),
       GoRoute(
         name: AppRoutes.newSaleName,
@@ -233,117 +302,7 @@ class _MissingRouteExtraScreen extends StatelessWidget {
   }
 }
 
-class AuthState {
-  const AuthState({
-    required this.hasOwner,
-    required this.isAuthenticated,
-    this.ownerName,
-  });
 
-  final bool hasOwner;
-  final bool isAuthenticated;
-  final String? ownerName;
-
-  AuthState copyWith({
-    bool? hasOwner,
-    bool? isAuthenticated,
-    String? ownerName,
-  }) {
-    return AuthState(
-      hasOwner: hasOwner ?? this.hasOwner,
-      isAuthenticated: isAuthenticated ?? this.isAuthenticated,
-      ownerName: ownerName ?? this.ownerName,
-    );
-  }
-}
-
-class AuthException implements Exception {
-  const AuthException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
-}
-
-class AuthController extends AsyncNotifier<AuthState> {
-  LocalAuthService get _authService => ref.read(localAuthServiceProvider);
-
-  @override
-  Future<AuthState> build() async {
-    final hasOwner = await _authService.hasOwnerAccount();
-    final ownerName = await _authService.ownerName();
-    return AuthState(
-      hasOwner: hasOwner,
-      isAuthenticated: !hasOwner,
-      ownerName: ownerName,
-    );
-  }
-
-  Future<void> setupOwner({
-    required String ownerName,
-    required String password,
-  }) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      await _authService.setupOwner(ownerName: ownerName, password: password);
-      return AuthState(
-        hasOwner: true,
-        isAuthenticated: true,
-        ownerName: ownerName.trim(),
-      );
-    });
-  }
-
-  Future<void> updateOwnerName(String name) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      await _authService.updateOwnerName(name);
-      return AuthState(
-        hasOwner: true,
-        isAuthenticated: true,
-        ownerName: name.trim(),
-      );
-    });
-  }
-
-  Future<void> login(String password) async {
-    final current =
-        state.asData?.value ??
-        AuthState(
-          hasOwner: await _authService.hasOwnerAccount(),
-          isAuthenticated: false,
-          ownerName: await _authService.ownerName(),
-        );
-    final success = await _authService.verifyPassword(password);
-    if (!success) {
-      state = AsyncValue.data(current);
-      throw const AuthException('Invalid password. Please try again.');
-    }
-    state = AsyncValue.data(
-      AuthState(
-        hasOwner: true,
-        isAuthenticated: true,
-        ownerName: await _authService.ownerName(),
-      ),
-    );
-  }
-
-  void logout() {
-    final current = state.asData?.value;
-    state = AsyncValue.data(
-      AuthState(
-        hasOwner: true,
-        isAuthenticated: false,
-        ownerName: current?.ownerName,
-      ),
-    );
-  }
-}
-
-final authControllerProvider = AsyncNotifierProvider<AuthController, AuthState>(
-  AuthController.new,
-);
 
 final todayProvider = Provider<DateTime>((ref) => DateTime.now());
 
