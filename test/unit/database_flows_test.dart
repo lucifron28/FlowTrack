@@ -17,6 +17,7 @@ void main() {
     int stock = 5,
     int price = 1000,
     int? costPrice,
+    int lowStockLevel = 20,
     String barcode = 'P-001',
   }) async {
     final id = await database.createProduct(
@@ -26,7 +27,7 @@ void main() {
       sellingPrice: price,
       costPrice: costPrice,
       initialStock: stock,
-      lowStockLevel: 20,
+      lowStockLevel: lowStockLevel,
     );
     return (await database.getProduct(id))!;
   }
@@ -288,6 +289,35 @@ void main() {
     expect(report.totalCreditGiven, 1000);
     expect(report.totalCreditCollected, 0);
   });
+
+  test(
+    'dashboard aligns stock alerts and excludes voided recent sales',
+    () async {
+      await createProduct(stock: 0, lowStockLevel: 4, barcode: 'P-006');
+      await createProduct(stock: 2, lowStockLevel: 4, barcode: 'P-007');
+      final normalStock = await createProduct(
+        stock: 10,
+        lowStockLevel: 4,
+        barcode: 'P-008',
+      );
+
+      final completedSaleId = await database.completeSale(
+        lines: [SaleRequestLine(productId: normalStock.id, quantity: 1)],
+        paymentType: PaymentType.cash,
+        saleDate: DateTime(2026, 5, 4, 10),
+        amountReceived: 1000,
+      );
+      await database.voidSale(completedSaleId, reason: 'Test void');
+
+      final dashboard = await database.dashboardSummary(DateTime(2026, 5, 4));
+      final alerts = await database.lowStockProducts();
+      final recent = await database.recentSales();
+      expect(dashboard.stockAlertItemsCount, 2);
+      expect(alerts.first.stock, 0);
+      expect(alerts.map((product) => product.stock), orderedEquals([0, 2]));
+      expect(recent, isEmpty);
+    },
+  );
 
   test('product can be deactivated and filtered from active list', () async {
     final product = await createProduct(barcode: 'P-100');

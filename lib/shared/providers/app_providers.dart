@@ -306,6 +306,31 @@ class _MissingRouteExtraScreen extends StatelessWidget {
 
 final todayProvider = Provider<DateTime>((ref) => DateTime.now());
 
+class DashboardData {
+  const DashboardData({
+    required this.summary,
+    required this.recentSales,
+    required this.lowStockProducts,
+  });
+
+  final DashboardSummary summary;
+  final List<Sale> recentSales;
+  final List<Product> lowStockProducts;
+}
+
+final dashboardDataProvider = FutureProvider<DashboardData>((ref) async {
+  final database = ref.watch(appDatabaseProvider);
+  final day = ref.watch(todayProvider);
+  final summary = await database.dashboardSummary(day);
+  final recentSales = await database.recentSales();
+  final lowStockProducts = await database.lowStockProducts();
+  return DashboardData(
+    summary: summary,
+    recentSales: recentSales,
+    lowStockProducts: lowStockProducts,
+  );
+});
+
 final reportSummaryProvider =
     FutureProvider.family<ReportSummary, ReportPeriod>((ref, period) async {
       final database = ref.watch(appDatabaseProvider);
