@@ -19,6 +19,9 @@ Included:
 - app metadata
 - audit logs
 
+Expenses include their void status, void timestamp, and void reason. A voided
+expense remains in the restored history but is excluded from financial reports.
+
 Not included:
 
 - owner password
@@ -47,6 +50,9 @@ Current backup version:
 
 **Legacy Format Support:**
 Legacy version 1 plaintext backups are still supported for restoring, but generating new backups will only produce encrypted version 2 files. The app will warn you before restoring an unencrypted backup.
+
+Legacy backups that predate expense void metadata restore their expenses as
+active. New backups preserve `isVoided`, `voidedAt`, and `voidReason`.
 
 ## Passphrase Responsibility
 
@@ -85,6 +91,8 @@ The app performs complete preflight validation before any current data is cleare
 - constraints are checked: no duplicate primary IDs, barcodes, contacts, sale numbers
 - financial data integrity: no negative stock/prices, no over-payments, sale total equals sum of items, customer balance equals active credit remaining
 - reversal validity
+- expense void validity: voided expenses require a timestamp and reason; active
+  expenses cannot contain void metadata
 - 25 MiB file size limit is enforced
 
 If any error occurs during parsing, decryption, or validation, the restore is aborted and the current database remains entirely unchanged.
