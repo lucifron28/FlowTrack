@@ -146,6 +146,10 @@ ProductStatus calculateProductStatus({
   return ProductStatus.normal;
 }
 
+bool isStockAlert(ProductStatus status) {
+  return status == ProductStatus.lowStock || status == ProductStatus.outOfStock;
+}
+
 int calculateSaleTotal(Iterable<SaleCartLine> items) {
   return items.fold<int>(0, (total, item) => total + item.subtotal);
 }

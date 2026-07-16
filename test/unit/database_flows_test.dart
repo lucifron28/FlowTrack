@@ -16,6 +16,7 @@ void main() {
   Future<Product> createProduct({
     int stock = 5,
     int price = 1000,
+    int? costPrice,
     String barcode = 'P-001',
   }) async {
     final id = await database.createProduct(
@@ -23,6 +24,7 @@ void main() {
       barcode: barcode,
       barcodeType: BarcodeType.manufacturer,
       sellingPrice: price,
+      costPrice: costPrice,
       initialStock: stock,
       lowStockLevel: 20,
     );
@@ -176,41 +178,115 @@ void main() {
     },
   );
 
-  test('expense affects net income and reports ignore voided sales', () async {
+  test(
+    'reports calculate profit from cost snapshots and exclude voided sales',
+    () async {
+      final product = await createProduct(
+        stock: 5,
+        price: 1000,
+        costPrice: 400,
+        barcode: 'P-003',
+      );
+      final saleId = await database.completeSale(
+        lines: [SaleRequestLine(productId: product.id, quantity: 1)],
+        paymentType: PaymentType.cash,
+        saleDate: DateTime(2026, 5, 4, 10),
+        amountReceived: 1000,
+      );
+      await database.createExpense(
+        category: 'Utilities',
+        amount: 300,
+        expenseDate: DateTime(2026, 5, 4, 12),
+      );
+
+      var report = await database.reportForRange(
+        start: DateTime(2026, 5, 4),
+        end: DateTime(2026, 5, 5),
+      );
+      expect(report.totalSales, 1000);
+      expect(report.costOfGoodsSold, 400);
+      expect(report.grossProfit, 600);
+      expect(report.totalExpenses, 300);
+      expect(report.netIncome, 300);
+      expect(report.missingCostItemCount, 0);
+
+      await database.voidSale(saleId, reason: 'Test void');
+
+      report = await database.reportForRange(
+        start: DateTime(2026, 5, 4),
+        end: DateTime(2026, 5, 5),
+      );
+      expect(report.totalSales, 0);
+      expect(report.costOfGoodsSold, 0);
+      expect(report.grossProfit, 0);
+      expect(report.totalExpenses, 300);
+      expect(report.netIncome, -300);
+      expect((await database.getProduct(product.id))!.stock, 5);
+    },
+  );
+
+  test('reports flag sales with missing immutable cost snapshots', () async {
     final product = await createProduct(
-      stock: 5,
+      stock: 2,
       price: 1000,
-      barcode: 'P-003',
+      barcode: 'P-004',
     );
-    final saleId = await database.completeSale(
+    await database.completeSale(
       lines: [SaleRequestLine(productId: product.id, quantity: 1)],
       paymentType: PaymentType.cash,
       saleDate: DateTime(2026, 5, 4, 10),
       amountReceived: 1000,
     );
-    await database.createExpense(
-      category: 'Utilities',
-      amount: 300,
-      expenseDate: DateTime(2026, 5, 4, 12),
+    await database.editProduct(
+      productId: product.id,
+      sellingPrice: 1000,
+      costPrice: 900,
+      lowStockLevel: product.lowStockLevel,
     );
 
-    var report = await database.reportForRange(
+    final report = await database.reportForRange(
       start: DateTime(2026, 5, 4),
       end: DateTime(2026, 5, 5),
     );
-    expect(report.totalSales, 1000);
-    expect(report.totalExpenses, 300);
-    expect(report.netIncome, 700);
+    expect(report.costOfGoodsSold, 0);
+    expect(report.grossProfit, 1000);
+    expect(report.netIncome, 1000);
+    expect(report.missingCostItemCount, 1);
+    expect(report.hasIncompleteCostData, isTrue);
+  });
 
-    await database.voidSale(saleId, reason: 'Test void');
+  test('reports exclude reversed credit payments from collections', () async {
+    final product = await createProduct(
+      stock: 2,
+      price: 1000,
+      costPrice: 600,
+      barcode: 'P-005',
+    );
+    await database.completeSale(
+      lines: [SaleRequestLine(productId: product.id, quantity: 1)],
+      paymentType: PaymentType.credit,
+      saleDate: DateTime(2026, 5, 4, 10),
+      customerName: 'Aling Tess',
+    );
+    final customer = (await database.getActiveCustomers()).single;
+    await database.recordCreditPayment(
+      customerId: customer.id,
+      amount: 1000,
+      paymentDate: DateTime(2026, 5, 4, 11),
+    );
+    final payment =
+        (await database.select(database.creditPayments).get()).single;
+    await database.reverseCreditPayment(
+      paymentId: payment.id,
+      reason: 'Entry error',
+    );
 
-    report = await database.reportForRange(
+    final report = await database.reportForRange(
       start: DateTime(2026, 5, 4),
       end: DateTime(2026, 5, 5),
     );
-    expect(report.totalSales, 0);
-    expect(report.totalExpenses, 300);
-    expect((await database.getProduct(product.id))!.stock, 5);
+    expect(report.totalCreditGiven, 1000);
+    expect(report.totalCreditCollected, 0);
   });
 
   test('product can be deactivated and filtered from active list', () async {
@@ -284,56 +360,65 @@ void main() {
     expect(() => database.deleteCustomer(cId), throwsA(isA<StateError>()));
   });
 
-  test('expense edits are audited and voiding preserves financial history', () async {
-    // Create
-    await database.createExpense(
-      category: 'Utilities',
-      description: 'Water bill',
-      amount: 500,
-      expenseDate: DateTime(2026, 5, 4),
-    );
-    var list = await database.watchExpenses().first;
-    expect(list.length, 1);
-    var exp = list.first;
-    expect(exp.category, 'Utilities');
-    expect(exp.description, 'Water bill');
-    expect(exp.amount, 500);
+  test(
+    'expense edits are audited and voiding preserves financial history',
+    () async {
+      // Create
+      await database.createExpense(
+        category: 'Utilities',
+        description: 'Water bill',
+        amount: 500,
+        expenseDate: DateTime(2026, 5, 4),
+      );
+      var list = await database.watchExpenses().first;
+      expect(list.length, 1);
+      var exp = list.first;
+      expect(exp.category, 'Utilities');
+      expect(exp.description, 'Water bill');
+      expect(exp.amount, 500);
 
-    // Update
-    await database.updateExpense(
-      expenseId: exp.id,
-      category: 'Rent',
-      description: 'Office rent',
-      amount: 1500,
-      expenseDate: DateTime(2026, 5, 5),
-    );
-
-    final updated = (await database.getExpense(exp.id))!;
-    expect(updated.category, 'Rent');
-    expect(updated.description, 'Office rent');
-    expect(updated.amount, 1500);
-
-    await database.voidExpense(expenseId: exp.id, reason: 'Entered twice');
-    final voided = (await database.getExpense(exp.id))!;
-    expect(voided.isVoided, isTrue);
-    expect(voided.voidReason, 'Entered twice');
-    expect(voided.voidedAt, isNotNull);
-    list = await database.watchExpenses().first;
-    expect(list.single.isVoided, isTrue);
-
-    final auditEntries = await database.select(database.auditLogs).get();
-    expect(auditEntries.map((entry) => entry.action), contains('update_expense'));
-    expect(auditEntries.map((entry) => entry.action), contains('void_expense'));
-    expect(
-      () => database.updateExpense(
+      // Update
+      await database.updateExpense(
         expenseId: exp.id,
         category: 'Rent',
+        description: 'Office rent',
         amount: 1500,
         expenseDate: DateTime(2026, 5, 5),
-      ),
-      throwsA(isA<StateError>()),
-    );
-  });
+      );
+
+      final updated = (await database.getExpense(exp.id))!;
+      expect(updated.category, 'Rent');
+      expect(updated.description, 'Office rent');
+      expect(updated.amount, 1500);
+
+      await database.voidExpense(expenseId: exp.id, reason: 'Entered twice');
+      final voided = (await database.getExpense(exp.id))!;
+      expect(voided.isVoided, isTrue);
+      expect(voided.voidReason, 'Entered twice');
+      expect(voided.voidedAt, isNotNull);
+      list = await database.watchExpenses().first;
+      expect(list.single.isVoided, isTrue);
+
+      final auditEntries = await database.select(database.auditLogs).get();
+      expect(
+        auditEntries.map((entry) => entry.action),
+        contains('update_expense'),
+      );
+      expect(
+        auditEntries.map((entry) => entry.action),
+        contains('void_expense'),
+      );
+      expect(
+        () => database.updateExpense(
+          expenseId: exp.id,
+          category: 'Rent',
+          amount: 1500,
+          expenseDate: DateTime(2026, 5, 5),
+        ),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
 
   test('voiding credit sale fails if partial payments exist', () async {
     final product = await createProduct(
