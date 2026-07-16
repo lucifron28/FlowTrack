@@ -41,17 +41,41 @@ class ExpensesScreen extends ConsumerWidget {
               final expense = expenses[index];
               return Card(
                 child: ListTile(
-                  onTap: () => context.pushNamed(
-                    AppRoutes.editExpenseName,
-                    pathParameters: {'expenseId': expense.id},
-                    extra: expense,
-                  ),
+                  onTap: expense.isVoided
+                      ? null
+                      : () => context.pushNamed(
+                          AppRoutes.editExpenseName,
+                          pathParameters: {'expenseId': expense.id},
+                          extra: expense,
+                        ),
                   title: Text(expense.category),
-                  subtitle: Text(expense.description ?? 'No description'),
+                  subtitle: Text(
+                    expense.isVoided
+                        ? 'Voided ${_dateLabel(expense.voidedAt)}: '
+                              '${expense.voidReason}'
+                        : '${expense.description ?? 'No description'}\n'
+                              '${_dateLabel(expense.expenseDate)}',
+                  ),
+                  isThreeLine: expense.isVoided,
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CurrencyText(expense.amount),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          CurrencyText(expense.amount),
+                          if (expense.isVoided)
+                            Text(
+                              'VOIDED',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: Theme.of(context).colorScheme.error,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                        ],
+                      ),
                       const SizedBox(width: 4),
                       const Icon(Icons.chevron_right, size: 20),
                     ],
@@ -68,6 +92,13 @@ class ExpensesScreen extends ConsumerWidget {
         label: const Text('Add Expense'),
       ),
     );
+  }
+
+  static String _dateLabel(DateTime? date) {
+    if (date == null) {
+      return 'unknown date';
+    }
+    return date.toLocal().toString().split(' ').first;
   }
 }
 
@@ -95,6 +126,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   final _amountController = TextEditingController();
   String _category = categories.first;
   DateTime _date = DateTime.now();
+  bool _isVoiding = false;
 
   @override
   void initState() {
@@ -121,6 +153,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.expense != null;
+    final isVoided = widget.expense?.isVoided ?? false;
     return Scaffold(
       appBar: AppBar(title: Text(isEdit ? 'Edit Expense' : 'Add Expense')),
       body: ListView(
@@ -138,12 +171,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       DropdownMenuItem(value: category, child: Text(category)),
                 )
                 .toList(),
-            onChanged: (value) =>
-                setState(() => _category = value ?? _category),
+            onChanged: isVoided
+                ? null
+                : (value) => setState(() => _category = value ?? _category),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _descriptionController,
+            enabled: !isVoided,
             decoration: const InputDecoration(
               labelText: 'Description optional',
               prefixIcon: Icon(Icons.notes),
@@ -152,6 +187,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           const SizedBox(height: 12),
           TextField(
             controller: _amountController,
+            enabled: !isVoided,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
               labelText: 'Amount',
@@ -164,20 +200,33 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             title: const Text('Expense date'),
             subtitle: Text(_date.toLocal().toString().split(' ').first),
             trailing: const Icon(Icons.calendar_today),
-            onTap: _pickDate,
+            onTap: isVoided ? null : _pickDate,
           ),
           const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: _save,
-            icon: const Icon(Icons.save),
-            label: Text(isEdit ? 'Save Changes' : 'Save Expense'),
-          ),
-          if (isEdit) ...[
+          if (isVoided) ...[
+            Text(
+              'This expense was voided on ${_dateLabel(widget.expense!.voidedAt)}. '
+              'Reason: ${widget.expense!.voidReason}',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ] else ...[
+            FilledButton.icon(
+              onPressed: _save,
+              icon: const Icon(Icons.save),
+              label: Text(isEdit ? 'Save Changes' : 'Save Expense'),
+            ),
+          ],
+          if (isEdit && !isVoided) ...[
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: _delete,
-              icon: const Icon(Icons.delete),
-              label: const Text('Delete Expense'),
+              onPressed: _isVoiding ? null : _voidExpense,
+              icon: _isVoiding
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.block),
+              label: const Text('Void Expense'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.error,
                 side: BorderSide(color: Theme.of(context).colorScheme.error),
@@ -233,44 +282,88 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
   }
 
-  Future<void> _delete() async {
-    final confirm = await showDialog<bool>(
+  Future<void> _voidExpense() async {
+    final reasonController = TextEditingController();
+    String? errorText;
+    final reason = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Expense?'),
-        content: const Text(
-          'Are you sure you want to delete this expense? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Void Expense?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Voiding preserves this expense in history and removes it from financial reports.',
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Void reason',
+                  errorText: errorText,
+                ),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
             ),
-            child: const Text('Delete'),
-          ),
-        ],
+            FilledButton(
+              onPressed: () {
+                final value = reasonController.text.trim();
+                if (value.isEmpty) {
+                  setDialogState(() => errorText = 'A void reason is required.');
+                  return;
+                }
+                Navigator.of(dialogContext).pop(value);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              child: const Text('Void Expense'),
+            ),
+          ],
+        ),
       ),
     );
+    reasonController.dispose();
 
-    if (confirm == true && mounted) {
-      try {
-        await ref.read(appDatabaseProvider).deleteExpense(widget.expense!.id);
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      } catch (error) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(error.toString())));
-        }
+    if (reason == null || !mounted) {
+      return;
+    }
+
+    setState(() => _isVoiding = true);
+    try {
+      await ref.read(appDatabaseProvider).voidExpense(
+            expenseId: widget.expense!.id,
+            reason: reason,
+          );
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isVoiding = false);
       }
     }
+  }
+
+  static String _dateLabel(DateTime? date) {
+    if (date == null) {
+      return 'unknown date';
+    }
+    return date.toLocal().toString().split(' ').first;
   }
 }

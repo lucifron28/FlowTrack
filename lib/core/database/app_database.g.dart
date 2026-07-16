@@ -4233,6 +4233,43 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _isVoidedMeta = const VerificationMeta(
+    'isVoided',
+  );
+  @override
+  late final GeneratedColumn<bool> isVoided = GeneratedColumn<bool>(
+    'is_voided',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_voided" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _voidedAtMeta = const VerificationMeta(
+    'voidedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> voidedAt = GeneratedColumn<DateTime>(
+    'voided_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _voidReasonMeta = const VerificationMeta(
+    'voidReason',
+  );
+  @override
+  late final GeneratedColumn<String> voidReason = GeneratedColumn<String>(
+    'void_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4242,6 +4279,9 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     expenseDate,
     createdAt,
     updatedAt,
+    isVoided,
+    voidedAt,
+    voidReason,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4312,6 +4352,24 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('is_voided')) {
+      context.handle(
+        _isVoidedMeta,
+        isVoided.isAcceptableOrUnknown(data['is_voided']!, _isVoidedMeta),
+      );
+    }
+    if (data.containsKey('voided_at')) {
+      context.handle(
+        _voidedAtMeta,
+        voidedAt.isAcceptableOrUnknown(data['voided_at']!, _voidedAtMeta),
+      );
+    }
+    if (data.containsKey('void_reason')) {
+      context.handle(
+        _voidReasonMeta,
+        voidReason.isAcceptableOrUnknown(data['void_reason']!, _voidReasonMeta),
+      );
+    }
     return context;
   }
 
@@ -4349,6 +4407,18 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      isVoided: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_voided'],
+      )!,
+      voidedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}voided_at'],
+      ),
+      voidReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}void_reason'],
+      ),
     );
   }
 
@@ -4366,6 +4436,9 @@ class Expense extends DataClass implements Insertable<Expense> {
   final DateTime expenseDate;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isVoided;
+  final DateTime? voidedAt;
+  final String? voidReason;
   const Expense({
     required this.id,
     required this.category,
@@ -4374,6 +4447,9 @@ class Expense extends DataClass implements Insertable<Expense> {
     required this.expenseDate,
     required this.createdAt,
     required this.updatedAt,
+    required this.isVoided,
+    this.voidedAt,
+    this.voidReason,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4387,6 +4463,13 @@ class Expense extends DataClass implements Insertable<Expense> {
     map['expense_date'] = Variable<DateTime>(expenseDate);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_voided'] = Variable<bool>(isVoided);
+    if (!nullToAbsent || voidedAt != null) {
+      map['voided_at'] = Variable<DateTime>(voidedAt);
+    }
+    if (!nullToAbsent || voidReason != null) {
+      map['void_reason'] = Variable<String>(voidReason);
+    }
     return map;
   }
 
@@ -4401,6 +4484,13 @@ class Expense extends DataClass implements Insertable<Expense> {
       expenseDate: Value(expenseDate),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      isVoided: Value(isVoided),
+      voidedAt: voidedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(voidedAt),
+      voidReason: voidReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(voidReason),
     );
   }
 
@@ -4417,6 +4507,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       expenseDate: serializer.fromJson<DateTime>(json['expenseDate']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isVoided: serializer.fromJson<bool>(json['isVoided']),
+      voidedAt: serializer.fromJson<DateTime?>(json['voidedAt']),
+      voidReason: serializer.fromJson<String?>(json['voidReason']),
     );
   }
   @override
@@ -4430,6 +4523,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       'expenseDate': serializer.toJson<DateTime>(expenseDate),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isVoided': serializer.toJson<bool>(isVoided),
+      'voidedAt': serializer.toJson<DateTime?>(voidedAt),
+      'voidReason': serializer.toJson<String?>(voidReason),
     };
   }
 
@@ -4441,6 +4537,9 @@ class Expense extends DataClass implements Insertable<Expense> {
     DateTime? expenseDate,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? isVoided,
+    Value<DateTime?> voidedAt = const Value.absent(),
+    Value<String?> voidReason = const Value.absent(),
   }) => Expense(
     id: id ?? this.id,
     category: category ?? this.category,
@@ -4449,6 +4548,9 @@ class Expense extends DataClass implements Insertable<Expense> {
     expenseDate: expenseDate ?? this.expenseDate,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    isVoided: isVoided ?? this.isVoided,
+    voidedAt: voidedAt.present ? voidedAt.value : this.voidedAt,
+    voidReason: voidReason.present ? voidReason.value : this.voidReason,
   );
   Expense copyWithCompanion(ExpensesCompanion data) {
     return Expense(
@@ -4463,6 +4565,11 @@ class Expense extends DataClass implements Insertable<Expense> {
           : this.expenseDate,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isVoided: data.isVoided.present ? data.isVoided.value : this.isVoided,
+      voidedAt: data.voidedAt.present ? data.voidedAt.value : this.voidedAt,
+      voidReason: data.voidReason.present
+          ? data.voidReason.value
+          : this.voidReason,
     );
   }
 
@@ -4475,7 +4582,10 @@ class Expense extends DataClass implements Insertable<Expense> {
           ..write('amount: $amount, ')
           ..write('expenseDate: $expenseDate, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isVoided: $isVoided, ')
+          ..write('voidedAt: $voidedAt, ')
+          ..write('voidReason: $voidReason')
           ..write(')'))
         .toString();
   }
@@ -4489,6 +4599,9 @@ class Expense extends DataClass implements Insertable<Expense> {
     expenseDate,
     createdAt,
     updatedAt,
+    isVoided,
+    voidedAt,
+    voidReason,
   );
   @override
   bool operator ==(Object other) =>
@@ -4500,7 +4613,10 @@ class Expense extends DataClass implements Insertable<Expense> {
           other.amount == this.amount &&
           other.expenseDate == this.expenseDate &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.isVoided == this.isVoided &&
+          other.voidedAt == this.voidedAt &&
+          other.voidReason == this.voidReason);
 }
 
 class ExpensesCompanion extends UpdateCompanion<Expense> {
@@ -4511,6 +4627,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<DateTime> expenseDate;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<bool> isVoided;
+  final Value<DateTime?> voidedAt;
+  final Value<String?> voidReason;
   final Value<int> rowid;
   const ExpensesCompanion({
     this.id = const Value.absent(),
@@ -4520,6 +4639,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.expenseDate = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.isVoided = const Value.absent(),
+    this.voidedAt = const Value.absent(),
+    this.voidReason = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ExpensesCompanion.insert({
@@ -4530,6 +4652,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     required DateTime expenseDate,
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.isVoided = const Value.absent(),
+    this.voidedAt = const Value.absent(),
+    this.voidReason = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        category = Value(category),
@@ -4545,6 +4670,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<DateTime>? expenseDate,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<bool>? isVoided,
+    Expression<DateTime>? voidedAt,
+    Expression<String>? voidReason,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4555,6 +4683,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       if (expenseDate != null) 'expense_date': expenseDate,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (isVoided != null) 'is_voided': isVoided,
+      if (voidedAt != null) 'voided_at': voidedAt,
+      if (voidReason != null) 'void_reason': voidReason,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4567,6 +4698,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Value<DateTime>? expenseDate,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<bool>? isVoided,
+    Value<DateTime?>? voidedAt,
+    Value<String?>? voidReason,
     Value<int>? rowid,
   }) {
     return ExpensesCompanion(
@@ -4577,6 +4711,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       expenseDate: expenseDate ?? this.expenseDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isVoided: isVoided ?? this.isVoided,
+      voidedAt: voidedAt ?? this.voidedAt,
+      voidReason: voidReason ?? this.voidReason,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4605,6 +4742,15 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (isVoided.present) {
+      map['is_voided'] = Variable<bool>(isVoided.value);
+    }
+    if (voidedAt.present) {
+      map['voided_at'] = Variable<DateTime>(voidedAt.value);
+    }
+    if (voidReason.present) {
+      map['void_reason'] = Variable<String>(voidReason.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4621,6 +4767,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('expenseDate: $expenseDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('isVoided: $isVoided, ')
+          ..write('voidedAt: $voidedAt, ')
+          ..write('voidReason: $voidReason, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9498,6 +9647,9 @@ typedef $$ExpensesTableCreateCompanionBuilder =
       required DateTime expenseDate,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<bool> isVoided,
+      Value<DateTime?> voidedAt,
+      Value<String?> voidReason,
       Value<int> rowid,
     });
 typedef $$ExpensesTableUpdateCompanionBuilder =
@@ -9509,6 +9661,9 @@ typedef $$ExpensesTableUpdateCompanionBuilder =
       Value<DateTime> expenseDate,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<bool> isVoided,
+      Value<DateTime?> voidedAt,
+      Value<String?> voidReason,
       Value<int> rowid,
     });
 
@@ -9553,6 +9708,21 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isVoided => $composableBuilder(
+    column: $table.isVoided,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get voidedAt => $composableBuilder(
+    column: $table.voidedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get voidReason => $composableBuilder(
+    column: $table.voidReason,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -9600,6 +9770,21 @@ class $$ExpensesTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isVoided => $composableBuilder(
+    column: $table.isVoided,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get voidedAt => $composableBuilder(
+    column: $table.voidedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get voidReason => $composableBuilder(
+    column: $table.voidReason,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ExpensesTableAnnotationComposer
@@ -9635,6 +9820,17 @@ class $$ExpensesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isVoided =>
+      $composableBuilder(column: $table.isVoided, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get voidedAt =>
+      $composableBuilder(column: $table.voidedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get voidReason => $composableBuilder(
+    column: $table.voidReason,
+    builder: (column) => column,
+  );
 }
 
 class $$ExpensesTableTableManager
@@ -9672,6 +9868,9 @@ class $$ExpensesTableTableManager
                 Value<DateTime> expenseDate = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isVoided = const Value.absent(),
+                Value<DateTime?> voidedAt = const Value.absent(),
+                Value<String?> voidReason = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpensesCompanion(
                 id: id,
@@ -9681,6 +9880,9 @@ class $$ExpensesTableTableManager
                 expenseDate: expenseDate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                isVoided: isVoided,
+                voidedAt: voidedAt,
+                voidReason: voidReason,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -9692,6 +9894,9 @@ class $$ExpensesTableTableManager
                 required DateTime expenseDate,
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<bool> isVoided = const Value.absent(),
+                Value<DateTime?> voidedAt = const Value.absent(),
+                Value<String?> voidReason = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpensesCompanion.insert(
                 id: id,
@@ -9701,6 +9906,9 @@ class $$ExpensesTableTableManager
                 expenseDate: expenseDate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                isVoided: isVoided,
+                voidedAt: voidedAt,
+                voidReason: voidReason,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

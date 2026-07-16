@@ -284,7 +284,7 @@ void main() {
     expect(() => database.deleteCustomer(cId), throwsA(isA<StateError>()));
   });
 
-  test('expense CRUD operations work', () async {
+  test('expense edits are audited and voiding preserves financial history', () async {
     // Create
     await database.createExpense(
       category: 'Utilities',
@@ -313,11 +313,26 @@ void main() {
     expect(updated.description, 'Office rent');
     expect(updated.amount, 1500);
 
-    // Delete
-    await database.deleteExpense(exp.id);
-    expect(await database.getExpense(exp.id), isNull);
+    await database.voidExpense(expenseId: exp.id, reason: 'Entered twice');
+    final voided = (await database.getExpense(exp.id))!;
+    expect(voided.isVoided, isTrue);
+    expect(voided.voidReason, 'Entered twice');
+    expect(voided.voidedAt, isNotNull);
     list = await database.watchExpenses().first;
-    expect(list, isEmpty);
+    expect(list.single.isVoided, isTrue);
+
+    final auditEntries = await database.select(database.auditLogs).get();
+    expect(auditEntries.map((entry) => entry.action), contains('update_expense'));
+    expect(auditEntries.map((entry) => entry.action), contains('void_expense'));
+    expect(
+      () => database.updateExpense(
+        expenseId: exp.id,
+        category: 'Rent',
+        amount: 1500,
+        expenseDate: DateTime(2026, 5, 5),
+      ),
+      throwsA(isA<StateError>()),
+    );
   });
 
   test('voiding credit sale fails if partial payments exist', () async {
