@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/database/app_database.dart';
 import '../../../core/domain/flowtrack_models.dart';
 import '../../../shared/providers/app_providers.dart';
 import '../../../shared/widgets/currency_text.dart';
@@ -26,7 +25,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final database = ref.watch(appDatabaseProvider);
+    final period = ReportPeriod(start: _start, end: _end);
+    final reportAsync = ref.watch(reportSummaryProvider(period));
+    final summary = reportAsync.asData?.value;
     return Scaffold(
       appBar: widget.showAppBar ? AppBar(title: const Text('Reports')) : null,
       body: ListView(
@@ -71,32 +72,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
           ],
           const SizedBox(height: 16),
-          FutureBuilder<ReportSummary>(
-            future: database.reportForRange(start: _start, end: _end),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final report = snapshot.data!;
-              return Column(
-                children: [
-                  _ReportTile(label: 'Total Sales', amount: report.totalSales),
-                  _ReportTile(
-                    label: 'Total Expenses',
-                    amount: report.totalExpenses,
-                  ),
-                  _ReportTile(label: 'Net Income', amount: report.netIncome),
-                  _ReportTile(
-                    label: 'Total Credit Given',
-                    amount: report.totalCreditGiven,
-                  ),
-                  _ReportTile(
-                    label: 'Total Credit Collected',
-                    amount: report.totalCreditCollected,
-                  ),
-                ],
-              );
-            },
+          reportAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => _ReportLoadError(
+              onRetry: () => ref.invalidate(reportSummaryProvider(period)),
+            ),
+            data: _ReportSummaryContent.new,
           ),
           const SizedBox(height: 16),
           SectionCard(
@@ -116,7 +97,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   children: [
                     Expanded(
                       child: FilledButton.icon(
-                        onPressed: _exportBusy ? null : _savePdf,
+                        onPressed: _exportBusy || summary == null
+                            ? null
+                            : () => _savePdf(summary),
                         icon: _exportBusy
                             ? const SizedBox.square(
                                 dimension: 18,
@@ -131,7 +114,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: _exportBusy ? null : _sharePdf,
+                        onPressed: _exportBusy || summary == null
+                            ? null
+                            : () => _sharePdf(summary),
                         icon: const Icon(Icons.share),
                         label: const Text('Share PDF'),
                       ),
@@ -203,8 +188,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     });
   }
 
-  Future<void> _savePdf() async {
+  Future<void> _savePdf(ReportSummary summary) async {
     await _runPdfExport(
+      summary: summary,
       action: (summary, reportTitle, start, end) async {
         await ref
             .read(reportPdfServiceProvider)
@@ -219,8 +205,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
-  Future<void> _sharePdf() async {
+  Future<void> _sharePdf(ReportSummary summary) async {
     await _runPdfExport(
+      summary: summary,
       action: (summary, reportTitle, start, end) => ref
           .read(reportPdfServiceProvider)
           .shareReportPdf(
@@ -234,23 +221,22 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   Future<void> _runPdfExport({
+    required ReportSummary summary,
     required Future<void> Function(
       ReportSummary summary,
       String reportTitle,
       DateTime start,
       DateTime end,
-    ) action,
+    )
+    action,
     required String successMessage,
   }) async {
     final reportTitle = _reportTitle;
     final start = _start;
     final end = _end;
-    
+
     setState(() => _exportBusy = true);
     try {
-      final summary = await ref
-          .read(appDatabaseProvider)
-          .reportForRange(start: start, end: end);
       await action(summary, reportTitle, start, end);
       if (mounted) {
         ScaffoldMessenger.of(
@@ -324,6 +310,77 @@ class _ReportRangeSelector extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ReportLoadError extends StatelessWidget {
+  const _ReportLoadError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      child: Column(
+        children: [
+          const Icon(Icons.error_outline),
+          const SizedBox(height: 8),
+          const Text('Report unavailable'),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportSummaryContent extends StatelessWidget {
+  const _ReportSummaryContent(this.summary);
+
+  final ReportSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final estimatedSuffix = summary.hasIncompleteCostData ? ' (Estimated)' : '';
+    return Column(
+      children: [
+        _ReportTile(label: 'Total Sales', amount: summary.totalSales),
+        _ReportTile(
+          label: 'Cost of Goods Sold',
+          amount: summary.costOfGoodsSold,
+        ),
+        _ReportTile(
+          label: 'Gross Profit$estimatedSuffix',
+          amount: summary.grossProfit,
+        ),
+        _ReportTile(label: 'Total Expenses', amount: summary.totalExpenses),
+        _ReportTile(
+          label: 'Net Income$estimatedSuffix',
+          amount: summary.netIncome,
+        ),
+        _ReportTile(
+          label: 'Total Credit Given',
+          amount: summary.totalCreditGiven,
+        ),
+        _ReportTile(
+          label: 'Total Credit Collected',
+          amount: summary.totalCreditCollected,
+        ),
+        if (summary.hasIncompleteCostData)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Profit is estimated because ${summary.missingCostItemCount} '
+              'sale item(s) have no cost snapshot.',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+      ],
     );
   }
 }

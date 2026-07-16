@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/config/app_config.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/database/app_database.dart';
+import '../../core/domain/flowtrack_models.dart';
 import '../../core/services/barcode_service.dart';
 import '../../core/services/barcode_print_service.dart';
 import '../../core/services/backup_service.dart';
@@ -96,10 +97,11 @@ class RouterTransitionListenable extends ChangeNotifier {
   }
 }
 
-final routerTransitionListenableProvider =
-    Provider<RouterTransitionListenable>((ref) {
-  return RouterTransitionListenable(ref);
-});
+final routerTransitionListenableProvider = Provider<RouterTransitionListenable>(
+  (ref) {
+    return RouterTransitionListenable(ref);
+  },
+);
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final listenable = ref.watch(routerTransitionListenableProvider);
@@ -302,9 +304,13 @@ class _MissingRouteExtraScreen extends StatelessWidget {
   }
 }
 
-
-
 final todayProvider = Provider<DateTime>((ref) => DateTime.now());
+
+final reportSummaryProvider =
+    FutureProvider.family<ReportSummary, ReportPeriod>((ref, period) async {
+      final database = ref.watch(appDatabaseProvider);
+      return database.reportForRange(start: period.start, end: period.end);
+    });
 
 final storeNameProvider = FutureProvider<String>((ref) async {
   final db = ref.watch(appDatabaseProvider);

@@ -133,6 +133,21 @@ class ReportSummary {
   bool get hasIncompleteCostData => missingCostItemCount > 0;
 }
 
+class ReportPeriod {
+  const ReportPeriod({required this.start, required this.end});
+
+  final DateTime start;
+  final DateTime end;
+
+  @override
+  bool operator ==(Object other) {
+    return other is ReportPeriod && other.start == start && other.end == end;
+  }
+
+  @override
+  int get hashCode => Object.hash(start, end);
+}
+
 ProductStatus calculateProductStatus({
   required int stock,
   required int lowStockLevel,
