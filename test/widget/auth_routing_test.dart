@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flowtrack/app.dart';
 import 'package:flowtrack/core/database/app_database.dart';
 import 'package:flowtrack/core/services/local_auth_service.dart';
@@ -15,18 +16,21 @@ class FakeLocalAuthService extends LocalAuthService {
     this.hasOwnerResult = true,
     this.ownerNameResult = 'Nena',
     this.verifyResult = true,
-    this.verifyDelay,
     this.throwOnInit = false,
-    this.setupDelay,
+    this.verifyCompleter,
+    this.setupCompleter,
+    this.updateCompleter,
   });
 
   bool hasOwnerResult;
   String? ownerNameResult;
   bool verifyResult;
-  Duration? verifyDelay;
   bool throwOnInit;
-  Duration? setupDelay;
+  Completer<bool>? verifyCompleter;
+  Completer<void>? setupCompleter;
+  Completer<void>? updateCompleter;
   int setupCallCount = 0;
+  int updateCallCount = 0;
 
   @override
   Future<bool> hasOwnerAccount() async {
@@ -42,8 +46,8 @@ class FakeLocalAuthService extends LocalAuthService {
 
   @override
   Future<bool> verifyPassword(String password) async {
-    if (verifyDelay != null) {
-      await Future.delayed(verifyDelay!);
+    if (verifyCompleter != null) {
+      return verifyCompleter!.future;
     }
     return verifyResult;
   }
@@ -54,8 +58,8 @@ class FakeLocalAuthService extends LocalAuthService {
     required String password,
   }) async {
     setupCallCount++;
-    if (setupDelay != null) {
-      await Future.delayed(setupDelay!);
+    if (setupCompleter != null) {
+      await setupCompleter!.future;
     }
     hasOwnerResult = true;
     ownerNameResult = ownerName;
@@ -63,6 +67,10 @@ class FakeLocalAuthService extends LocalAuthService {
 
   @override
   Future<void> updateOwnerName(String name) async {
+    updateCallCount++;
+    if (updateCompleter != null) {
+      await updateCompleter!.future;
+    }
     ownerNameResult = name;
   }
 }
@@ -181,11 +189,8 @@ void main() {
   });
 
   testWidgets('Test 4: failed or cancelled login', (tester) async {
-    final fakeAuth = FakeLocalAuthService(
-      hasOwnerResult: true,
-      verifyResult: false,
-      verifyDelay: const Duration(seconds: 1),
-    );
+    final fakeAuth = FakeLocalAuthService(hasOwnerResult: true);
+    fakeAuth.verifyCompleter = Completer<bool>();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -213,8 +218,8 @@ void main() {
     await tester.tap(find.text('Logging in...'));
     await tester.pump();
 
-    // Wait for the mock verify delay
-    await tester.pump(const Duration(seconds: 1));
+    // Complete verify completer
+    fakeAuth.verifyCompleter!.complete(false);
     await tester.pumpAndSettle();
 
     // Should return to Login screen with error
@@ -260,8 +265,8 @@ void main() {
   testWidgets('Test 6: setup operations preserve routing and prevent duplicates', (tester) async {
     final fakeAuth = FakeLocalAuthService(
       hasOwnerResult: false,
-      setupDelay: const Duration(seconds: 1),
     );
+    fakeAuth.setupCompleter = Completer<void>();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -292,11 +297,58 @@ void main() {
     await tester.tap(find.text('Creating...'));
     await tester.pump();
 
-    // Settle and verify only 1 DB call occurred
-    await tester.pump(const Duration(seconds: 1));
+    // Complete setup
+    fakeAuth.setupCompleter!.complete();
     await tester.pumpAndSettle();
 
     expect(fakeAuth.setupCallCount, 1);
     expect(find.byType(MainShell), findsOneWidget);
+  });
+
+  testWidgets('Test 7: async profile update completion does not override logout', (tester) async {
+    final fakeAuth = FakeLocalAuthService(hasOwnerResult: true, verifyResult: true);
+    fakeAuth.updateCompleter = Completer<void>();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localAuthServiceProvider.overrideWithValue(fakeAuth),
+          appDatabaseProvider.overrideWithValue(database),
+        ],
+        child: const FlowTrackApp(),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Log in
+    await tester.enterText(find.byType(TextField), 'password');
+    await tester.tap(find.text('Login'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MainShell), findsOneWidget);
+
+    // Trigger updateOwnerName
+    final container = ProviderScope.containerOf(tester.element(find.byType(MainShell)));
+    final authNotifier = container.read(authControllerProvider.notifier);
+    
+    final updateFuture = authNotifier.updateOwnerName('New Name');
+    await tester.pump(); // state is now updatingProfile
+
+    // Trigger logout while update is in flight
+    authNotifier.logout();
+    await tester.pumpAndSettle();
+
+    // State is now unauthenticated and route should redirect to login
+    expect(find.byType(LoginScreen), findsOneWidget);
+
+    // Complete the update
+    fakeAuth.updateCompleter!.complete();
+    await updateFuture.catchError((_) {}); // catch any errors
+    await tester.pumpAndSettle();
+
+    // Verify it is STILL unauthenticated and on login screen
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.byType(MainShell), findsNothing);
   });
 }

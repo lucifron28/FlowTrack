@@ -31,16 +31,20 @@ class AuthState {
   AuthState copyWith({
     AuthStatus? status,
     bool? hasOwner,
-    String? ownerName,
+    Object? ownerName = const Object(),
     AuthOperation? operation,
-    String? errorMessage,
+    Object? errorMessage = const Object(),
   }) {
     return AuthState(
       status: status ?? this.status,
       hasOwner: hasOwner ?? this.hasOwner,
-      ownerName: ownerName ?? this.ownerName,
+      ownerName: identical(ownerName, const Object())
+          ? this.ownerName
+          : (ownerName as String?),
       operation: operation ?? this.operation,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: identical(errorMessage, const Object())
+          ? this.errorMessage
+          : (errorMessage as String?),
     );
   }
 }

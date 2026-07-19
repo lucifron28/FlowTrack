@@ -166,51 +166,83 @@ class SettingsScreen extends ConsumerWidget {
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Owner Profile'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: storeController,
-              decoration: const InputDecoration(
-                labelText: 'Store name',
-                prefixIcon: Icon(Icons.storefront),
-              ),
+      builder: (context) => Consumer(
+        builder: (context, ref, child) {
+          final authState = ref.watch(authControllerProvider).asData?.value;
+          final isUpdating = authState?.operation == AuthOperation.updatingProfile;
+          final errorMessage = authState?.errorMessage;
+
+          return AlertDialog(
+            title: const Text('Edit Owner Profile'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: storeController,
+                  enabled: !isUpdating,
+                  decoration: const InputDecoration(
+                    labelText: 'Store name',
+                    prefixIcon: Icon(Icons.storefront),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: ownerController,
+                  enabled: !isUpdating,
+                  decoration: const InputDecoration(
+                    labelText: 'Owner name',
+                    prefixIcon: Icon(Icons.person),
+                  ),
+                ),
+                if (errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    errorMessage,
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ownerController,
-              decoration: const InputDecoration(
-                labelText: 'Owner name',
-                prefixIcon: Icon(Icons.person),
+            actions: [
+              TextButton(
+                onPressed: isUpdating ? null : () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final newStore = storeController.text.trim();
-              final newOwner = ownerController.text.trim();
-              if (newStore.isNotEmpty && newOwner.isNotEmpty) {
-                await ref.read(appDatabaseProvider).updateStoreName(newStore);
-                ref.invalidate(storeNameProvider);
-                await ref
-                    .read(authControllerProvider.notifier)
-                    .updateOwnerName(newOwner);
-                if (context.mounted) {
-                  Navigator.of(context).pop();
-                }
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
+              FilledButton(
+                onPressed: isUpdating
+                    ? null
+                    : () async {
+                        final newStore = storeController.text.trim();
+                        final newOwner = ownerController.text.trim();
+                        if (newStore.isNotEmpty && newOwner.isNotEmpty) {
+                          try {
+                            await ref.read(appDatabaseProvider).updateStoreName(newStore);
+                            ref.invalidate(storeNameProvider);
+                            await ref
+                                .read(authControllerProvider.notifier)
+                                .updateOwnerName(newOwner);
+                            final currentAuth = ref.read(authControllerProvider).asData?.value;
+                            if (currentAuth?.errorMessage == null && context.mounted) {
+                              Navigator.of(context).pop();
+                            }
+                          } catch (_) {}
+                        }
+                      },
+                child: isUpdating
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Save'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

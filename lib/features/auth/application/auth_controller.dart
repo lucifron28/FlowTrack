@@ -43,14 +43,18 @@ class AuthController extends AsyncNotifier<AuthState> {
 
     try {
       await _authService.setupOwner(ownerName: ownerName, password: password);
+      final current = state.asData?.value;
+      if (current == null) return;
       state = AsyncValue.data(AuthState(
         status: AuthStatus.authenticated,
         hasOwner: true,
         ownerName: ownerName.trim(),
       ));
     } catch (_) {
+      final current = state.asData?.value;
+      if (current == null) return;
       state = AsyncValue.data(
-        prev.copyWith(
+        current.copyWith(
           operation: AuthOperation.idle,
           errorMessage: 'Setup failed. Please try again.',
         ),
@@ -73,15 +77,23 @@ class AuthController extends AsyncNotifier<AuthState> {
 
     try {
       await _authService.updateOwnerName(name);
+      final current = state.asData?.value;
+      if (current == null || current.status != AuthStatus.authenticated) {
+        return;
+      }
       state = AsyncValue.data(
-        prev.copyWith(
+        current.copyWith(
           ownerName: name.trim(),
           operation: AuthOperation.idle,
         ),
       );
     } catch (_) {
+      final current = state.asData?.value;
+      if (current == null || current.status != AuthStatus.authenticated) {
+        return;
+      }
       state = AsyncValue.data(
-        prev.copyWith(
+        current.copyWith(
           operation: AuthOperation.idle,
           errorMessage: 'Name update failed.',
         ),
