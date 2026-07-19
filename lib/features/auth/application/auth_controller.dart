@@ -26,13 +26,13 @@ class AuthController extends AsyncNotifier<AuthState> {
     }
   }
 
-  Future<void> setupOwner({
+  Future<bool> setupOwner({
     required String ownerName,
     required String password,
   }) async {
     final prev = state.asData?.value;
-    if (prev == null) return;
-    if (prev.operation != AuthOperation.idle) return;
+    if (prev == null) return false;
+    if (prev.operation != AuthOperation.idle) return false;
 
     state = AsyncValue.data(
       prev.copyWith(
@@ -44,29 +44,30 @@ class AuthController extends AsyncNotifier<AuthState> {
     try {
       await _authService.setupOwner(ownerName: ownerName, password: password);
       final current = state.asData?.value;
-      if (current == null) return;
+      if (current == null) return false;
       state = AsyncValue.data(AuthState(
         status: AuthStatus.authenticated,
         hasOwner: true,
         ownerName: ownerName.trim(),
       ));
+      return true;
     } catch (_) {
       final current = state.asData?.value;
-      if (current == null) return;
+      if (current == null) return false;
       state = AsyncValue.data(
         current.copyWith(
           operation: AuthOperation.idle,
           errorMessage: 'Setup failed. Please try again.',
         ),
       );
-      rethrow;
+      return false;
     }
   }
 
-  Future<void> updateOwnerName(String name) async {
+  Future<bool> updateOwnerName(String name) async {
     final prev = state.asData?.value;
-    if (prev == null) return;
-    if (prev.operation != AuthOperation.idle) return;
+    if (prev == null) return false;
+    if (prev.operation != AuthOperation.idle) return false;
 
     state = AsyncValue.data(
       prev.copyWith(
@@ -79,7 +80,7 @@ class AuthController extends AsyncNotifier<AuthState> {
       await _authService.updateOwnerName(name);
       final current = state.asData?.value;
       if (current == null || current.status != AuthStatus.authenticated) {
-        return;
+        return false;
       }
       state = AsyncValue.data(
         current.copyWith(
@@ -87,10 +88,11 @@ class AuthController extends AsyncNotifier<AuthState> {
           operation: AuthOperation.idle,
         ),
       );
+      return true;
     } catch (_) {
       final current = state.asData?.value;
       if (current == null || current.status != AuthStatus.authenticated) {
-        return;
+        return false;
       }
       state = AsyncValue.data(
         current.copyWith(
@@ -98,7 +100,7 @@ class AuthController extends AsyncNotifier<AuthState> {
           errorMessage: 'Name update failed.',
         ),
       );
-      rethrow;
+      return false;
     }
   }
 

@@ -203,7 +203,7 @@ class AuditLogs extends Table {
     AuditLogs,
   ],
 )
-final class AppDatabase extends _$AppDatabase {
+class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   AppDatabase.defaults() : super(driftDatabase(name: 'flowtrack'));

@@ -10,6 +10,26 @@ import 'package:flowtrack/shared/providers/app_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/native.dart';
+
+class FakeAppDatabase extends AppDatabase {
+  FakeAppDatabase() : super(NativeDatabase.memory());
+
+  Completer<void>? storeNameCompleter;
+  int storeNameCallCount = 0;
+  bool throwOnStoreName = false;
+
+  @override
+  Future<void> updateStoreName(String name) async {
+    storeNameCallCount++;
+    if (throwOnStoreName) {
+      throw Exception('DB Error');
+    }
+    if (storeNameCompleter != null) {
+      await storeNameCompleter!.future;
+    }
+  }
+}
 
 class FakeLocalAuthService extends LocalAuthService {
   FakeLocalAuthService({
@@ -344,11 +364,177 @@ void main() {
 
     // Complete the update
     fakeAuth.updateCompleter!.complete();
-    await updateFuture.catchError((_) {}); // catch any errors
+    await updateFuture; // waits for completion
     await tester.pumpAndSettle();
 
     // Verify it is STILL unauthenticated and on login screen
     expect(find.byType(LoginScreen), findsOneWidget);
     expect(find.byType(MainShell), findsNothing);
+  });
+
+  testWidgets('Test 8: owner setup failure, visible error, clean retry', (tester) async {
+    final fakeAuth = FakeLocalAuthService(hasOwnerResult: false);
+    fakeAuth.setupCompleter = Completer<void>();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localAuthServiceProvider.overrideWithValue(fakeAuth),
+          appDatabaseProvider.overrideWithValue(database),
+        ],
+        child: const FlowTrackApp(),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byType(OwnerSetupScreen), findsOneWidget);
+
+    // Enter details
+    await tester.enterText(find.bySemanticsLabel('Owner name'), 'Nena');
+    await tester.enterText(find.bySemanticsLabel('Password'), 'password');
+    await tester.enterText(find.bySemanticsLabel('Confirm password'), 'password');
+
+    // Tap Create
+    await tester.tap(find.text('Create owner account'));
+    await tester.pump();
+
+    expect(find.text('Creating...'), findsOneWidget);
+
+    // Fail the setup call
+    fakeAuth.setupCompleter!.completeError(Exception('Database error'));
+    await tester.pumpAndSettle();
+
+    // Verify: no unhandled exceptions
+    expect(tester.takeException(), isNull);
+
+    // Verify OwnerSetup remains visible and error message is displayed
+    expect(find.byType(OwnerSetupScreen), findsOneWidget);
+    expect(find.text('Setup failed. Please try again.'), findsOneWidget);
+
+    // Prepare fresh setup completer for retry
+    fakeAuth.setupCompleter = Completer<void>();
+
+    // Tap Create again (Retry)
+    await tester.tap(find.text('Create owner account'));
+    await tester.pump();
+
+    // Error message should be cleared when retry starts
+    expect(find.text('Setup failed. Please try again.'), findsNothing);
+    expect(find.text('Creating...'), findsOneWidget);
+
+    // Succeed the second attempt
+    fakeAuth.setupCompleter!.complete();
+    await tester.pumpAndSettle();
+
+    // Lands on MainShell on success
+    expect(find.byType(MainShell), findsOneWidget);
+    expect(find.byType(OwnerSetupScreen), findsNothing);
+  });
+
+  testWidgets('Test 9: profile Save becomes busy immediately, accepts one submission, and reports failure without closing', (tester) async {
+    final fakeAuth = FakeLocalAuthService(hasOwnerResult: true, verifyResult: true);
+    fakeAuth.updateCompleter = Completer<void>();
+
+    final fakeDb = FakeAppDatabase();
+    fakeDb.storeNameCompleter = Completer<void>();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localAuthServiceProvider.overrideWithValue(fakeAuth),
+          appDatabaseProvider.overrideWithValue(fakeDb),
+        ],
+        child: const FlowTrackApp(),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Log in
+    await tester.enterText(find.byType(TextField), 'password');
+    await tester.tap(find.text('Login'));
+    await tester.pumpAndSettle();
+
+    // Navigate to Settings
+    final context = tester.element(find.byType(MainShell));
+    final router = ProviderScope.containerOf(context).read(appRouterProvider);
+    router.go(AppRoutes.settings);
+    await tester.pumpAndSettle();
+
+    // Open Edit Profile Dialog
+    await tester.tap(find.text('Owner profile'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edit Owner Profile'), findsOneWidget);
+
+    // Edit values
+    await tester.enterText(find.widgetWithText(TextField, 'Store name'), 'New Store');
+    await tester.enterText(find.widgetWithText(TextField, 'Owner name'), 'New Owner');
+
+    // Tap Save
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+
+    // Dialog should immediately become busy (Save and Cancel disabled)
+    final saveButton = tester.widget<FilledButton>(
+      find.descendant(of: find.byType(AlertDialog), matching: find.byType(FilledButton)),
+    );
+    expect(saveButton.onPressed, isNull);
+
+    final cancelButton = tester.widget<TextButton>(
+      find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextButton)),
+    );
+    expect(cancelButton.onPressed, isNull);
+
+    // Tap again, verify no second call to updateOwnerName (first step)
+    await tester.tap(
+      find.descendant(of: find.byType(AlertDialog), matching: find.byType(FilledButton)),
+    );
+    await tester.pump();
+    expect(fakeAuth.updateCallCount, 1);
+
+    // Complete the owner name update successfully
+    fakeAuth.updateCompleter!.complete();
+    await tester.pump();
+
+    // Now it should be executing the store name DB write
+    final saveButton2 = tester.widget<FilledButton>(
+      find.descendant(of: find.byType(AlertDialog), matching: find.byType(FilledButton)),
+    );
+    expect(saveButton2.onPressed, isNull);
+
+    // Tap again, verify no second call to updateStoreName
+    await tester.tap(
+      find.descendant(of: find.byType(AlertDialog), matching: find.byType(FilledButton)),
+    );
+    await tester.pump();
+    expect(fakeDb.storeNameCallCount, 1);
+
+    // Fail the store name update call (second step)
+    fakeDb.storeNameCompleter!.completeError(Exception('Database error'));
+    await tester.pumpAndSettle();
+
+    // Verify: dialog remains open and displays the partial failure error message
+    expect(find.text('Edit Owner Profile'), findsOneWidget);
+    expect(
+      find.text('Owner profile updated, but store name failed to save: Exception: Database error'),
+      findsOneWidget,
+    );
+
+    // DB and auth should be back to idle
+    final saveButton3 = tester.widget<FilledButton>(
+      find.descendant(of: find.byType(AlertDialog), matching: find.byType(FilledButton)),
+    );
+    expect(saveButton3.onPressed, isNotNull);
+
+    // Verify cancel works
+    await tester.tap(
+      find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextButton)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Edit Owner Profile'), findsNothing);
+
+    // Clean up
+    await fakeDb.close();
   });
 }
