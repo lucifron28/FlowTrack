@@ -16,18 +16,29 @@ class FakeLocalAuthService extends LocalAuthService {
     this.ownerNameResult = 'Nena',
     this.verifyResult = true,
     this.verifyDelay,
+    this.throwOnInit = false,
+    this.setupDelay,
   });
 
   bool hasOwnerResult;
   String? ownerNameResult;
   bool verifyResult;
   Duration? verifyDelay;
+  bool throwOnInit;
+  Duration? setupDelay;
+  int setupCallCount = 0;
 
   @override
-  Future<bool> hasOwnerAccount() async => hasOwnerResult;
+  Future<bool> hasOwnerAccount() async {
+    if (throwOnInit) throw Exception('Secure storage failed');
+    return hasOwnerResult;
+  }
 
   @override
-  Future<String?> ownerName() async => ownerNameResult;
+  Future<String?> ownerName() async {
+    if (throwOnInit) throw Exception('Secure storage failed');
+    return ownerNameResult;
+  }
 
   @override
   Future<bool> verifyPassword(String password) async {
@@ -42,6 +53,10 @@ class FakeLocalAuthService extends LocalAuthService {
     required String ownerName,
     required String password,
   }) async {
+    setupCallCount++;
+    if (setupDelay != null) {
+      await Future.delayed(setupDelay!);
+    }
     hasOwnerResult = true;
     ownerNameResult = ownerName;
   }
@@ -205,5 +220,83 @@ void main() {
     // Should return to Login screen with error
     expect(find.byType(LoginScreen), findsOneWidget);
     expect(find.text('Login'), findsOneWidget);
+  });
+
+  testWidgets('Test 5: initialization failure and Retry', (tester) async {
+    final fakeAuth = FakeLocalAuthService(throwOnInit: true);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localAuthServiceProvider.overrideWithValue(fakeAuth),
+          appDatabaseProvider.overrideWithValue(database),
+        ],
+        child: const FlowTrackApp(),
+      ),
+    );
+
+    // Verify it shows loading progress initially
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+    // Settle to let build throw error
+    await tester.pumpAndSettle();
+
+    // Should show retry UI and NOT login or owner setup
+    expect(find.text('Failed to initialize authentication service.'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.byType(LoginScreen), findsNothing);
+    expect(find.byType(OwnerSetupScreen), findsNothing);
+
+    // Fix the fake and trigger retry
+    fakeAuth.throwOnInit = false;
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+
+    // Should land on LoginScreen now
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.text('Failed to initialize authentication service.'), findsNothing);
+  });
+
+  testWidgets('Test 6: setup operations preserve routing and prevent duplicates', (tester) async {
+    final fakeAuth = FakeLocalAuthService(
+      hasOwnerResult: false,
+      setupDelay: const Duration(seconds: 1),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localAuthServiceProvider.overrideWithValue(fakeAuth),
+          appDatabaseProvider.overrideWithValue(database),
+        ],
+        child: const FlowTrackApp(),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byType(OwnerSetupScreen), findsOneWidget);
+
+    // Enter details
+    await tester.enterText(find.bySemanticsLabel('Owner name'), 'Nena');
+    await tester.enterText(find.bySemanticsLabel('Password'), 'password');
+    await tester.enterText(find.bySemanticsLabel('Confirm password'), 'password');
+
+    // Tap Create once
+    await tester.tap(find.text('Create owner account'));
+    await tester.pump();
+
+    // Verify it is loading/creating
+    expect(find.text('Creating...'), findsOneWidget);
+
+    // Tap again to verify duplicate attempts are blocked
+    await tester.tap(find.text('Creating...'));
+    await tester.pump();
+
+    // Settle and verify only 1 DB call occurred
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+
+    expect(fakeAuth.setupCallCount, 1);
+    expect(find.byType(MainShell), findsOneWidget);
   });
 }

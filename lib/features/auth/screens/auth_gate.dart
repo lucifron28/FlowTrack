@@ -19,6 +19,34 @@ class AuthGate extends ConsumerWidget {
         if (state.status == AuthStatus.initializing) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
+        if (state.status == AuthStatus.initializationFailed) {
+          return Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Failed to initialize authentication service.',
+                      style: Theme.of(context).textTheme.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: () {
+                        ref.invalidate(authControllerProvider);
+                      },
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
         return const MainShell();
       },
     );
@@ -47,9 +75,11 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
-    final isLoading = ref.watch(authControllerProvider).isLoading;
+    final authState = ref.watch(authControllerProvider).asData?.value;
+    final isSettingUp = authState?.operation == AuthOperation.settingUpOwner;
+    final errorMessage = authState?.errorMessage;
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -82,7 +112,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                     const SizedBox(height: 24),
                     TextFormField(
                       controller: _ownerController,
-                      enabled: !isLoading,
+                      enabled: !isSettingUp,
                       decoration: const InputDecoration(
                         labelText: 'Owner name',
                         prefixIcon: Icon(Icons.person),
@@ -96,7 +126,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: true,
-                      enabled: !isLoading,
+                      enabled: !isSettingUp,
                       decoration: const InputDecoration(
                         labelText: 'Password',
                         prefixIcon: Icon(Icons.lock),
@@ -112,7 +142,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                     TextFormField(
                       controller: _confirmController,
                       obscureText: true,
-                      enabled: !isLoading,
+                      enabled: !isSettingUp,
                       decoration: const InputDecoration(
                         labelText: 'Confirm password',
                         prefixIcon: Icon(Icons.lock_outline),
@@ -121,10 +151,18 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                           ? 'Passwords do not match.'
                           : null,
                     ),
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        errorMessage,
+                        style: TextStyle(color: Theme.of(context).colorScheme.error),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     FilledButton.icon(
-                      onPressed: isLoading ? null : _submit,
-                      icon: isLoading
+                      onPressed: isSettingUp ? null : _submit,
+                      icon: isSettingUp
                           ? const SizedBox(
                               width: 18,
                               height: 18,
@@ -134,7 +172,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                               ),
                             )
                           : const Icon(Icons.check),
-                      label: Text(isLoading ? 'Creating...' : 'Create owner account'),
+                      label: Text(isSettingUp ? 'Creating...' : 'Create owner account'),
                     ),
                   ],
                 ),

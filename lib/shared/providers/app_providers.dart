@@ -125,7 +125,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isOwnerSetupRoute = state.matchedLocation == AppRoutes.ownerSetup;
       final isRootRoute = state.matchedLocation == AppRoutes.root;
 
-      if (status == AuthStatus.initializing) {
+      if (status == AuthStatus.initializing ||
+          status == AuthStatus.initializationFailed) {
         return isRootRoute ? null : AppRoutes.root;
       }
 
