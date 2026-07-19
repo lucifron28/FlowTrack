@@ -14,94 +14,183 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final database = ref.watch(appDatabaseProvider);
+    final dashboardAsync = ref.watch(dashboardDataProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Dashboard')),
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(todayProvider),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            FutureBuilder(
-              future: database.dashboardSummary(DateTime.now()),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final summary = snapshot.data!;
-                return GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: MediaQuery.sizeOf(context).width > 520
-                      ? 3
-                      : 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.2,
-                  children: [
-                    _MetricCard(
-                      label: 'Sales Today',
-                      amount: summary.totalSalesToday,
-                      icon: Icons.point_of_sale,
-                    ),
-                    _MetricCard(
-                      label: 'Expenses Today',
-                      amount: summary.totalExpensesToday,
-                      icon: Icons.receipt_long,
-                    ),
-                    _MetricCard(
-                      label: 'Net Income',
-                      amount: summary.netIncomeToday,
-                      icon: Icons.trending_up,
-                    ),
-                    _MetricCard(
-                      label: 'Outstanding Credit',
-                      amount: summary.totalOutstandingCredit,
-                      icon: Icons.account_balance_wallet,
-                    ),
-                    _CountCard(
-                      label: 'Low Stock Items',
-                      count: summary.lowStockItemsCount,
-                      icon: Icons.warning_amber,
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () => context.pushNamed(AppRoutes.newSaleName),
-                    icon: const Icon(Icons.add_shopping_cart),
-                    label: const Text('Add Sale'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton.tonalIcon(
-                    onPressed: () =>
-                        context.pushNamed(AppRoutes.addExpenseName),
-                    icon: const Icon(Icons.add_card),
-                    label: const Text('Expense'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: () => context.pushNamed(AppRoutes.addProductName),
-              icon: const Icon(Icons.add_box),
-              label: const Text('Add Inventory Item'),
-            ),
-            const SizedBox(height: 20),
-            _RecentSales(database: database),
-            const SizedBox(height: 16),
-            _LowStockPreview(database: database),
-          ],
+        onRefresh: () async {
+          ref.invalidate(todayProvider);
+          await ref.read(dashboardDataProvider.future);
+        },
+        child: dashboardAsync.when(
+          loading: () => const _DashboardLoading(),
+          error: (_, _) => _DashboardError(
+            onRetry: () => ref.invalidate(dashboardDataProvider),
+          ),
+          data: (data) => _DashboardContent(
+            data: data,
+            onOpenSales: () async {
+              await context.pushNamed(AppRoutes.newSaleName);
+              ref.invalidate(dashboardDataProvider);
+            },
+            onOpenExpense: () async {
+              await context.pushNamed(AppRoutes.addExpenseName);
+              ref.invalidate(dashboardDataProvider);
+            },
+            onOpenInventory: () async {
+              await context.pushNamed(AppRoutes.addProductName);
+              ref.invalidate(dashboardDataProvider);
+            },
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _DashboardLoading extends StatelessWidget {
+  const _DashboardLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(height: 220),
+        Center(child: CircularProgressIndicator()),
+      ],
+    );
+  }
+}
+
+class _DashboardError extends StatelessWidget {
+  const _DashboardError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      children: [
+        const SizedBox(height: 120),
+        SectionCard(
+          child: Column(
+            children: [
+              const Icon(Icons.error_outline),
+              const SizedBox(height: 8),
+              const Text('Dashboard unavailable'),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DashboardContent extends StatelessWidget {
+  const _DashboardContent({
+    required this.data,
+    required this.onOpenSales,
+    required this.onOpenExpense,
+    required this.onOpenInventory,
+  });
+
+  final DashboardData data;
+  final Future<void> Function() onOpenSales;
+  final Future<void> Function() onOpenExpense;
+  final Future<void> Function() onOpenInventory;
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = data.summary;
+    final netIncomeLabel = summary.hasIncompleteCostData
+        ? 'Net Income (Estimated)'
+        : 'Net Income';
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      children: [
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: MediaQuery.sizeOf(context).width > 520 ? 3 : 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.2,
+          children: [
+            _MetricCard(
+              label: 'Sales Today',
+              amount: summary.totalSalesToday,
+              icon: Icons.point_of_sale,
+            ),
+            _MetricCard(
+              label: 'Expenses Today',
+              amount: summary.totalExpensesToday,
+              icon: Icons.receipt_long,
+            ),
+            _MetricCard(
+              label: netIncomeLabel,
+              amount: summary.netIncomeToday,
+              icon: Icons.trending_up,
+            ),
+            _MetricCard(
+              label: 'Outstanding Credit',
+              amount: summary.totalOutstandingCredit,
+              icon: Icons.account_balance_wallet,
+            ),
+            _CountCard(
+              label: 'Stock Alerts',
+              count: summary.stockAlertItemsCount,
+              icon: Icons.warning_amber,
+            ),
+          ],
+        ),
+        if (summary.hasIncompleteCostData) ...[
+          const SizedBox(height: 12),
+          Text(
+            'Net income is estimated because some completed sales have no cost snapshot.',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: onOpenSales,
+                icon: const Icon(Icons.add_shopping_cart),
+                label: const Text('Add Sale'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton.tonalIcon(
+                onPressed: onOpenExpense,
+                icon: const Icon(Icons.add_card),
+                label: const Text('Expense'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: onOpenInventory,
+          icon: const Icon(Icons.add_box),
+          label: const Text('Add Inventory Item'),
+        ),
+        const SizedBox(height: 20),
+        _RecentSales(sales: data.recentSales),
+        const SizedBox(height: 16),
+        _LowStockPreview(products: data.lowStockProducts),
+      ],
     );
   }
 }
@@ -175,9 +264,9 @@ class _CountCard extends StatelessWidget {
 }
 
 class _RecentSales extends StatelessWidget {
-  const _RecentSales({required this.database});
+  const _RecentSales({required this.sales});
 
-  final AppDatabase database;
+  final List<Sale> sales;
 
   @override
   Widget build(BuildContext context) {
@@ -187,37 +276,30 @@ class _RecentSales extends StatelessWidget {
         children: [
           Text('Recent Sales', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          FutureBuilder<List<Sale>>(
-            future: database.recentSales(),
-            builder: (context, snapshot) {
-              final sales = snapshot.data ?? [];
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const LinearProgressIndicator();
-              }
-              if (sales.isEmpty) {
-                return const SizedBox(
-                  height: 132,
-                  child: EmptyState(
-                    icon: Icons.point_of_sale,
-                    title: 'No sales yet',
-                    message: 'Completed sales will appear here.',
-                    compact: true,
-                  ),
-                );
-              }
-              return Column(
-                children: sales.map((sale) {
-                  return ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(sale.saleNumber),
-                    subtitle: Text(sale.paymentType),
-                    trailing: CurrencyText(sale.totalAmount),
-                  );
-                }).toList(),
-              );
-            },
-          ),
+          if (sales.isEmpty)
+            const SizedBox(
+              height: 132,
+              child: EmptyState(
+                icon: Icons.point_of_sale,
+                title: 'No sales yet',
+                message: 'Completed sales will appear here.',
+                compact: true,
+              ),
+            )
+          else
+            Column(
+              children: sales
+                  .map(
+                    (sale) => ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(sale.saleNumber),
+                      subtitle: Text(sale.paymentType),
+                      trailing: CurrencyText(sale.totalAmount),
+                    ),
+                  )
+                  .toList(),
+            ),
         ],
       ),
     );
@@ -225,9 +307,9 @@ class _RecentSales extends StatelessWidget {
 }
 
 class _LowStockPreview extends StatelessWidget {
-  const _LowStockPreview({required this.database});
+  const _LowStockPreview({required this.products});
 
-  final AppDatabase database;
+  final List<Product> products;
 
   @override
   Widget build(BuildContext context) {
@@ -235,34 +317,24 @@ class _LowStockPreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Low Stock Preview',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('Stock Alerts', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          FutureBuilder<List<Product>>(
-            future: database.lowStockProducts(),
-            builder: (context, snapshot) {
-              final products = snapshot.data ?? [];
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const LinearProgressIndicator();
-              }
-              if (products.isEmpty) {
-                return const Text('No low stock items right now.');
-              }
-              return Column(
-                children: products.map((product) {
-                  return ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(product.name),
-                    subtitle: Text(product.barcode),
-                    trailing: Text('Stock: ${product.stock}'),
-                  );
-                }).toList(),
-              );
-            },
-          ),
+          if (products.isEmpty)
+            const Text('No stock alerts right now.')
+          else
+            Column(
+              children: products
+                  .map(
+                    (product) => ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(product.name),
+                      subtitle: Text(product.barcode),
+                      trailing: Text('Stock: ${product.stock}'),
+                    ),
+                  )
+                  .toList(),
+            ),
         ],
       ),
     );

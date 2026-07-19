@@ -5,7 +5,7 @@ import 'package:flowtrack/core/domain/flowtrack_models.dart';
 import 'package:flowtrack/core/services/backup_service.dart';
 import 'package:flowtrack/core/services/backup_crypto_service.dart';
 import 'package:flowtrack/core/services/backup_validator.dart';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'backup_test_utils.dart';
@@ -29,7 +29,10 @@ void main() {
   test('creates versioned JSON backup without sync queue', () async {
     await setupBackupTestFixtures(source);
 
-    final json = await createUnencryptedBackupJsonForTest(source, createdAt: DateTime.utc(2026, 7, 9, 1, 2, 3));
+    final json = await createUnencryptedBackupJsonForTest(
+      source,
+      createdAt: DateTime.utc(2026, 7, 9, 1, 2, 3),
+    );
     final decoded = jsonDecode(json) as Map<String, Object?>;
     final metadata = decoded['metadata'] as Map<String, Object?>;
     final data = decoded['data'] as Map<String, Object?>;
@@ -101,6 +104,38 @@ void main() {
     expect(restoredReport.totalCreditGiven, 700);
     expect(restoredReport.totalCreditCollected, 700);
   });
+
+  test(
+    'restores legacy expenses as active and preserves voided metadata',
+    () async {
+      await setupBackupTestFixtures(source);
+      final backup = await createUnencryptedBackupJsonForTest(source);
+      final decoded = jsonDecode(backup) as Map<String, dynamic>;
+      final expenses =
+          (decoded['data'] as Map<String, dynamic>)['expenses']
+              as List<dynamic>;
+
+      expenses.first
+        ..remove('isVoided')
+        ..remove('voidedAt')
+        ..remove('voidReason');
+
+      final targetService = BackupService(
+        target,
+        const BackupCryptoService(),
+        const BackupValidator(),
+      );
+      final validated = await targetService.validateBackupString(
+        jsonEncode(decoded),
+      );
+      await targetService.restoreValidatedBackup(validated);
+
+      final restored = (await target.select(target.expenses).get()).single;
+      expect(restored.isVoided, isFalse);
+      expect(restored.voidedAt, isNull);
+      expect(restored.voidReason, isNull);
+    },
+  );
 
   test(
     'keeps sale item snapshots when product price changes after restore',

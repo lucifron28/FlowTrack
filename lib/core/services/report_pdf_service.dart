@@ -62,8 +62,16 @@ class ReportPdfService {
                 child: pw.Column(
                   children: [
                     _summaryRow('Total Sales', summary.totalSales),
+                    _summaryRow('Cost of Goods Sold', summary.costOfGoodsSold),
+                    _summaryRow(
+                      _estimatedLabel('Gross Profit', summary),
+                      summary.grossProfit,
+                    ),
                     _summaryRow('Total Expenses', summary.totalExpenses),
-                    _summaryRow('Net Income', summary.netIncome),
+                    _summaryRow(
+                      _estimatedLabel('Net Income', summary),
+                      summary.netIncome,
+                    ),
                     _summaryRow('Total Credit Given', summary.totalCreditGiven),
                     _summaryRow(
                       'Total Credit Collected',
@@ -73,6 +81,20 @@ class ReportPdfService {
                 ),
               ),
               pw.SizedBox(height: 10 * PdfPageFormat.mm),
+              if (summary.hasIncompleteCostData)
+                pw.Padding(
+                  padding: const pw.EdgeInsets.only(
+                    bottom: 4 * PdfPageFormat.mm,
+                  ),
+                  child: pw.Text(
+                    'Profit is estimated because ${summary.missingCostItemCount} '
+                    'sale item(s) have no cost snapshot.',
+                    style: const pw.TextStyle(
+                      fontSize: 9,
+                      color: PdfColors.red700,
+                    ),
+                  ),
+                ),
               pw.Text(
                 'Generated offline from local transaction data.',
                 style: const pw.TextStyle(
@@ -150,5 +172,9 @@ class ReportPdfService {
         ],
       ),
     );
+  }
+
+  String _estimatedLabel(String label, ReportSummary summary) {
+    return summary.hasIncompleteCostData ? '$label (Estimated)' : label;
   }
 }

@@ -23,15 +23,15 @@ Feature status:
 | Feature | Status | Notes |
 | --- | --- | --- |
 | Owner setup/login/logout | Done | Offline local owner setup/login works with secure storage and PBKDF2-HMAC-SHA256. Theme and owner profile are rehydrated on startup. |
-| Dashboard | Done | Shows sales today, expenses today, net income, outstanding credit, low-stock count, recent sales, and low-stock preview from local DB. |
+| Dashboard | Done | Shows local sales, expenses, net income, outstanding credit, stock alerts, completed recent sales, and ordered stock alerts. Pull-to-refresh reloads one dashboard snapshot. |
 | Inventory | Done | Add, edit price/cost/low-stock settings, restock, adjust stock, stock history, search, status filter. Product deactivation (archival) is fully implemented. |
 | Manufacturer barcode products | Done | Camera scan and manual barcode entry are implemented. Corrected EAN-13 checksums and barcode formats. |
 | Store-generated tingi barcodes | Done | Generates one barcode per product type and creates printable Code 128 PDF sheets. Dedicated Bluetooth/USB printer integration is pending. |
 | Sales | Done | Sales list, new sale, scan/search cart, cash sale, credit sale, amount received, change, and void transaction are implemented. Excludes archived products from scanner and sales. |
 | Fast Selling Mode | Done | Scanning or searching adds items to the cart and repeated scans increment quantity. Stock is deducted only after Complete Sale. |
 | Credits / utang | Done | Customers, balances, credit records, and payments are implemented. Payments allocate oldest-first. Customer edit and delete operations (with balance/history validation) are fully implemented. |
-| Expenses | Done | Expense recording, editing, deleting, and report/dashboard inclusion are implemented. |
-| Reports | Done | Daily, weekly, monthly, and custom range summaries plus offline PDF save/share are implemented. CSV export and direct printing are pending. |
+| Expenses | Done | Expense recording, audited edits, and voiding are implemented. Voided expenses remain in history and are excluded from financial totals. |
+| Reports | Done | Daily, weekly, monthly, and custom range summaries use snapshot COGS and the same figures/labels as offline PDF save/share. CSV export and direct printing are pending. |
 | Settings | Done | Theme, profile, backup/restore, and logout are available in production. Demo-data tools appear only in explicit demo mode. |
 | Demo data | Done | Sync/reset tools are available only when built with `FLOWTRACK_MODE=demo`. |
 | Tests | Done | Unit and widget tests pass, including database flows, domain calculations, demo data, barcode PDFs, and high-risk sales/inventory UI paths. |
@@ -116,6 +116,13 @@ Demo barcode files:
 - Credit payments allocate oldest-first.
 - Credit overpayment is blocked.
 - Reports exclude voided sales.
+- Reports use inclusive start and exclusive end date ranges: `[start, end)`.
+- COGS is calculated from immutable sale-item cost snapshots, never current product cost.
+- Gross profit is total sales minus COGS.
+- Net income is gross profit minus active expenses.
+- Reports exclude voided expenses and reversed credit payments.
+- Profit and net income are labelled estimated when a completed sale item has no cost snapshot.
+- Expense records are voided instead of permanently deleted; voided expenses cannot be edited.
 - Expenses reduce net income.
 - Store-generated tingi barcodes are one barcode per product type, not per piece or batch.
 - App-name references should use `AppConfig.appName`.
@@ -253,7 +260,7 @@ Current tests cover:
 - Password hash helper behavior.
 - Product active/deactive deactivation toggles and active list filtering.
 - Customer update and delete operations with balance/history constraint validation.
-- Expense update and delete operations.
+- Expense update audit records and void-history preservation.
 
 ## Pending Work
 

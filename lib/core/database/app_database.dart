@@ -139,6 +139,9 @@ class Expenses extends Table {
   DateTimeColumn get expenseDate => dateTime()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get voidedAt => dateTime().nullable()();
+  TextColumn get voidReason => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -210,23 +213,28 @@ final class AppDatabase extends _$AppDatabase {
   static const _uuid = Uuid();
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async => m.createAll(),
     onUpgrade: (m, from, to) async {
-      if (from < 2) {
+      if (from < 2 && to >= 2) {
         await m.addColumn(products, products.isActive);
         await m.addColumn(customers, customers.isActive);
       }
-      if (from < 3) {
+      if (from < 3 && to >= 3) {
         await customStatement('DROP TABLE IF EXISTS sync_queue');
       }
-      if (from < 4) {
+      if (from < 4 && to >= 4) {
         await m.addColumn(creditPayments, creditPayments.isReversed);
         await m.addColumn(creditPayments, creditPayments.reversedAt);
         await m.addColumn(creditPayments, creditPayments.reversalReason);
+      }
+      if (from < 5 && to >= 5) {
+        await m.addColumn(expenses, expenses.isVoided);
+        await m.addColumn(expenses, expenses.voidedAt);
+        await m.addColumn(expenses, expenses.voidReason);
       }
     },
     beforeOpen: (details) async {
@@ -1071,19 +1079,71 @@ final class AppDatabase extends _$AppDatabase {
   }) async {
     _requireText(category, 'Category');
     _requirePositive(amount, 'Expense amount');
-    await (update(expenses)..where((tbl) => tbl.id.equals(expenseId))).write(
-      ExpensesCompanion(
-        category: Value(category),
-        description: Value(description),
-        amount: Value(amount),
-        expenseDate: Value(expenseDate),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+    final now = DateTime.now();
+    await transaction(() async {
+      final expense = await getExpense(expenseId);
+      if (expense == null) {
+        throw StateError('Expense not found.');
+      }
+      if (expense.isVoided) {
+        throw StateError('Voided expenses cannot be edited.');
+      }
+      await (update(expenses)..where((tbl) => tbl.id.equals(expenseId))).write(
+        ExpensesCompanion(
+          category: Value(category),
+          description: Value(description),
+          amount: Value(amount),
+          expenseDate: Value(expenseDate),
+          updatedAt: Value(now),
+        ),
+      );
+      await into(auditLogs).insert(
+        AuditLogsCompanion.insert(
+          id: _id(),
+          action: 'update_expense',
+          entityType: 'expense',
+          entityId: expenseId,
+          notes: const Value('Updated expense details.'),
+          createdAt: now,
+        ),
+      );
+    });
   }
 
-  Future<void> deleteExpense(String expenseId) async {
-    await (delete(expenses)..where((tbl) => tbl.id.equals(expenseId))).go();
+  Future<void> voidExpense({
+    required String expenseId,
+    required String reason,
+  }) async {
+    final trimmedReason = reason.trim();
+    _requireText(trimmedReason, 'Void reason');
+    final now = DateTime.now();
+    await transaction(() async {
+      final expense = await getExpense(expenseId);
+      if (expense == null) {
+        throw StateError('Expense not found.');
+      }
+      if (expense.isVoided) {
+        throw StateError('Expense is already voided.');
+      }
+      await (update(expenses)..where((tbl) => tbl.id.equals(expenseId))).write(
+        ExpensesCompanion(
+          isVoided: const Value(true),
+          voidedAt: Value(now),
+          voidReason: Value(trimmedReason),
+          updatedAt: Value(now),
+        ),
+      );
+      await into(auditLogs).insert(
+        AuditLogsCompanion.insert(
+          id: _id(),
+          action: 'void_expense',
+          entityType: 'expense',
+          entityId: expenseId,
+          notes: Value(trimmedReason),
+          createdAt: now,
+        ),
+      );
+    });
   }
 
   Future<void> setSetting(String key, String value) async {
