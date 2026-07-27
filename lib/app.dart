@@ -12,6 +12,7 @@ class FlowTrackApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final fontScale = ref.watch(fontScaleProvider);
     return MaterialApp.router(
       title: AppConfig.appName,
       theme: AppTheme.light(),
@@ -19,6 +20,14 @@ class FlowTrackApp extends ConsumerWidget {
       themeMode: themeMode,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(fontScale.factor),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }

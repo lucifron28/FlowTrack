@@ -20,7 +20,7 @@ void main() {
   testWidgets(
     'SettingsScreen in production mode hides QA/demo tools and badge',
     (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.physicalSize = const Size(800, 1800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
@@ -38,8 +38,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Verify Theme and Profile settings are visible
+      // Verify Theme, Font size, and Profile settings are visible
       expect(find.text('Theme mode'), findsOneWidget);
+      expect(find.text('Font size'), findsOneWidget);
       expect(find.text('Owner profile'), findsOneWidget);
       expect(find.text('Local backup'), findsOneWidget);
       expect(find.text('Backup and restore'), findsOneWidget);
@@ -61,7 +62,7 @@ void main() {
   testWidgets('SettingsScreen in demo mode shows QA/demo tools and badge', (
     WidgetTester tester,
   ) async {
-    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.physicalSize = const Size(800, 1800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -79,8 +80,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Verify Theme and Profile settings are visible
+    // Verify Theme, Font size, and Profile settings are visible
     expect(find.text('Theme mode'), findsOneWidget);
+    expect(find.text('Font size'), findsOneWidget);
     expect(find.text('Backup and restore'), findsOneWidget);
     expect(find.text('Logout'), findsOneWidget);
 

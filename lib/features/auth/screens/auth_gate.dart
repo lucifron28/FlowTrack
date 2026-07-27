@@ -81,6 +81,11 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
     final errorMessage = authState?.errorMessage;
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: const [_FontSizeMenuButton()],
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -228,6 +233,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final owner = authState?.ownerName;
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: const [_FontSizeMenuButton()],
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -314,6 +324,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
       setState(() => _passwordError = 'An unexpected error occurred.');
     }
+  }
+}
+
+class _FontSizeMenuButton extends ConsumerWidget {
+  const _FontSizeMenuButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentScale = ref.watch(fontScaleProvider);
+    return PopupMenuButton<AppFontScale>(
+      icon: const Icon(Icons.format_size),
+      tooltip: 'Font size',
+      initialValue: currentScale,
+      onSelected: (scale) {
+        ref.read(fontScaleProvider.notifier).setFontScale(scale);
+      },
+      itemBuilder: (context) => AppFontScale.values
+          .map(
+            (scale) => PopupMenuItem(
+              value: scale,
+              child: Row(
+                children: [
+                  if (scale == currentScale)
+                    const Icon(Icons.check, size: 18)
+                  else
+                    const SizedBox(width: 18),
+                  const SizedBox(width: 8),
+                  Text(scale.label),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+    );
   }
 }
 

@@ -16,6 +16,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final fontScale = ref.watch(fontScaleProvider);
     final storeNameAsync = ref.watch(storeNameProvider);
     final authState = ref.watch(authControllerProvider).value;
     final appMode = ref.watch(appModeProvider);
@@ -92,6 +93,45 @@ class SettingsScreen extends ConsumerWidget {
                     ],
                     selected: {themeMode},
                     onSelectionChanged: (value) => _setTheme(ref, value.first),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Font size',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Adjust text size for easier reading',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  SegmentedButton<AppFontScale>(
+                    segments: AppFontScale.values
+                        .map(
+                          (scale) => ButtonSegment<AppFontScale>(
+                            value: scale,
+                            label: Text(scale.label),
+                          ),
+                        )
+                        .toList(),
+                    selected: {fontScale},
+                    onSelectionChanged: (value) =>
+                        ref.read(fontScaleProvider.notifier).setFontScale(value.first),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Sample preview text for FlowTrack.',
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],
               ),

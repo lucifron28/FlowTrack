@@ -71,6 +71,7 @@ class ThemeModeController extends Notifier<ThemeMode> {
 
   Future<void> _loadSavedTheme() async {
     final val = await ref.read(appDatabaseProvider).getSetting('theme_mode');
+    if (!ref.mounted) return;
     if (val != null) {
       state = ThemeMode.values.firstWhere(
         (e) => e.name == val,
@@ -87,6 +88,46 @@ class ThemeModeController extends Notifier<ThemeMode> {
 
 final themeModeProvider = NotifierProvider<ThemeModeController, ThemeMode>(
   ThemeModeController.new,
+);
+
+enum AppFontScale {
+  small(0.85, 'Small', 'S'),
+  defaultScale(1.0, 'Default', 'M'),
+  large(1.2, 'Large', 'L'),
+  extraLarge(1.4, 'Extra Large', 'XL');
+
+  const AppFontScale(this.factor, this.label, this.shortLabel);
+  final double factor;
+  final String label;
+  final String shortLabel;
+}
+
+class FontScaleController extends Notifier<AppFontScale> {
+  @override
+  AppFontScale build() {
+    _loadSavedFontScale();
+    return AppFontScale.defaultScale;
+  }
+
+  Future<void> _loadSavedFontScale() async {
+    final val = await ref.read(appDatabaseProvider).getSetting('font_scale');
+    if (!ref.mounted) return;
+    if (val != null) {
+      state = AppFontScale.values.firstWhere(
+        (e) => e.name == val,
+        orElse: () => AppFontScale.defaultScale,
+      );
+    }
+  }
+
+  void setFontScale(AppFontScale value) {
+    state = value;
+    ref.read(appDatabaseProvider).setSetting('font_scale', value.name);
+  }
+}
+
+final fontScaleProvider = NotifierProvider<FontScaleController, AppFontScale>(
+  FontScaleController.new,
 );
 
 class RouterTransitionListenable extends ChangeNotifier {
