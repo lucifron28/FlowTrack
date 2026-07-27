@@ -21,10 +21,15 @@ class FlowTrackApp extends ConsumerWidget {
       routerConfig: router,
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        final minimumFactor = fontScale.minimumFactor;
+        final effectiveScaler = minimumFactor == null
+            ? mediaQuery.textScaler
+            : mediaQuery.textScaler.clamp(
+                minScaleFactor: minimumFactor,
+              );
         return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(fontScale.factor),
-          ),
+          data: mediaQuery.copyWith(textScaler: effectiveScaler),
           child: child ?? const SizedBox.shrink(),
         );
       },

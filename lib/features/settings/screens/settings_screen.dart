@@ -30,12 +30,13 @@ class SettingsScreen extends ConsumerWidget {
           Card(
             child: ListTile(
               leading: const Icon(Icons.storefront),
-              title: Row(
-                mainAxisSize: MainAxisSize.min,
+              title: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
                 children: [
                   Text(storeNameAsync.value ?? AppConfig.appName),
-                  if (isDemo) ...[
-                    const SizedBox(width: 8),
+                  if (isDemo)
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
@@ -54,7 +55,6 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-                  ],
                 ],
               ),
               subtitle: const Text(AppConfig.appDescription),
@@ -74,6 +74,9 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   SegmentedButton<ThemeMode>(
+                    direction: MediaQuery.textScalerOf(context).scale(10.0) > 14.0
+                        ? Axis.vertical
+                        : Axis.horizontal,
                     segments: const [
                       ButtonSegment(
                         value: ThemeMode.system,
@@ -116,6 +119,7 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   SegmentedButton<AppFontScale>(
+                    direction: Axis.vertical,
                     segments: AppFontScale.values
                         .map(
                           (scale) => ButtonSegment<AppFontScale>(

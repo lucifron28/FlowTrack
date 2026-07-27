@@ -21,6 +21,11 @@ class AuthGate extends ConsumerWidget {
         }
         if (state.status == AuthStatus.initializationFailed) {
           return Scaffold(
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              actions: const [_FontSizeMenuButton()],
+            ),
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -334,12 +339,22 @@ class _FontSizeMenuButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentScale = ref.watch(fontScaleProvider);
     return PopupMenuButton<AppFontScale>(
-      icon: const Icon(Icons.format_size),
       tooltip: 'Font size',
       initialValue: currentScale,
       onSelected: (scale) {
         ref.read(fontScaleProvider.notifier).setFontScale(scale);
       },
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.format_size, size: 20),
+            SizedBox(width: 4),
+            Text('Text size', style: TextStyle(fontSize: 14)),
+          ],
+        ),
+      ),
       itemBuilder: (context) => AppFontScale.values
           .map(
             (scale) => PopupMenuItem(
@@ -369,6 +384,11 @@ class _AuthError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: const [_FontSizeMenuButton()],
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

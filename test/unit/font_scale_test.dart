@@ -16,19 +16,17 @@ void main() {
       await db.close();
     });
 
-    test('AppFontScale enum has correct factor and labels', () {
-      expect(AppFontScale.small.factor, equals(0.85));
-      expect(AppFontScale.defaultScale.factor, equals(1.0));
-      expect(AppFontScale.large.factor, equals(1.2));
-      expect(AppFontScale.extraLarge.factor, equals(1.4));
+    test('AppFontScale enum has correct minimumFactors and labels', () {
+      expect(AppFontScale.system.minimumFactor, isNull);
+      expect(AppFontScale.large.minimumFactor, equals(1.2));
+      expect(AppFontScale.extraLarge.minimumFactor, equals(1.4));
 
-      expect(AppFontScale.small.label, equals('Small'));
-      expect(AppFontScale.defaultScale.label, equals('Default'));
+      expect(AppFontScale.system.label, equals('Device setting'));
       expect(AppFontScale.large.label, equals('Large'));
-      expect(AppFontScale.extraLarge.label, equals('Extra Large'));
+      expect(AppFontScale.extraLarge.label, equals('Extra large'));
     });
 
-    test('FontScaleController defaults to defaultScale and persists changes', () async {
+    test('FontScaleController defaults to system and persists changes', () async {
       final container = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
@@ -36,18 +34,14 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      // Initially defaultScale
-      expect(container.read(fontScaleProvider), equals(AppFontScale.defaultScale));
+      expect(container.read(fontScaleProvider), equals(AppFontScale.system));
 
-      // Set to large
-      container.read(fontScaleProvider.notifier).setFontScale(AppFontScale.large);
+      await container.read(fontScaleProvider.notifier).setFontScale(AppFontScale.large);
       expect(container.read(fontScaleProvider), equals(AppFontScale.large));
 
-      // Check DB persistence
       final savedVal = await db.getSetting('font_scale');
       expect(savedVal, equals('large'));
 
-      // New container reads persisted value
       final container2 = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
@@ -55,10 +49,28 @@ void main() {
       );
       addTearDown(container2.dispose);
 
-      // Trigger provider build and wait for async load
       container2.read(fontScaleProvider);
       await Future.delayed(const Duration(milliseconds: 100));
       expect(container2.read(fontScaleProvider), equals(AppFontScale.large));
+    });
+
+    test('FontScaleController preserves user choice when set during async load (race safety)', () async {
+      await db.setSetting('font_scale', 'large');
+
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      // Trigger load but immediately set extraLarge before async load completes
+      container.read(fontScaleProvider);
+      await container.read(fontScaleProvider.notifier).setFontScale(AppFontScale.extraLarge);
+
+      await Future.delayed(const Duration(milliseconds: 100));
+      // User selection (extraLarge) must be preserved, not overwritten by old DB value (large)
+      expect(container.read(fontScaleProvider), equals(AppFontScale.extraLarge));
     });
   });
 }
