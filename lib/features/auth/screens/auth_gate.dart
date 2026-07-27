@@ -341,8 +341,17 @@ class _FontSizeMenuButton extends ConsumerWidget {
     return PopupMenuButton<AppFontScale>(
       tooltip: 'Font size',
       initialValue: currentScale,
-      onSelected: (scale) {
-        ref.read(fontScaleProvider.notifier).setFontScale(scale);
+      onSelected: (scale) async {
+        final success = await ref
+            .read(fontScaleProvider.notifier)
+            .setFontScale(scale);
+        if (!success && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not save the text-size preference.'),
+            ),
+          );
+        }
       },
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),

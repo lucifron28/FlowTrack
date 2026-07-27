@@ -114,6 +114,8 @@ class _DashboardContent extends StatelessWidget {
     final netIncomeLabel = summary.hasIncompleteCostData
         ? 'Net Income (Estimated)'
         : 'Net Income';
+    final highTextScale = MediaQuery.textScalerOf(context).scale(10.0) >= 14.0;
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
@@ -121,10 +123,12 @@ class _DashboardContent extends StatelessWidget {
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: MediaQuery.sizeOf(context).width > 520 ? 3 : 2,
+          crossAxisCount: highTextScale
+              ? 1
+              : (MediaQuery.sizeOf(context).width > 520 ? 3 : 2),
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: MediaQuery.textScalerOf(context).scale(10.0) > 12.0 ? 0.95 : 1.2,
+          childAspectRatio: highTextScale ? 2.2 : 1.2,
           children: [
             _MetricCard(
               label: 'Sales Today',
@@ -226,9 +230,8 @@ class _MetricCard extends StatelessWidget {
                 children: [
                   Icon(icon, color: theme.colorScheme.primary),
                   const SizedBox(height: 4),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
                     child: CurrencyText(
                       amount,
                       style: theme.textTheme.titleLarge?.copyWith(
@@ -284,9 +287,8 @@ class _CountCard extends StatelessWidget {
                 children: [
                   Icon(icon, color: theme.colorScheme.error),
                   const SizedBox(height: 4),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
                     child: Text(
                       '$count',
                       style: theme.textTheme.titleLarge?.copyWith(

@@ -129,8 +129,20 @@ class SettingsScreen extends ConsumerWidget {
                         )
                         .toList(),
                     selected: {fontScale},
-                    onSelectionChanged: (value) =>
-                        ref.read(fontScaleProvider.notifier).setFontScale(value.first),
+                    onSelectionChanged: (value) async {
+                      final success = await ref
+                          .read(fontScaleProvider.notifier)
+                          .setFontScale(value.first);
+                      if (!success && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Could not save the text-size preference.',
+                            ),
+                          ),
+                        );
+                      }
+                    },
                   ),
                   const SizedBox(height: 12),
                   Text(

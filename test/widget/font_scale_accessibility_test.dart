@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:flowtrack/app.dart';
 import 'package:flowtrack/core/config/app_environment.dart';
 import 'package:flowtrack/core/database/app_database.dart';
 import 'package:flowtrack/features/auth/screens/auth_gate.dart';
@@ -24,7 +25,7 @@ void main() {
   });
 
   group('Font Scale Accessibility Widget Tests', () {
-    testWidgets('System scale 2.0 is preserved when AppFontScale is system', (
+    testWidgets('System scale 2.0 is preserved when AppFontScale is system using FlowTrackApp', (
       WidgetTester tester,
     ) async {
       tester.platformDispatcher.textScaleFactorTestValue = 2.0;
@@ -32,31 +33,23 @@ void main() {
         tester.platformDispatcher.clearTextScaleFactorTestValue();
       });
 
-      late BuildContext capturedContext;
-
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             appDatabaseProvider.overrideWithValue(database),
           ],
-          child: MaterialApp(
-            home: Consumer(
-              builder: (context, ref, child) {
-                capturedContext = context;
-                final scaler = MediaQuery.textScalerOf(context);
-                return Text('Sample', textScaler: scaler);
-              },
-            ),
-          ),
+          child: const FlowTrackApp(),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-      final scaler = MediaQuery.textScalerOf(capturedContext);
+      final element = tester.element(find.byType(FlowTrackApp));
+      final scaler = MediaQuery.textScalerOf(element);
       expect(scaler.scale(16.0), equals(32.0));
     });
 
-    testWidgets('App minimum scaling applies minScaleFactor floor', (
+    testWidgets('Extra Large font scale on system 1.0 produces at least 1.4 using FlowTrackApp', (
       WidgetTester tester,
     ) async {
       tester.platformDispatcher.textScaleFactorTestValue = 1.0;
@@ -71,52 +64,47 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      late BuildContext capturedContext;
-
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: MaterialApp(
-            builder: (context, child) {
-              return Consumer(
-                builder: (context, ref, _) {
-                  final fontScale = ref.watch(fontScaleProvider);
-                  final mediaQuery = MediaQuery.of(context);
-                  final minimumFactor = fontScale.minimumFactor;
-                  final effectiveScaler = minimumFactor == null
-                      ? mediaQuery.textScaler
-                      : mediaQuery.textScaler.clamp(minScaleFactor: minimumFactor);
-                  return MediaQuery(
-                    data: mediaQuery.copyWith(textScaler: effectiveScaler),
-                    child: child!,
-                  );
-                },
-              );
-            },
-            home: Builder(
-              builder: (context) {
-                capturedContext = context;
-                return const Text('Test');
-              },
-            ),
-          ),
+          child: const FlowTrackApp(),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-      // 1. Large setting (min scale factor 1.2)
-      await container.read(fontScaleProvider.notifier).setFontScale(AppFontScale.large);
-      await tester.pumpAndSettle();
+      final success = await container
+          .read(fontScaleProvider.notifier)
+          .setFontScale(AppFontScale.extraLarge);
+      expect(success, isTrue);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-      var scaler = MediaQuery.textScalerOf(capturedContext);
-      expect(scaler.scale(10.0), greaterThanOrEqualTo(12.0));
-
-      // 2. Extra Large setting (min scale factor 1.4)
-      await container.read(fontScaleProvider.notifier).setFontScale(AppFontScale.extraLarge);
-      await tester.pumpAndSettle();
-
-      scaler = MediaQuery.textScalerOf(capturedContext);
+      final element = tester.element(find.byType(Scaffold).first);
+      final scaler = MediaQuery.textScalerOf(element);
       expect(scaler.scale(10.0), greaterThanOrEqualTo(14.0));
+    });
+
+    testWidgets('Failed setting write causes no uncaught exception and restores prior selection', (
+      WidgetTester tester,
+    ) async {
+      final failingDb = _FailingAppDatabase();
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(failingDb),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(fontScaleProvider), equals(AppFontScale.system));
+
+      final success = await container
+          .read(fontScaleProvider.notifier)
+          .setFontScale(AppFontScale.large);
+
+      expect(success, isFalse);
+      expect(container.read(fontScaleProvider), equals(AppFontScale.system));
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('Pre-auth Text size control on LoginScreen updates font scale', (
@@ -139,13 +127,11 @@ void main() {
 
       expect(find.text('Text size'), findsOneWidget);
 
-      // Open text size popup menu
       await tester.tap(find.text('Text size'));
       await tester.pumpAndSettle();
 
       expect(find.text('Extra large'), findsOneWidget);
 
-      // Select Extra large
       await tester.tap(find.text('Extra large'));
       await tester.pumpAndSettle();
 
@@ -250,11 +236,21 @@ void main() {
                   appDatabaseProvider.overrideWithValue(database),
                   appModeProvider.overrideWithValue(AppMode.production),
                 ],
-                child: MaterialApp(home: entry.value),
+                child: MaterialApp(
+                  builder: (context, child) {
+                    final mediaQuery = MediaQuery.of(context);
+                    return MediaQuery(
+                      data: mediaQuery.copyWith(
+                        textScaler: mediaQuery.textScaler.clamp(minScaleFactor: 1.0),
+                      ),
+                      child: child!,
+                    );
+                  },
+                  home: entry.value,
+                ),
               ),
             );
-            await tester.pump();
-            await tester.pump(const Duration(milliseconds: 100));
+            await tester.pumpAndSettle();
             final exc = tester.takeException();
             if (exc != null) {
               fail('Overflow/Exception on ${entry.key} at ${size.width}x${size.height}: $exc');
@@ -273,5 +269,14 @@ class _FakeInitializationFailedController extends AuthController {
       status: AuthStatus.initializationFailed,
       hasOwner: false,
     );
+  }
+}
+
+class _FailingAppDatabase extends AppDatabase {
+  _FailingAppDatabase() : super.inMemory();
+
+  @override
+  Future<void> setSetting(String key, String value) async {
+    throw Exception('Database write failure');
   }
 }

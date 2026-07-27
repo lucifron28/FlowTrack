@@ -123,7 +123,7 @@ class FontScaleController extends Notifier<AppFontScale> {
     }
   }
 
-  Future<void> setFontScale(AppFontScale value) async {
+  Future<bool> setFontScale(AppFontScale value) async {
     final previous = state;
     final revision = ++_revision;
 
@@ -133,11 +133,12 @@ class FontScaleController extends Notifier<AppFontScale> {
       await ref
           .read(appDatabaseProvider)
           .setSetting('font_scale', value.name);
+      return true;
     } catch (_) {
       if (revision == _revision) {
         state = previous;
       }
-      rethrow;
+      return false;
     }
   }
 }
