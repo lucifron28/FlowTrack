@@ -109,24 +109,54 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _scanBarcode,
-                  icon: const Icon(Icons.barcode_reader),
-                  label: const Text('Scan Barcode'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _searchProduct,
-                  icon: const Icon(Icons.search),
-                  label: const Text('Search Product'),
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 450 ||
+                  MediaQuery.textScalerOf(context).scale(10.0) > 12.0;
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: _scanBarcode,
+                      icon: const Icon(Icons.barcode_reader),
+                      label: const Text('Scan Barcode'),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _searchProduct,
+                      icon: const Icon(Icons.search),
+                      label: const Text('Search Product'),
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _scanBarcode,
+                      icon: const Icon(Icons.barcode_reader),
+                      label: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text('Scan Barcode'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _searchProduct,
+                      icon: const Icon(Icons.search),
+                      label: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text('Search Product'),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           Text('Current Sale', style: Theme.of(context).textTheme.titleMedium),
@@ -179,13 +209,20 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${_cart.itemCount} items',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  Expanded(
+                    child: Text(
+                      '${_cart.itemCount} items',
+                      style: Theme.of(context).textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  CurrencyText(
-                    _total,
-                    style: Theme.of(context).textTheme.titleLarge,
+                  const SizedBox(width: 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: CurrencyText(
+                      _total,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
                   ),
                 ],
               ),
@@ -193,6 +230,9 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
           ),
           const SizedBox(height: 16),
           SegmentedButton<PaymentType>(
+            direction: MediaQuery.textScalerOf(context).scale(10.0) > 14.0
+                ? Axis.vertical
+                : Axis.horizontal,
             segments: const [
               ButtonSegment(
                 value: PaymentType.cash,
@@ -466,11 +506,21 @@ class _CashChangePanel extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Amount Due', style: theme.textTheme.titleMedium),
-                CurrencyText(
-                  total,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
+                Expanded(
+                  child: Text(
+                    'Amount Due',
+                    style: theme.textTheme.titleMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: CurrencyText(
+                    total,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ],
@@ -534,13 +584,17 @@ class _CashChangePanel extends StatelessWidget {
                       ),
                     ),
                   ),
-                  CurrencyText(
-                    change == null ? 0 : change.abs(),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: isShort
-                          ? theme.colorScheme.onErrorContainer
-                          : theme.colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w800,
+                  const SizedBox(width: 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: CurrencyText(
+                      change == null ? 0 : change.abs(),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: isShort
+                            ? theme.colorScheme.onErrorContainer
+                            : theme.colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ],

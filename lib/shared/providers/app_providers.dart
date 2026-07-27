@@ -91,38 +91,54 @@ final themeModeProvider = NotifierProvider<ThemeModeController, ThemeMode>(
 );
 
 enum AppFontScale {
-  small(0.85, 'Small', 'S'),
-  defaultScale(1.0, 'Default', 'M'),
-  large(1.2, 'Large', 'L'),
-  extraLarge(1.4, 'Extra Large', 'XL');
+  system(null, 'Device setting'),
+  large(1.2, 'Large'),
+  extraLarge(1.4, 'Extra large');
 
-  const AppFontScale(this.factor, this.label, this.shortLabel);
-  final double factor;
+  const AppFontScale(this.minimumFactor, this.label);
+  final double? minimumFactor;
   final String label;
-  final String shortLabel;
 }
 
 class FontScaleController extends Notifier<AppFontScale> {
+  int _revision = 0;
+
   @override
   AppFontScale build() {
+    _revision = 0;
     _loadSavedFontScale();
-    return AppFontScale.defaultScale;
+    return AppFontScale.system;
   }
 
   Future<void> _loadSavedFontScale() async {
+    final currentRevision = _revision;
     final val = await ref.read(appDatabaseProvider).getSetting('font_scale');
-    if (!ref.mounted) return;
+    if (!ref.mounted || _revision != currentRevision) return;
+
     if (val != null) {
       state = AppFontScale.values.firstWhere(
         (e) => e.name == val,
-        orElse: () => AppFontScale.defaultScale,
+        orElse: () => AppFontScale.system,
       );
     }
   }
 
-  void setFontScale(AppFontScale value) {
+  Future<void> setFontScale(AppFontScale value) async {
+    final previous = state;
+    final revision = ++_revision;
+
     state = value;
-    ref.read(appDatabaseProvider).setSetting('font_scale', value.name);
+
+    try {
+      await ref
+          .read(appDatabaseProvider)
+          .setSetting('font_scale', value.name);
+    } catch (_) {
+      if (revision == _revision) {
+        state = previous;
+      }
+      rethrow;
+    }
   }
 }
 
