@@ -206,25 +206,47 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${_cart.itemCount} items',
-                      style: Theme.of(context).textTheme.titleMedium,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: CurrencyText(
-                      _total,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-                ],
+              child: Builder(
+                builder: (context) {
+                  final isHighScale =
+                      MediaQuery.textScalerOf(context).scale(10.0) >= 14.0;
+                  if (isHighScale) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${_cart.itemCount} items',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: CurrencyText(
+                            _total,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${_cart.itemCount} items',
+                          style: Theme.of(context).textTheme.titleMedium,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      CurrencyText(
+                        _total,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -497,34 +519,47 @@ class _CashChangePanel extends StatelessWidget {
     final isShort = change != null && change < 0;
     final tenderOptions = _suggestTenderAmounts(total);
 
+    final isHighScale = MediaQuery.textScalerOf(context).scale(10.0) >= 14.0;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'Amount Due',
-                    style: theme.textTheme.titleMedium,
-                    overflow: TextOverflow.ellipsis,
+            if (isHighScale) ...[
+              Text('Amount Due', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 4),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: CurrencyText(
+                  total,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(width: 8),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: CurrencyText(
+              ),
+            ] else ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Amount Due',
+                      style: theme.textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  CurrencyText(
                     total,
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
             const SizedBox(height: 12),
             TextField(
               controller: controller,
@@ -565,40 +600,80 @@ class _CashChangePanel extends StatelessWidget {
                     ? theme.colorScheme.errorContainer
                     : theme.colorScheme.primaryContainer,
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    isShort ? Icons.warning_amber : Icons.change_circle,
-                    color: isShort
-                        ? theme.colorScheme.onErrorContainer
-                        : theme.colorScheme.onPrimaryContainer,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      isShort ? 'Short by' : 'Change',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: isShort
-                            ? theme.colorScheme.onErrorContainer
-                            : theme.colorScheme.onPrimaryContainer,
-                      ),
+              child: isHighScale
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              isShort ? Icons.warning_amber : Icons.change_circle,
+                              color: isShort
+                                  ? theme.colorScheme.onErrorContainer
+                                  : theme.colorScheme.onPrimaryContainer,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                isShort ? 'Short by' : 'Change',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  color: isShort
+                                      ? theme.colorScheme.onErrorContainer
+                                      : theme.colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: CurrencyText(
+                            change == null ? 0 : change.abs(),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: isShort
+                                  ? theme.colorScheme.onErrorContainer
+                                  : theme.colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Icon(
+                          isShort ? Icons.warning_amber : Icons.change_circle,
+                          color: isShort
+                              ? theme.colorScheme.onErrorContainer
+                              : theme.colorScheme.onPrimaryContainer,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            isShort ? 'Short by' : 'Change',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: isShort
+                                  ? theme.colorScheme.onErrorContainer
+                                  : theme.colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: CurrencyText(
+                            change == null ? 0 : change.abs(),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: isShort
+                                  ? theme.colorScheme.onErrorContainer
+                                  : theme.colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: CurrencyText(
-                      change == null ? 0 : change.abs(),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: isShort
-                            ? theme.colorScheme.onErrorContainer
-                            : theme.colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
