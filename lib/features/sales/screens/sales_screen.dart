@@ -20,14 +20,14 @@ class SalesScreen extends ConsumerWidget {
     final database = ref.watch(appDatabaseProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Sales')),
-      body: StreamBuilder<List<Sale>>(
-        stream: database.watchSales(),
+      body: StreamBuilder<List<SaleListEntry>>(
+        stream: database.watchSalesWithCustomer(),
         builder: (context, snapshot) {
-          final sales = snapshot.data ?? [];
+          final entries = snapshot.data ?? [];
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (sales.isEmpty) {
+          if (entries.isEmpty) {
             return const EmptyState(
               icon: Icons.point_of_sale,
               title: 'No sales yet',
@@ -36,10 +36,14 @@ class SalesScreen extends ConsumerWidget {
           }
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-            itemCount: sales.length,
+            itemCount: entries.length,
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
-              final sale = sales[index];
+              final entry = entries[index];
+              final sale = entry.sale;
+              final isCredit = sale.paymentType == PaymentType.credit.dbValue;
+              final customerName = entry.customerName;
+
               return Card(
                 child: ListTile(
                   onTap: () => context.pushNamed(
@@ -47,7 +51,22 @@ class SalesScreen extends ConsumerWidget {
                     pathParameters: {'saleId': sale.id},
                   ),
                   title: Text(sale.saleNumber),
-                  subtitle: Text('${sale.paymentType} • ${sale.status}'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (isCredit && customerName != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          customerName,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ],
+                      const SizedBox(height: 2),
+                      Text('${sale.paymentType} • ${sale.status}'),
+                    ],
+                  ),
                   trailing: CurrencyText(sale.totalAmount),
                 ),
               );
@@ -785,20 +804,24 @@ class SaleDetailsScreen extends ConsumerWidget {
     final database = ref.watch(appDatabaseProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Sale Details')),
-      body: FutureBuilder<Sale?>(
-        future: database.getSale(saleId),
+      body: FutureBuilder<SaleListEntry?>(
+        future: database.getSaleWithCustomer(saleId),
         builder: (context, saleSnapshot) {
-          final sale = saleSnapshot.data;
+          final entry = saleSnapshot.data;
           if (saleSnapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (sale == null) {
+          if (entry == null) {
             return const EmptyState(
               icon: Icons.error_outline,
               title: 'Sale not found',
               message: 'The selected transaction is unavailable.',
             );
           }
+          final sale = entry.sale;
+          final isCredit = sale.paymentType == PaymentType.credit.dbValue;
+          final customerName = entry.customerName;
+
           return FutureBuilder<List<SaleItem>>(
             future: database.getSaleItems(sale.id),
             builder: (context, itemSnapshot) {
@@ -813,6 +836,27 @@ class SaleDetailsScreen extends ConsumerWidget {
                       trailing: CurrencyText(sale.totalAmount),
                     ),
                   ),
+                  if (isCredit && customerName != null) ...[
+                    const SizedBox(height: 8),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.person),
+                        title: const Text('Customer'),
+                        subtitle: Text(customerName),
+                        trailing: sale.customerId != null
+                            ? const Icon(Icons.chevron_right)
+                            : null,
+                        onTap: sale.customerId != null
+                            ? () => context.pushNamed(
+                                  AppRoutes.customerDetailsName,
+                                  pathParameters: {
+                                    'customerId': sale.customerId!,
+                                  },
+                                )
+                            : null,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   ...items.map(
                     (item) => ListTile(
