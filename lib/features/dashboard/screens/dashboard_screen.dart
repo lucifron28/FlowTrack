@@ -116,47 +116,55 @@ class _DashboardContent extends StatelessWidget {
         : 'Net Income';
     final highTextScale = MediaQuery.textScalerOf(context).scale(10.0) >= 14.0;
 
+    final cards = <Widget>[
+      _MetricCard(
+        label: 'Sales Today',
+        amount: summary.totalSalesToday,
+        icon: Icons.point_of_sale,
+      ),
+      _MetricCard(
+        label: 'Expenses Today',
+        amount: summary.totalExpensesToday,
+        icon: Icons.receipt_long,
+      ),
+      _MetricCard(
+        label: netIncomeLabel,
+        amount: summary.netIncomeToday,
+        icon: Icons.trending_up,
+      ),
+      _MetricCard(
+        label: 'Outstanding Credit',
+        amount: summary.totalOutstandingCredit,
+        icon: Icons.account_balance_wallet,
+      ),
+      _CountCard(
+        label: 'Stock Alerts',
+        count: summary.stockAlertItemsCount,
+        icon: Icons.warning_amber,
+      ),
+    ];
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: highTextScale
-              ? 1
-              : (MediaQuery.sizeOf(context).width > 520 ? 3 : 2),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: highTextScale ? 2.2 : 1.2,
-          children: [
-            _MetricCard(
-              label: 'Sales Today',
-              amount: summary.totalSalesToday,
-              icon: Icons.point_of_sale,
+        if (highTextScale)
+          ...cards.map(
+            (card) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: card,
             ),
-            _MetricCard(
-              label: 'Expenses Today',
-              amount: summary.totalExpensesToday,
-              icon: Icons.receipt_long,
-            ),
-            _MetricCard(
-              label: netIncomeLabel,
-              amount: summary.netIncomeToday,
-              icon: Icons.trending_up,
-            ),
-            _MetricCard(
-              label: 'Outstanding Credit',
-              amount: summary.totalOutstandingCredit,
-              icon: Icons.account_balance_wallet,
-            ),
-            _CountCard(
-              label: 'Stock Alerts',
-              count: summary.stockAlertItemsCount,
-              icon: Icons.warning_amber,
-            ),
-          ],
-        ),
+          )
+        else
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: MediaQuery.sizeOf(context).width > 520 ? 3 : 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.2,
+            children: cards,
+          ),
         if (summary.hasIncompleteCostData) ...[
           const SizedBox(height: 12),
           Text(
@@ -214,43 +222,30 @@ class _MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SectionCard(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight.isFinite
-                    ? constraints.maxHeight
-                    : 0.0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Icon(icon, color: theme.colorScheme.primary),
-                  const SizedBox(height: 4),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: CurrencyText(
-                      amount,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Icon(icon, color: theme.colorScheme.primary),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: CurrencyText(
+                amount,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          );
-        },
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -271,43 +266,30 @@ class _CountCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SectionCard(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight.isFinite
-                    ? constraints.maxHeight
-                    : 0.0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Icon(icon, color: theme.colorScheme.error),
-                  const SizedBox(height: 4),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Text(
-                      '$count',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Icon(icon, color: theme.colorScheme.error),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Text(
+                '$count',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          );
-        },
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -44,7 +44,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      final element = tester.element(find.byType(FlowTrackApp));
+      final element = tester.element(find.byType(Scaffold).first);
       final scaler = MediaQuery.textScalerOf(element);
       expect(scaler.scale(16.0), equals(32.0));
     });
