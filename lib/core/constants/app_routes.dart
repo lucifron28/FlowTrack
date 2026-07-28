@@ -12,6 +12,7 @@ class AppRoutes {
   static const addStock = '/inventory/:productId/add-stock';
   static const adjustStock = '/inventory/:productId/adjust-stock';
   static const barcodePrint = '/inventory/:productId/barcode-print';
+  static const stockHistory = '/inventory/:productId/history';
   static const addCustomer = '/credits/add';
   static const customerDetails = '/credits/:customerId';
   static const editCustomer = '/credits/:customerId/edit';
@@ -33,6 +34,7 @@ class AppRoutes {
   static const addStockName = 'add-stock';
   static const adjustStockName = 'adjust-stock';
   static const barcodePrintName = 'barcode-print';
+  static const stockHistoryName = 'stock-history';
   static const addCustomerName = 'add-customer';
   static const customerDetailsName = 'customer-details';
   static const editCustomerName = 'edit-customer';
