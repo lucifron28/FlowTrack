@@ -34,6 +34,40 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final database = ref.watch(appDatabaseProvider);
+
+    final lifecycleDropdown = DropdownButtonFormField<ProductLifecycleFilter>(
+      isExpanded: true,
+      initialValue: _lifecycleFilter,
+      decoration: const InputDecoration(labelText: 'Lifecycle'),
+      items: ProductLifecycleFilter.values
+          .map(
+            (filter) => DropdownMenuItem(
+              value: filter,
+              child: Text(filter.label),
+            ),
+          )
+          .toList(),
+      onChanged: (value) => setState(
+        () => _lifecycleFilter = value ?? ProductLifecycleFilter.all,
+      ),
+    );
+
+    final statusDropdown = DropdownButtonFormField<ProductStatus?>(
+      isExpanded: true,
+      initialValue: _filter,
+      decoration: const InputDecoration(labelText: 'Stock status'),
+      items: [
+        const DropdownMenuItem(value: null, child: Text('All')),
+        ...ProductStatus.values.map(
+          (status) => DropdownMenuItem(
+            value: status,
+            child: Text(status.label),
+          ),
+        ),
+      ],
+      onChanged: (value) => setState(() => _filter = value),
+    );
+
     return Scaffold(
       appBar: AppBar(title: const Text('Inventory')),
       body: Column(
@@ -50,45 +84,29 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   onChanged: (value) => setState(() => _query = value),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<ProductLifecycleFilter>(
-                        initialValue: _lifecycleFilter,
-                        decoration: const InputDecoration(labelText: 'Lifecycle'),
-                        items: ProductLifecycleFilter.values
-                            .map(
-                              (filter) => DropdownMenuItem(
-                                value: filter,
-                                child: Text(filter.label),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) => setState(
-                          () => _lifecycleFilter =
-                              value ?? ProductLifecycleFilter.all,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: DropdownButtonFormField<ProductStatus?>(
-                        initialValue: _filter,
-                        decoration:
-                            const InputDecoration(labelText: 'Stock status'),
-                        items: [
-                          const DropdownMenuItem(value: null, child: Text('All')),
-                          ...ProductStatus.values.map(
-                            (status) => DropdownMenuItem(
-                              value: status,
-                              child: Text(status.label),
-                            ),
-                          ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final scale =
+                        MediaQuery.textScalerOf(context).scale(14.0) / 14.0;
+                    final stack = constraints.maxWidth < 420 || scale >= 1.35;
+
+                    if (stack) {
+                      return Column(
+                        children: [
+                          lifecycleDropdown,
+                          const SizedBox(height: 8),
+                          statusDropdown,
                         ],
-                        onChanged: (value) => setState(() => _filter = value),
-                      ),
-                    ),
-                  ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: lifecycleDropdown),
+                        const SizedBox(width: 8),
+                        Expanded(child: statusDropdown),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -97,6 +115,24 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             child: StreamBuilder<List<Product>>(
               stream: database.watchAllProducts(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Failed to load products: ${snapshot.error}',
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
                 final products = _listController.filterProducts(
                   products: snapshot.data ?? [],
                   query: _query,
@@ -172,7 +208,6 @@ class ProductCard extends StatelessWidget {
     final badges = Wrap(
       spacing: 6,
       runSpacing: 4,
-      alignment: highTextScale ? WrapAlignment.start : WrapAlignment.end,
       children: [
         _StatusBadge(label: status.label, color: statusColor),
         if (!product.isActive)
@@ -224,7 +259,8 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           'Price: ',
@@ -333,7 +369,6 @@ class _StatusBadge extends StatelessWidget {
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: color,
           fontWeight: FontWeight.w700,
-          fontSize: 11,
         ),
       ),
     );
@@ -645,6 +680,24 @@ class ProductDetailsScreen extends ConsumerWidget {
       body: StreamBuilder<Product?>(
         stream: database.watchProduct(productId),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Failed to load product details: ${snapshot.error}',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
           final product = snapshot.data;
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -686,14 +739,16 @@ class ProductDetailsScreen extends ConsumerWidget {
                           color: Theme.of(context).colorScheme.outline,
                         ),
                       ],
-                      Row(
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           const Text('Selling price: '),
                           CurrencyText(product.sellingPrice),
                         ],
                       ),
                       if (product.costPrice != null)
-                        Row(
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             const Text('Cost price: '),
                             CurrencyText(product.costPrice!),
@@ -757,27 +812,54 @@ class ProductDetailsScreen extends ConsumerWidget {
                   label: const Text('Print Barcode Sheet'),
                 ),
               const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final scale =
+                      MediaQuery.textScalerOf(context).scale(14.0) / 14.0;
+                  final stack = constraints.maxWidth < 420 || scale >= 1.35;
+
+                  final titleWidget = Text(
                     'Stock History',
                     style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  TextButton.icon(
+                  );
+                  final buttonWidget = TextButton.icon(
                     onPressed: () => context.pushNamed(
                       AppRoutes.stockHistoryName,
                       pathParameters: {'productId': product.id},
                     ),
                     icon: const Icon(Icons.history, size: 18),
                     label: const Text('View full history'),
-                  ),
-                ],
+                  );
+
+                  if (stack) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        titleWidget,
+                        const SizedBox(height: 4),
+                        buttonWidget,
+                      ],
+                    );
+                  }
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      titleWidget,
+                      buttonWidget,
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 8),
               StreamBuilder<List<StockHistoryEntry>>(
                 stream: database.watchStockHistoryPreview(product.id, limit: 5),
                 builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Text(
+                      'Failed to load stock history preview.',
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    );
+                  }
                   final entries = snapshot.data ?? [];
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -1142,35 +1224,39 @@ class _AdjustStockScreenState extends ConsumerState<AdjustStockScreen> {
     if (_isSaving) return;
     if (!_formKey.currentState!.validate()) return;
 
-    if (!_add) {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Confirm deduction'),
-          content: const Text('Deduct stock for this product?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Deduct'),
-            ),
-          ],
-        ),
-      );
-      if (confirm != true) {
-        return;
-      }
-    }
-
     setState(() => _isSaving = true);
-    final quantity = int.parse(_quantityController.text.trim());
-    final trimmedNotes = _notesController.text.trim();
-    final notes = trimmedNotes.isEmpty ? null : trimmedNotes;
 
     try {
+      if (!_add) {
+        final quantity = int.parse(_quantityController.text.trim());
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Confirm deduction'),
+            content: Text(
+              'Deduct $quantity units from ${widget.product.name}?\nReason: $_reason',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Deduct'),
+              ),
+            ],
+          ),
+        );
+
+        if (!mounted) return;
+        if (confirm != true) return;
+      }
+
+      final quantity = int.parse(_quantityController.text.trim());
+      final trimmedNotes = _notesController.text.trim();
+      final notes = trimmedNotes.isEmpty ? null : trimmedNotes;
+
       await ref.read(appDatabaseProvider).adjustStock(
             productId: widget.product.id,
             quantity: quantity,
@@ -1178,15 +1264,17 @@ class _AdjustStockScreenState extends ConsumerState<AdjustStockScreen> {
             reason: _reason,
             notes: notes,
           );
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
     } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
-        );
       }
     }
   }
@@ -1650,6 +1738,7 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
   bool _isLoadingMore = false;
   bool _hasMore = true;
   String? _error;
+  String? _loadMoreError;
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -1678,6 +1767,7 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _loadMoreError = null;
     });
     try {
       final db = ref.read(appDatabaseProvider);
@@ -1706,7 +1796,10 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
 
   Future<void> _loadMore() async {
     if (_isLoadingMore || !_hasMore) return;
-    setState(() => _isLoadingMore = true);
+    setState(() {
+      _isLoadingMore = true;
+      _loadMoreError = null;
+    });
     try {
       final db = ref.read(appDatabaseProvider);
       final page = await db.getStockHistoryPage(
@@ -1721,9 +1814,12 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
           _isLoadingMore = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        setState(() => _isLoadingMore = false);
+        setState(() {
+          _loadMoreError = e.toString();
+          _isLoadingMore = false;
+        });
       }
     }
   }
@@ -1776,10 +1872,28 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
             child: Center(
               child: _isLoadingMore
                   ? const CircularProgressIndicator()
-                  : OutlinedButton(
-                      onPressed: _loadMore,
-                      child: const Text('Load More'),
-                    ),
+                  : _loadMoreError != null
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Failed to load older history: $_loadMoreError',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton(
+                              onPressed: _loadMore,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        )
+                      : OutlinedButton(
+                          onPressed: _loadMore,
+                          child: const Text('Load More'),
+                        ),
             ),
           );
         }
