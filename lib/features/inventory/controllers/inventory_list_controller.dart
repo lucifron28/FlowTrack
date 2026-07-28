@@ -2,6 +2,15 @@ import '../../../core/database/app_database.dart';
 import '../../../core/domain/flowtrack_models.dart';
 import '../../../core/utils/barcode_utils.dart';
 
+enum ProductLifecycleFilter {
+  all('All'),
+  active('Active'),
+  archived('Archived');
+
+  const ProductLifecycleFilter(this.label);
+  final String label;
+}
+
 class InventoryListItem {
   const InventoryListItem({required this.product, required this.status});
 
@@ -14,6 +23,7 @@ class InventoryListController {
     required Iterable<Product> products,
     String query = '',
     ProductStatus? statusFilter,
+    ProductLifecycleFilter lifecycleFilter = ProductLifecycleFilter.all,
   }) {
     final normalizedQuery = query.trim().toLowerCase();
 
@@ -35,8 +45,8 @@ class InventoryListController {
             try {
               final norm = normalizeBarcode(normalizedQuery);
               matchesBarcodeQuery = product.barcode.toLowerCase().contains(
-                norm.toLowerCase(),
-              );
+                    norm.toLowerCase(),
+                  );
             } catch (_) {}
           }
 
@@ -47,8 +57,13 @@ class InventoryListController {
               matchesBarcodeQuery;
           final matchesStatus =
               statusFilter == null || item.status == statusFilter;
+          final matchesLifecycle = switch (lifecycleFilter) {
+            ProductLifecycleFilter.all => true,
+            ProductLifecycleFilter.active => product.isActive,
+            ProductLifecycleFilter.archived => !product.isActive,
+          };
 
-          return matchesQuery && matchesStatus;
+          return matchesQuery && matchesStatus && matchesLifecycle;
         })
         .toList();
   }
