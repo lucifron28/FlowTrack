@@ -206,7 +206,7 @@ void main() {
     expect(expenses.single.voidedAt, isNull);
     expect(expenses.single.voidReason, isNull);
 
-    // 5. Verify database schema version is 5.
-    expect(database.schemaVersion, 5);
+    // 5. Verify database schema version is 6 (v6 added customerNameSnapshot to sales).
+    expect(database.schemaVersion, 6);
   });
 }
