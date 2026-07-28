@@ -178,7 +178,11 @@ class BackupService {
       await _restoreRows(
         data,
         'sales',
-        (json) => Sale.fromJson(json).toCompanion(true),
+        (json) {
+          final copy = Map<String, dynamic>.from(json);
+          copy.putIfAbsent('customerNameSnapshot', () => null);
+          return Sale.fromJson(copy).toCompanion(true);
+        },
         _database.sales,
       );
       await _restoreRows(

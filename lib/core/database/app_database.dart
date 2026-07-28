@@ -57,6 +57,7 @@ class Sales extends Table {
   IntColumn get amountReceived => integer().nullable()();
   IntColumn get changeAmount => integer().nullable()();
   TextColumn get customerId => text().nullable().references(Customers, #id)();
+  TextColumn get customerNameSnapshot => text().nullable()();
   TextColumn get status => text()();
   TextColumn get voidReason => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
@@ -188,6 +189,26 @@ class AuditLogs extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class SaleListEntry {
+  const SaleListEntry({
+    required this.sale,
+    this.customerName,
+  });
+
+  final Sale sale;
+  final String? customerName;
+}
+
+class CreditRecordListEntry {
+  const CreditRecordListEntry({
+    required this.record,
+    this.saleNumber,
+  });
+
+  final CreditRecord record;
+  final String? saleNumber;
+}
+
 @DriftDatabase(
   tables: [
     Products,
@@ -213,7 +234,7 @@ class AppDatabase extends _$AppDatabase {
   static const _uuid = Uuid();
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -235,6 +256,19 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(expenses, expenses.isVoided);
         await m.addColumn(expenses, expenses.voidedAt);
         await m.addColumn(expenses, expenses.voidReason);
+      }
+      if (from < 6 && to >= 6) {
+        await m.addColumn(sales, sales.customerNameSnapshot);
+        await customStatement('''
+          UPDATE sales
+          SET customer_name_snapshot = (
+            SELECT customers.name
+            FROM customers
+            WHERE customers.id = sales.customer_id
+          )
+          WHERE customer_id IS NOT NULL
+            AND customer_name_snapshot IS NULL;
+        ''');
       }
     },
     beforeOpen: (details) async {
@@ -484,6 +518,87 @@ class AppDatabase extends _$AppDatabase {
     return query.watch();
   }
 
+  Stream<List<SaleListEntry>> watchSalesWithCustomer() {
+    final query = select(sales).join([
+      leftOuterJoin(customers, customers.id.equalsExp(sales.customerId)),
+    ])..orderBy([OrderingTerm.desc(sales.saleDate)]);
+
+    return query.watch().map((rows) {
+      return rows.map((row) {
+        final saleRow = row.readTable(sales);
+        final customerRow = row.readTableOrNull(customers);
+
+        String? resolvedCustomerName;
+        if (saleRow.paymentType == PaymentType.credit.dbValue) {
+          if (saleRow.customerNameSnapshot != null &&
+              saleRow.customerNameSnapshot!.trim().isNotEmpty) {
+            resolvedCustomerName = saleRow.customerNameSnapshot!.trim();
+          } else if (customerRow != null &&
+              customerRow.name.trim().isNotEmpty) {
+            resolvedCustomerName = customerRow.name.trim();
+          } else {
+            resolvedCustomerName = 'Unknown customer';
+          }
+        }
+
+        return SaleListEntry(
+          sale: saleRow,
+          customerName: resolvedCustomerName,
+        );
+      }).toList();
+    });
+  }
+
+  Future<SaleListEntry?> getSaleWithCustomer(String saleId) async {
+    final query = select(sales).join([
+      leftOuterJoin(customers, customers.id.equalsExp(sales.customerId)),
+    ])..where(sales.id.equals(saleId));
+
+    final row = await query.getSingleOrNull();
+    if (row == null) return null;
+
+    final saleRow = row.readTable(sales);
+    final customerRow = row.readTableOrNull(customers);
+
+    String? resolvedCustomerName;
+    if (saleRow.paymentType == PaymentType.credit.dbValue) {
+      if (saleRow.customerNameSnapshot != null &&
+          saleRow.customerNameSnapshot!.trim().isNotEmpty) {
+        resolvedCustomerName = saleRow.customerNameSnapshot!.trim();
+      } else if (customerRow != null && customerRow.name.trim().isNotEmpty) {
+        resolvedCustomerName = customerRow.name.trim();
+      } else {
+        resolvedCustomerName = 'Unknown customer';
+      }
+    }
+
+    return SaleListEntry(
+      sale: saleRow,
+      customerName: resolvedCustomerName,
+    );
+  }
+
+  Stream<List<CreditRecordListEntry>> watchCreditRecordsWithSale(
+    String customerId,
+  ) {
+    final query = select(creditRecords).join([
+      leftOuterJoin(sales, sales.id.equalsExp(creditRecords.saleId)),
+    ])
+      ..where(creditRecords.customerId.equals(customerId))
+      ..orderBy([OrderingTerm.desc(creditRecords.creditDate)]);
+
+    return query.watch().map((rows) {
+      return rows.map((row) {
+        final record = row.readTable(creditRecords);
+        final saleRow = row.readTableOrNull(sales);
+        return CreditRecordListEntry(
+          record: record,
+          saleNumber: saleRow?.saleNumber,
+        );
+      }).toList();
+    });
+  }
+
   Future<Sale?> getSale(String saleId) {
     final query = select(sales)..where((tbl) => tbl.id.equals(saleId));
     return query.getSingleOrNull();
@@ -559,20 +674,27 @@ class AppDatabase extends _$AppDatabase {
         }
       }
 
-      String? finalCustomerId = customerId;
+      String? finalCustomerId;
+      String? finalCustomerNameSnapshot;
+
       if (paymentType == PaymentType.credit) {
-        if (finalCustomerId == null) {
-          _requireText(customerName, 'Customer name');
-          finalCustomerId = await _createCustomerInTransaction(
-            name: customerName!,
-            contactNumber: contactNumber,
-            now: now,
-          );
-        } else {
-          final customer = await getCustomer(finalCustomerId);
+        if (customerId != null) {
+          final customer = await getCustomer(customerId);
           if (customer == null || !customer.isActive) {
             throw StateError('Customer not found.');
           }
+          finalCustomerId = customer.id;
+          finalCustomerNameSnapshot = customer.name;
+        } else {
+          _requireText(customerName, 'Customer name');
+          final trimmedName = customerName!.trim();
+          final newCustomerId = await _createCustomerInTransaction(
+            name: trimmedName,
+            contactNumber: contactNumber,
+            now: now,
+          );
+          finalCustomerId = newCustomerId;
+          finalCustomerNameSnapshot = trimmedName;
         }
       }
 
@@ -593,6 +715,7 @@ class AppDatabase extends _$AppDatabase {
                 : null,
           ),
           customerId: Value(finalCustomerId),
+          customerNameSnapshot: Value(finalCustomerNameSnapshot),
           status: SaleStatus.completed.dbValue,
           createdAt: now,
           updatedAt: now,

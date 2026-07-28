@@ -184,6 +184,19 @@ class BackupValidator {
         throw Exception('Sale $id references missing customer $customerId.');
       }
 
+      final customerNameSnapshot = s['customerNameSnapshot'];
+      if (customerNameSnapshot != null && customerNameSnapshot is! String) {
+        throw Exception('Sale $id customerNameSnapshot must be a string if present.');
+      }
+
+      if (s['paymentType'] == 'cash') {
+        if (customerId != null || customerNameSnapshot != null) {
+          throw Exception(
+            'Cash sale $id cannot contain customer details or customerNameSnapshot.',
+          );
+        }
+      }
+
       final numStr = s['saleNumber'] as String;
       if (saleNumbers.contains(numStr)) {
         throw Exception('Duplicate sale number $numStr.');
