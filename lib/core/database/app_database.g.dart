@@ -1242,6 +1242,17 @@ class $SalesTable extends Sales with TableInfo<$SalesTable, Sale> {
       'REFERENCES customers (id)',
     ),
   );
+  static const VerificationMeta _customerNameSnapshotMeta =
+      const VerificationMeta('customerNameSnapshot');
+  @override
+  late final GeneratedColumn<String> customerNameSnapshot =
+      GeneratedColumn<String>(
+        'customer_name_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -1294,6 +1305,7 @@ class $SalesTable extends Sales with TableInfo<$SalesTable, Sale> {
     amountReceived,
     changeAmount,
     customerId,
+    customerNameSnapshot,
     status,
     voidReason,
     createdAt,
@@ -1378,6 +1390,15 @@ class $SalesTable extends Sales with TableInfo<$SalesTable, Sale> {
         customerId.isAcceptableOrUnknown(data['customer_id']!, _customerIdMeta),
       );
     }
+    if (data.containsKey('customer_name_snapshot')) {
+      context.handle(
+        _customerNameSnapshotMeta,
+        customerNameSnapshot.isAcceptableOrUnknown(
+          data['customer_name_snapshot']!,
+          _customerNameSnapshotMeta,
+        ),
+      );
+    }
     if (data.containsKey('status')) {
       context.handle(
         _statusMeta,
@@ -1453,6 +1474,10 @@ class $SalesTable extends Sales with TableInfo<$SalesTable, Sale> {
         DriftSqlType.string,
         data['${effectivePrefix}customer_id'],
       ),
+      customerNameSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}customer_name_snapshot'],
+      ),
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -1487,6 +1512,7 @@ class Sale extends DataClass implements Insertable<Sale> {
   final int? amountReceived;
   final int? changeAmount;
   final String? customerId;
+  final String? customerNameSnapshot;
   final String status;
   final String? voidReason;
   final DateTime createdAt;
@@ -1500,6 +1526,7 @@ class Sale extends DataClass implements Insertable<Sale> {
     this.amountReceived,
     this.changeAmount,
     this.customerId,
+    this.customerNameSnapshot,
     required this.status,
     this.voidReason,
     required this.createdAt,
@@ -1521,6 +1548,9 @@ class Sale extends DataClass implements Insertable<Sale> {
     }
     if (!nullToAbsent || customerId != null) {
       map['customer_id'] = Variable<String>(customerId);
+    }
+    if (!nullToAbsent || customerNameSnapshot != null) {
+      map['customer_name_snapshot'] = Variable<String>(customerNameSnapshot);
     }
     map['status'] = Variable<String>(status);
     if (!nullToAbsent || voidReason != null) {
@@ -1547,6 +1577,9 @@ class Sale extends DataClass implements Insertable<Sale> {
       customerId: customerId == null && nullToAbsent
           ? const Value.absent()
           : Value(customerId),
+      customerNameSnapshot: customerNameSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customerNameSnapshot),
       status: Value(status),
       voidReason: voidReason == null && nullToAbsent
           ? const Value.absent()
@@ -1570,6 +1603,9 @@ class Sale extends DataClass implements Insertable<Sale> {
       amountReceived: serializer.fromJson<int?>(json['amountReceived']),
       changeAmount: serializer.fromJson<int?>(json['changeAmount']),
       customerId: serializer.fromJson<String?>(json['customerId']),
+      customerNameSnapshot: serializer.fromJson<String?>(
+        json['customerNameSnapshot'],
+      ),
       status: serializer.fromJson<String>(json['status']),
       voidReason: serializer.fromJson<String?>(json['voidReason']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -1588,6 +1624,7 @@ class Sale extends DataClass implements Insertable<Sale> {
       'amountReceived': serializer.toJson<int?>(amountReceived),
       'changeAmount': serializer.toJson<int?>(changeAmount),
       'customerId': serializer.toJson<String?>(customerId),
+      'customerNameSnapshot': serializer.toJson<String?>(customerNameSnapshot),
       'status': serializer.toJson<String>(status),
       'voidReason': serializer.toJson<String?>(voidReason),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -1604,6 +1641,7 @@ class Sale extends DataClass implements Insertable<Sale> {
     Value<int?> amountReceived = const Value.absent(),
     Value<int?> changeAmount = const Value.absent(),
     Value<String?> customerId = const Value.absent(),
+    Value<String?> customerNameSnapshot = const Value.absent(),
     String? status,
     Value<String?> voidReason = const Value.absent(),
     DateTime? createdAt,
@@ -1619,6 +1657,9 @@ class Sale extends DataClass implements Insertable<Sale> {
         : this.amountReceived,
     changeAmount: changeAmount.present ? changeAmount.value : this.changeAmount,
     customerId: customerId.present ? customerId.value : this.customerId,
+    customerNameSnapshot: customerNameSnapshot.present
+        ? customerNameSnapshot.value
+        : this.customerNameSnapshot,
     status: status ?? this.status,
     voidReason: voidReason.present ? voidReason.value : this.voidReason,
     createdAt: createdAt ?? this.createdAt,
@@ -1646,6 +1687,9 @@ class Sale extends DataClass implements Insertable<Sale> {
       customerId: data.customerId.present
           ? data.customerId.value
           : this.customerId,
+      customerNameSnapshot: data.customerNameSnapshot.present
+          ? data.customerNameSnapshot.value
+          : this.customerNameSnapshot,
       status: data.status.present ? data.status.value : this.status,
       voidReason: data.voidReason.present
           ? data.voidReason.value
@@ -1666,6 +1710,7 @@ class Sale extends DataClass implements Insertable<Sale> {
           ..write('amountReceived: $amountReceived, ')
           ..write('changeAmount: $changeAmount, ')
           ..write('customerId: $customerId, ')
+          ..write('customerNameSnapshot: $customerNameSnapshot, ')
           ..write('status: $status, ')
           ..write('voidReason: $voidReason, ')
           ..write('createdAt: $createdAt, ')
@@ -1684,6 +1729,7 @@ class Sale extends DataClass implements Insertable<Sale> {
     amountReceived,
     changeAmount,
     customerId,
+    customerNameSnapshot,
     status,
     voidReason,
     createdAt,
@@ -1701,6 +1747,7 @@ class Sale extends DataClass implements Insertable<Sale> {
           other.amountReceived == this.amountReceived &&
           other.changeAmount == this.changeAmount &&
           other.customerId == this.customerId &&
+          other.customerNameSnapshot == this.customerNameSnapshot &&
           other.status == this.status &&
           other.voidReason == this.voidReason &&
           other.createdAt == this.createdAt &&
@@ -1716,6 +1763,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
   final Value<int?> amountReceived;
   final Value<int?> changeAmount;
   final Value<String?> customerId;
+  final Value<String?> customerNameSnapshot;
   final Value<String> status;
   final Value<String?> voidReason;
   final Value<DateTime> createdAt;
@@ -1730,6 +1778,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
     this.amountReceived = const Value.absent(),
     this.changeAmount = const Value.absent(),
     this.customerId = const Value.absent(),
+    this.customerNameSnapshot = const Value.absent(),
     this.status = const Value.absent(),
     this.voidReason = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1745,6 +1794,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
     this.amountReceived = const Value.absent(),
     this.changeAmount = const Value.absent(),
     this.customerId = const Value.absent(),
+    this.customerNameSnapshot = const Value.absent(),
     required String status,
     this.voidReason = const Value.absent(),
     required DateTime createdAt,
@@ -1767,6 +1817,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
     Expression<int>? amountReceived,
     Expression<int>? changeAmount,
     Expression<String>? customerId,
+    Expression<String>? customerNameSnapshot,
     Expression<String>? status,
     Expression<String>? voidReason,
     Expression<DateTime>? createdAt,
@@ -1782,6 +1833,8 @@ class SalesCompanion extends UpdateCompanion<Sale> {
       if (amountReceived != null) 'amount_received': amountReceived,
       if (changeAmount != null) 'change_amount': changeAmount,
       if (customerId != null) 'customer_id': customerId,
+      if (customerNameSnapshot != null)
+        'customer_name_snapshot': customerNameSnapshot,
       if (status != null) 'status': status,
       if (voidReason != null) 'void_reason': voidReason,
       if (createdAt != null) 'created_at': createdAt,
@@ -1799,6 +1852,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
     Value<int?>? amountReceived,
     Value<int?>? changeAmount,
     Value<String?>? customerId,
+    Value<String?>? customerNameSnapshot,
     Value<String>? status,
     Value<String?>? voidReason,
     Value<DateTime>? createdAt,
@@ -1814,6 +1868,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
       amountReceived: amountReceived ?? this.amountReceived,
       changeAmount: changeAmount ?? this.changeAmount,
       customerId: customerId ?? this.customerId,
+      customerNameSnapshot: customerNameSnapshot ?? this.customerNameSnapshot,
       status: status ?? this.status,
       voidReason: voidReason ?? this.voidReason,
       createdAt: createdAt ?? this.createdAt,
@@ -1849,6 +1904,11 @@ class SalesCompanion extends UpdateCompanion<Sale> {
     if (customerId.present) {
       map['customer_id'] = Variable<String>(customerId.value);
     }
+    if (customerNameSnapshot.present) {
+      map['customer_name_snapshot'] = Variable<String>(
+        customerNameSnapshot.value,
+      );
+    }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
@@ -1878,6 +1938,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
           ..write('amountReceived: $amountReceived, ')
           ..write('changeAmount: $changeAmount, ')
           ..write('customerId: $customerId, ')
+          ..write('customerNameSnapshot: $customerNameSnapshot, ')
           ..write('status: $status, ')
           ..write('voidReason: $voidReason, ')
           ..write('createdAt: $createdAt, ')
@@ -7038,6 +7099,7 @@ typedef $$SalesTableCreateCompanionBuilder =
       Value<int?> amountReceived,
       Value<int?> changeAmount,
       Value<String?> customerId,
+      Value<String?> customerNameSnapshot,
       required String status,
       Value<String?> voidReason,
       required DateTime createdAt,
@@ -7054,6 +7116,7 @@ typedef $$SalesTableUpdateCompanionBuilder =
       Value<int?> amountReceived,
       Value<int?> changeAmount,
       Value<String?> customerId,
+      Value<String?> customerNameSnapshot,
       Value<String> status,
       Value<String?> voidReason,
       Value<DateTime> createdAt,
@@ -7180,6 +7243,11 @@ class $$SalesTableFilterComposer extends Composer<_$AppDatabase, $SalesTable> {
 
   ColumnFilters<int> get changeAmount => $composableBuilder(
     column: $table.changeAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customerNameSnapshot => $composableBuilder(
+    column: $table.customerNameSnapshot,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7346,6 +7414,11 @@ class $$SalesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get customerNameSnapshot => $composableBuilder(
+    column: $table.customerNameSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get status => $composableBuilder(
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
@@ -7427,6 +7500,11 @@ class $$SalesTableAnnotationComposer
 
   GeneratedColumn<int> get changeAmount => $composableBuilder(
     column: $table.changeAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get customerNameSnapshot => $composableBuilder(
+    column: $table.customerNameSnapshot,
     builder: (column) => column,
   );
 
@@ -7584,6 +7662,7 @@ class $$SalesTableTableManager
                 Value<int?> amountReceived = const Value.absent(),
                 Value<int?> changeAmount = const Value.absent(),
                 Value<String?> customerId = const Value.absent(),
+                Value<String?> customerNameSnapshot = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String?> voidReason = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -7598,6 +7677,7 @@ class $$SalesTableTableManager
                 amountReceived: amountReceived,
                 changeAmount: changeAmount,
                 customerId: customerId,
+                customerNameSnapshot: customerNameSnapshot,
                 status: status,
                 voidReason: voidReason,
                 createdAt: createdAt,
@@ -7614,6 +7694,7 @@ class $$SalesTableTableManager
                 Value<int?> amountReceived = const Value.absent(),
                 Value<int?> changeAmount = const Value.absent(),
                 Value<String?> customerId = const Value.absent(),
+                Value<String?> customerNameSnapshot = const Value.absent(),
                 required String status,
                 Value<String?> voidReason = const Value.absent(),
                 required DateTime createdAt,
@@ -7628,6 +7709,7 @@ class $$SalesTableTableManager
                 amountReceived: amountReceived,
                 changeAmount: changeAmount,
                 customerId: customerId,
+                customerNameSnapshot: customerNameSnapshot,
                 status: status,
                 voidReason: voidReason,
                 createdAt: createdAt,

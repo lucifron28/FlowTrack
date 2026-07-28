@@ -214,4 +214,27 @@ void main() {
       throwsA(isA<BackupException>()),
     );
   });
+
+  test('restores legacy backup without customerNameSnapshot defaulting to null', () async {
+    await setupBackupTestFixtures(source);
+    final backupJson = await createUnencryptedBackupJsonForTest(source);
+    final map = jsonDecode(backupJson) as Map<String, dynamic>;
+    final sales = (map['data'] as Map<String, dynamic>)['sales'] as List;
+    for (final sale in sales) {
+      (sale as Map<String, dynamic>).remove('customerNameSnapshot');
+    }
+
+    final modifiedBackupJson = jsonEncode(map);
+    final targetService = BackupService(
+      target,
+      const BackupCryptoService(),
+      const BackupValidator(),
+    );
+    final payload = await targetService.validateBackupString(modifiedBackupJson);
+    await targetService.restoreValidatedBackup(payload);
+
+    final restoredSales = await target.select(target.sales).get();
+    expect(restoredSales.length, greaterThan(0));
+    expect(restoredSales.every((s) => s.customerNameSnapshot == null), isTrue);
+  });
 }
