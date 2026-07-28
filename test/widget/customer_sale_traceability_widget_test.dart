@@ -280,7 +280,7 @@ void main() {
       // The credit record subtitle includes the sale number.
       expect(
         find.byWidgetPredicate(
-          (w) => w is Text && w.data?.contains(sale!.saleNumber) == true,
+          (w) => w is Text && w.data?.contains(sale.saleNumber) == true,
         ),
         findsOneWidget,
       );
