@@ -209,6 +209,43 @@ class CreditRecordListEntry {
   final String? saleNumber;
 }
 
+class StockHistoryEntry {
+  const StockHistoryEntry({
+    required this.movement,
+    this.relatedSaleNumber,
+    this.isSaleAvailable = true,
+  });
+
+  final StockMovement movement;
+  final String? relatedSaleNumber;
+  final bool isSaleAvailable;
+}
+
+String formatStockMovementLabel(String movementType) {
+  return switch (movementType) {
+    'initial_stock' => 'Initial stock',
+    'restock' => 'Restock',
+    'sale_deduction' => 'Sale',
+    'void_restore' => 'Sale void restore',
+    'adjustment_add' => 'Adjustment added',
+    'adjustment_deduct' => 'Adjustment deducted',
+    _ => movementType,
+  };
+}
+
+bool isStockMovementInbound(String movementType) {
+  return switch (movementType) {
+    'initial_stock' || 'restock' || 'void_restore' || 'adjustment_add' => true,
+    'sale_deduction' || 'adjustment_deduct' => false,
+    _ => true,
+  };
+}
+
+String formatSignedQuantity(String movementType, int quantity) {
+  final isInbound = isStockMovementInbound(movementType);
+  return isInbound ? '+$quantity' : '-$quantity';
+}
+
 @DriftDatabase(
   tables: [
     Products,
@@ -299,6 +336,15 @@ class AppDatabase extends _$AppDatabase {
     final query = select(products)
       ..where((tbl) => tbl.isActive.equals(true))
       ..orderBy([(tbl) => OrderingTerm.asc(tbl.name)]);
+    return query.watch();
+  }
+
+  Stream<List<Product>> watchAllProducts() {
+    final query = select(products)
+      ..orderBy([
+        (tbl) => OrderingTerm.desc(tbl.isActive),
+        (tbl) => OrderingTerm.asc(tbl.name),
+      ]);
     return query.watch();
   }
 
@@ -511,6 +557,62 @@ class AppDatabase extends _$AppDatabase {
       ..where((tbl) => tbl.productId.equals(productId))
       ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]);
     return query.watch();
+  }
+
+  Stream<List<StockHistoryEntry>> watchStockHistoryPreview(
+    String productId, {
+    int limit = 5,
+  }) {
+    final query = select(stockMovements).join([
+      leftOuterJoin(sales, sales.id.equalsExp(stockMovements.relatedSaleId)),
+    ])
+      ..where(stockMovements.productId.equals(productId))
+      ..orderBy([
+        OrderingTerm.desc(stockMovements.createdAt),
+        OrderingTerm.desc(stockMovements.rowId),
+      ])
+      ..limit(limit);
+
+    return query.watch().map((rows) {
+      return rows.map((row) {
+        final movement = row.readTable(stockMovements);
+        final sale = row.readTableOrNull(sales);
+        final hasRelatedSale = movement.relatedSaleId != null;
+        return StockHistoryEntry(
+          movement: movement,
+          relatedSaleNumber: sale?.saleNumber,
+          isSaleAvailable: !hasRelatedSale || sale != null,
+        );
+      }).toList();
+    });
+  }
+
+  Future<List<StockHistoryEntry>> getStockHistoryPage(
+    String productId, {
+    required int limit,
+    required int offset,
+  }) async {
+    final query = select(stockMovements).join([
+      leftOuterJoin(sales, sales.id.equalsExp(stockMovements.relatedSaleId)),
+    ])
+      ..where(stockMovements.productId.equals(productId))
+      ..orderBy([
+        OrderingTerm.desc(stockMovements.createdAt),
+        OrderingTerm.desc(stockMovements.rowId),
+      ])
+      ..limit(limit, offset: offset);
+
+    final rows = await query.get();
+    return rows.map((row) {
+      final movement = row.readTable(stockMovements);
+      final sale = row.readTableOrNull(sales);
+      final hasRelatedSale = movement.relatedSaleId != null;
+      return StockHistoryEntry(
+        movement: movement,
+        relatedSaleNumber: sale?.saleNumber,
+        isSaleAvailable: !hasRelatedSale || sale != null,
+      );
+    }).toList();
   }
 
   Stream<List<Sale>> watchSales() {

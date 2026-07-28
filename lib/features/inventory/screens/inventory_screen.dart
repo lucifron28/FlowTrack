@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart' hide BarcodeType;
 
 import '../../../core/constants/app_routes.dart';
@@ -28,10 +29,45 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final InventoryListController _listController = InventoryListController();
   String _query = '';
   ProductStatus? _filter;
+  ProductLifecycleFilter _lifecycleFilter = ProductLifecycleFilter.all;
 
   @override
   Widget build(BuildContext context) {
     final database = ref.watch(appDatabaseProvider);
+
+    final lifecycleDropdown = DropdownButtonFormField<ProductLifecycleFilter>(
+      isExpanded: true,
+      initialValue: _lifecycleFilter,
+      decoration: const InputDecoration(labelText: 'Lifecycle'),
+      items: ProductLifecycleFilter.values
+          .map(
+            (filter) => DropdownMenuItem(
+              value: filter,
+              child: Text(filter.label),
+            ),
+          )
+          .toList(),
+      onChanged: (value) => setState(
+        () => _lifecycleFilter = value ?? ProductLifecycleFilter.all,
+      ),
+    );
+
+    final statusDropdown = DropdownButtonFormField<ProductStatus?>(
+      isExpanded: true,
+      initialValue: _filter,
+      decoration: const InputDecoration(labelText: 'Stock status'),
+      items: [
+        const DropdownMenuItem(value: null, child: Text('All')),
+        ...ProductStatus.values.map(
+          (status) => DropdownMenuItem(
+            value: status,
+            child: Text(status.label),
+          ),
+        ),
+      ],
+      onChanged: (value) => setState(() => _filter = value),
+    );
+
     return Scaffold(
       appBar: AppBar(title: const Text('Inventory')),
       body: Column(
@@ -48,31 +84,60 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   onChanged: (value) => setState(() => _query = value),
                 ),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<ProductStatus?>(
-                  initialValue: _filter,
-                  decoration: const InputDecoration(labelText: 'Status filter'),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('All')),
-                    ...ProductStatus.values.map(
-                      (status) => DropdownMenuItem(
-                        value: status,
-                        child: Text(status.label),
-                      ),
-                    ),
-                  ],
-                  onChanged: (value) => setState(() => _filter = value),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final scale =
+                        MediaQuery.textScalerOf(context).scale(14.0) / 14.0;
+                    final stack = constraints.maxWidth < 420 || scale >= 1.35;
+
+                    if (stack) {
+                      return Column(
+                        children: [
+                          lifecycleDropdown,
+                          const SizedBox(height: 8),
+                          statusDropdown,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: lifecycleDropdown),
+                        const SizedBox(width: 8),
+                        Expanded(child: statusDropdown),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
           ),
           Expanded(
             child: StreamBuilder<List<Product>>(
-              stream: database.watchProducts(),
+              stream: database.watchAllProducts(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Failed to load products: ${snapshot.error}',
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
                 final products = _listController.filterProducts(
                   products: snapshot.data ?? [],
                   query: _query,
                   statusFilter: _filter,
+                  lifecycleFilter: _lifecycleFilter,
                 );
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -131,35 +196,57 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = switch (status) {
+    final statusColor = switch (status) {
       ProductStatus.normal => theme.colorScheme.primary,
       ProductStatus.lowStock => Colors.orange.shade700,
       ProductStatus.outOfStock => theme.colorScheme.error,
     };
+
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final highTextScale = textScale > 1.35;
+
+    final badges = Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: [
+        _StatusBadge(label: status.label, color: statusColor),
+        if (!product.isActive)
+          _StatusBadge(
+            label: 'Archived',
+            color: theme.colorScheme.outline,
+          ),
+      ],
+    );
+
     return Card(
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
+          child: highTextScale
+              ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      product.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            product.name,
+                            style: theme.textTheme.titleMedium,
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right,
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.6),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      product.barcode,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      'Barcode: ${product.barcode}',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -171,37 +258,88 @@ class ProductCard extends StatelessWidget {
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 88,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    CurrencyText(
-                      product.sellingPrice,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          'Price: ',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        CurrencyText(
+                          product.sellingPrice,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
-                    _StatusBadge(label: status.label, color: color),
+                    badges,
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            product.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            product.barcode,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Stock: ${product.stock}',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          CurrencyText(
+                            product.sellingPrice,
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          badges,
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.chevron_right,
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.6,
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.chevron_right,
-                color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.6,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -231,7 +369,6 @@ class _StatusBadge extends StatelessWidget {
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: color,
           fontWeight: FontWeight.w700,
-          fontSize: 11,
         ),
       ),
     );
@@ -543,6 +680,24 @@ class ProductDetailsScreen extends ConsumerWidget {
       body: StreamBuilder<Product?>(
         stream: database.watchProduct(productId),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Failed to load product details: ${snapshot.error}',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
           final product = snapshot.data;
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -577,14 +732,23 @@ class ProductDetailsScreen extends ConsumerWidget {
                       Text('Stock: ${product.stock}'),
                       Text('Low stock level: ${product.lowStockLevel}'),
                       Text('Status: ${status.label}'),
-                      Row(
+                      if (!product.isActive) ...[
+                        const SizedBox(height: 4),
+                        _StatusBadge(
+                          label: 'Archived',
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ],
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           const Text('Selling price: '),
                           CurrencyText(product.sellingPrice),
                         ],
                       ),
                       if (product.costPrice != null)
-                        Row(
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             const Text('Cost price: '),
                             CurrencyText(product.costPrice!),
@@ -648,30 +812,64 @@ class ProductDetailsScreen extends ConsumerWidget {
                   label: const Text('Print Barcode Sheet'),
                 ),
               const SizedBox(height: 12),
-              Text(
-                'Stock History',
-                style: Theme.of(context).textTheme.titleMedium,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final scale =
+                      MediaQuery.textScalerOf(context).scale(14.0) / 14.0;
+                  final stack = constraints.maxWidth < 420 || scale >= 1.35;
+
+                  final titleWidget = Text(
+                    'Stock History',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  );
+                  final buttonWidget = TextButton.icon(
+                    onPressed: () => context.pushNamed(
+                      AppRoutes.stockHistoryName,
+                      pathParameters: {'productId': product.id},
+                    ),
+                    icon: const Icon(Icons.history, size: 18),
+                    label: const Text('View full history'),
+                  );
+
+                  if (stack) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        titleWidget,
+                        const SizedBox(height: 4),
+                        buttonWidget,
+                      ],
+                    );
+                  }
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      titleWidget,
+                      buttonWidget,
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 8),
-              StreamBuilder<List<StockMovement>>(
-                stream: database.watchStockMovements(product.id),
+              StreamBuilder<List<StockHistoryEntry>>(
+                stream: database.watchStockHistoryPreview(product.id, limit: 5),
                 builder: (context, snapshot) {
-                  final movements = snapshot.data ?? [];
-                  if (movements.isEmpty) {
+                  if (snapshot.hasError) {
+                    return Text(
+                      'Failed to load stock history preview.',
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    );
+                  }
+                  final entries = snapshot.data ?? [];
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (entries.isEmpty) {
                     return const Text('No stock history yet.');
                   }
                   return Column(
-                    children: movements
-                        .map(
-                          (movement) => ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(movement.movementType),
-                            subtitle: Text(
-                              movement.reason ?? movement.notes ?? '',
-                            ),
-                            trailing: Text('${movement.quantity}'),
-                          ),
-                        )
+                    children: entries
+                        .map((entry) => StockHistoryTile(entry: entry))
                         .toList(),
                   );
                 },
@@ -805,11 +1003,15 @@ class AddStockScreen extends ConsumerStatefulWidget {
 }
 
 class _AddStockScreenState extends ConsumerState<AddStockScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _quantityController = TextEditingController();
+  final _notesController = TextEditingController();
+  bool _isSaving = false;
 
   @override
   void dispose() {
     _quantityController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -817,42 +1019,79 @@ class _AddStockScreenState extends ConsumerState<AddStockScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Add Stock')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          TextField(
-            controller: _quantityController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Quantity',
-              prefixIcon: Icon(Icons.add_box),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            TextFormField(
+              controller: _quantityController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Quantity',
+                prefixIcon: Icon(Icons.add_box),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Enter quantity';
+                }
+                final qty = int.tryParse(value.trim());
+                if (qty == null || qty <= 0) {
+                  return 'Enter a positive integer';
+                }
+                return null;
+              },
             ),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: _save,
-            icon: const Icon(Icons.save),
-            label: const Text('Save Stock'),
-          ),
-        ],
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _notesController,
+              decoration: const InputDecoration(
+                labelText: 'Notes (optional)',
+                prefixIcon: Icon(Icons.note_alt_outlined),
+              ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: _isSaving ? null : _save,
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save),
+              label: const Text('Save Stock'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Future<void> _save() async {
-    final quantity = int.tryParse(_quantityController.text) ?? 0;
+    if (_isSaving) return;
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
+    final quantity = int.parse(_quantityController.text.trim());
+    final trimmedNotes = _notesController.text.trim();
+    final notes = trimmedNotes.isEmpty ? null : trimmedNotes;
+
     try {
-      await ref
-          .read(appDatabaseProvider)
-          .addStock(productId: widget.productId, quantity: quantity);
+      await ref.read(appDatabaseProvider).addStock(
+            productId: widget.productId,
+            quantity: quantity,
+            notes: notes,
+          );
       if (mounted) {
         Navigator.of(context).pop();
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
   }
@@ -868,9 +1107,12 @@ class AdjustStockScreen extends ConsumerStatefulWidget {
 }
 
 class _AdjustStockScreenState extends ConsumerState<AdjustStockScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _quantityController = TextEditingController();
+  final _notesController = TextEditingController();
   bool _add = true;
   String _reason = 'Correction';
+  bool _isSaving = false;
   static const _reasons = [
     'Damaged',
     'Expired',
@@ -882,6 +1124,7 @@ class _AdjustStockScreenState extends ConsumerState<AdjustStockScreen> {
   @override
   void dispose() {
     _quantityController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -889,100 +1132,149 @@ class _AdjustStockScreenState extends ConsumerState<AdjustStockScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Adjust Stock')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            widget.product.name,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(
-                value: true,
-                label: Text('Add'),
-                icon: Icon(Icons.add),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              widget.product.name,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: true,
+                  label: Text('Add'),
+                  icon: Icon(Icons.add),
+                ),
+                ButtonSegment(
+                  value: false,
+                  label: Text('Deduct'),
+                  icon: Icon(Icons.remove),
+                ),
+              ],
+              selected: {_add},
+              onSelectionChanged: (value) => setState(() => _add = value.first),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _quantityController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Quantity'),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Enter quantity';
+                }
+                final qty = int.tryParse(value.trim());
+                if (qty == null || qty <= 0) {
+                  return 'Enter a positive integer';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _reason,
+              decoration: const InputDecoration(labelText: 'Reason'),
+              items: _reasons
+                  .map(
+                    (reason) =>
+                        DropdownMenuItem(value: reason, child: Text(reason)),
+                  )
+                  .toList(),
+              onChanged: (value) => setState(() => _reason = value ?? _reason),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _notesController,
+              decoration: InputDecoration(
+                labelText: _reason == 'Others'
+                    ? 'Notes (required for Others)'
+                    : 'Notes (optional)',
               ),
-              ButtonSegment(
-                value: false,
-                label: Text('Deduct'),
-                icon: Icon(Icons.remove),
-              ),
-            ],
-            selected: {_add},
-            onSelectionChanged: (value) => setState(() => _add = value.first),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _quantityController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Quantity'),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _reason,
-            decoration: const InputDecoration(labelText: 'Reason'),
-            items: _reasons
-                .map(
-                  (reason) =>
-                      DropdownMenuItem(value: reason, child: Text(reason)),
-                )
-                .toList(),
-            onChanged: (value) => setState(() => _reason = value ?? _reason),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: _save,
-            icon: const Icon(Icons.save),
-            label: const Text('Save Adjustment'),
-          ),
-        ],
+              validator: (value) {
+                if (_reason == 'Others' &&
+                    (value == null || value.trim().isEmpty)) {
+                  return 'Notes required when reason is Others';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: _isSaving ? null : _save,
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save),
+              label: const Text('Save Adjustment'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Future<void> _save() async {
-    final quantity = int.tryParse(_quantityController.text) ?? 0;
-    if (!_add) {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Confirm deduction'),
-          content: const Text('Deduct stock for this product?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Deduct'),
-            ),
-          ],
-        ),
-      );
-      if (confirm != true) {
-        return;
-      }
-    }
+    if (_isSaving) return;
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
+
     try {
-      await ref
-          .read(appDatabaseProvider)
-          .adjustStock(
+      if (!_add) {
+        final quantity = int.parse(_quantityController.text.trim());
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Confirm deduction'),
+            content: Text(
+              'Deduct $quantity units from ${widget.product.name}?\nReason: $_reason',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Deduct'),
+              ),
+            ],
+          ),
+        );
+
+        if (!mounted) return;
+        if (confirm != true) return;
+      }
+
+      final quantity = int.parse(_quantityController.text.trim());
+      final trimmedNotes = _notesController.text.trim();
+      final notes = trimmedNotes.isEmpty ? null : trimmedNotes;
+
+      await ref.read(appDatabaseProvider).adjustStock(
             productId: widget.product.id,
             quantity: quantity,
             add: _add,
             reason: _reason,
+            notes: notes,
           );
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
     } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        setState(() => _isSaving = false);
       }
     }
   }
@@ -1282,4 +1574,332 @@ class _ScannerCornerPainter extends CustomPainter {
 
 extension _FirstOrNull<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
+}
+
+class StockHistoryTile extends StatelessWidget {
+  const StockHistoryTile({super.key, required this.entry});
+
+  final StockHistoryEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final movement = entry.movement;
+    final theme = Theme.of(context);
+    final isInbound = isStockMovementInbound(movement.movementType);
+    final signedQty =
+        formatSignedQuantity(movement.movementType, movement.quantity);
+    final label = formatStockMovementLabel(movement.movementType);
+    final dateStr =
+        DateFormat('MMM d, yyyy • h:mm a').format(movement.createdAt);
+
+    final String? saleText;
+    final VoidCallback? onSaleTap;
+    if (movement.relatedSaleId != null) {
+      if (entry.isSaleAvailable) {
+        final saleNum = entry.relatedSaleNumber ?? movement.relatedSaleId!;
+        saleText = 'Sale #$saleNum';
+        onSaleTap = () => context.pushNamed(
+              AppRoutes.saleDetailsName,
+              pathParameters: {'saleId': movement.relatedSaleId!},
+            );
+      } else {
+        saleText = 'Related sale unavailable';
+        onSaleTap = null;
+      }
+    } else {
+      saleText = null;
+      onSaleTap = null;
+    }
+
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final highTextScale = textScale > 1.35;
+
+    final qtyWidget = Text(
+      signedQty,
+      style: theme.textTheme.titleMedium?.copyWith(
+        color: isInbound ? Colors.green.shade700 : theme.colorScheme.error,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+
+    final detailsColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          dateStr,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        if (movement.reason != null && movement.reason!.trim().isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            'Reason: ${movement.reason}',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+        if (movement.notes != null && movement.notes!.trim().isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            'Notes: ${movement.notes}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+        if (saleText != null) ...[
+          const SizedBox(height: 4),
+          InkWell(
+            onTap: onSaleTap,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.receipt_long,
+                  size: 16,
+                  color: onSaleTap != null
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outline,
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    saleText,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: onSaleTap != null
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outline,
+                      decoration: onSaleTap != null
+                          ? TextDecoration.underline
+                          : TextDecoration.none,
+                      fontWeight: onSaleTap != null
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: highTextScale
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(child: detailsColumn),
+                      const SizedBox(width: 8),
+                      qtyWidget,
+                    ],
+                  ),
+                ],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: detailsColumn),
+                  const SizedBox(width: 12),
+                  qtyWidget,
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class StockHistoryScreen extends ConsumerStatefulWidget {
+  const StockHistoryScreen({super.key, required this.productId});
+
+  final String productId;
+
+  @override
+  ConsumerState<StockHistoryScreen> createState() =>
+      _StockHistoryScreenState();
+}
+
+class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
+  static const _pageSize = 50;
+  final List<StockHistoryEntry> _entries = [];
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  String? _error;
+  String? _loadMoreError;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitial();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadInitial() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _loadMoreError = null;
+    });
+    try {
+      final db = ref.read(appDatabaseProvider);
+      final page = await db.getStockHistoryPage(
+        widget.productId,
+        limit: _pageSize,
+        offset: 0,
+      );
+      if (mounted) {
+        setState(() {
+          _entries.clear();
+          _entries.addAll(page);
+          _hasMore = page.length == _pageSize;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() {
+      _isLoadingMore = true;
+      _loadMoreError = null;
+    });
+    try {
+      final db = ref.read(appDatabaseProvider);
+      final page = await db.getStockHistoryPage(
+        widget.productId,
+        limit: _pageSize,
+        offset: _entries.length,
+      );
+      if (mounted) {
+        setState(() {
+          _entries.addAll(page);
+          _hasMore = page.length == _pageSize;
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loadMoreError = e.toString();
+          _isLoadingMore = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Stock History')),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 12),
+            Text(_error!),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _loadInitial,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_entries.isEmpty) {
+      return const EmptyState(
+        icon: Icons.history,
+        title: 'No stock history',
+        message: 'No stock movements recorded for this product.',
+      );
+    }
+
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.all(16),
+      itemCount: _entries.length + (_hasMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == _entries.length) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: _isLoadingMore
+                  ? const CircularProgressIndicator()
+                  : _loadMoreError != null
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Failed to load older history: $_loadMoreError',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton(
+                              onPressed: _loadMore,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        )
+                      : OutlinedButton(
+                          onPressed: _loadMore,
+                          child: const Text('Load More'),
+                        ),
+            ),
+          );
+        }
+        final entry = _entries[index];
+        return StockHistoryTile(entry: entry);
+      },
+    );
+  }
 }

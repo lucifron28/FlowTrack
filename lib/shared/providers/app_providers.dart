@@ -283,6 +283,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        name: AppRoutes.stockHistoryName,
+        path: AppRoutes.stockHistory,
+        builder: (context, state) => StockHistoryScreen(
+          productId: state.pathParameters['productId'] ?? '',
+        ),
+      ),
+      GoRoute(
         name: AppRoutes.addCustomerName,
         path: AppRoutes.addCustomer,
         builder: (context, state) => const AddCustomerScreen(),
