@@ -12,13 +12,14 @@ import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../inventory/screens/inventory_screen.dart';
 import '../controllers/sales_cart_controller.dart';
+import '../data/sales_repository.dart';
 
 class SalesScreen extends ConsumerWidget {
   const SalesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final database = ref.watch(appDatabaseProvider);
+    final database = ref.watch(salesRepositoryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Sales')),
       body: StreamBuilder<List<SaleListEntry>>(
@@ -112,7 +113,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final database = ref.watch(appDatabaseProvider);
+    final database = ref.watch(salesRepositoryProvider);
     final amountReceived = _parseAmountReceived();
 
     return Scaffold(
@@ -370,7 +371,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
       context: context,
       showDragHandle: true,
       builder: (context) => ProductPickerSheet(
-        productsFuture: ref.read(appDatabaseProvider).getActiveProducts(),
+        productsFuture: ref.read(salesRepositoryProvider).getActiveProducts(),
       ),
     );
     if (product != null) {
@@ -379,7 +380,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   }
 
   Future<void> _addBarcode(String barcode) async {
-    final database = ref.read(appDatabaseProvider);
+    final database = ref.read(salesRepositoryProvider);
     final product = await database.findProductByBarcode(barcode);
     if (product != null && !product.isActive) {
       if (mounted) {
@@ -433,7 +434,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   }
 
   Future<void> _changeQuantity(String productId, int delta) async {
-    final product = await ref.read(appDatabaseProvider).getProduct(productId);
+    final product = await ref.read(salesRepositoryProvider).getProduct(productId);
     final result = _cart.changeQuantity(
       productId: productId,
       delta: delta,
@@ -459,7 +460,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
     setState(() => _isProcessing = true);
     try {
       await ref
-          .read(appDatabaseProvider)
+          .read(salesRepositoryProvider)
           .completeSale(
             lines: _cart.items
                 .map(
@@ -802,7 +803,7 @@ class SaleDetailsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final database = ref.watch(appDatabaseProvider);
+    final database = ref.watch(salesRepositoryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Sale Details')),
       body: FutureBuilder<SaleListEntry?>(
@@ -922,7 +923,7 @@ class SaleDetailsScreen extends ConsumerWidget {
       return;
     }
     try {
-      await ref.read(appDatabaseProvider).voidSale(saleId, reason: reason);
+      await ref.read(salesRepositoryProvider).voidSale(saleId, reason: reason);
       if (context.mounted) {
         Navigator.of(context).pop();
       }

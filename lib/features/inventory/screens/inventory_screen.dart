@@ -17,6 +17,7 @@ import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import 'barcode_print_screen.dart';
 import '../controllers/inventory_list_controller.dart';
+import '../data/inventory_repository.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -33,7 +34,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final database = ref.watch(appDatabaseProvider);
+    final database = ref.watch(inventoryRepositoryProvider);
 
     final lifecycleDropdown = DropdownButtonFormField<ProductLifecycleFilter>(
       isExpanded: true,
@@ -601,7 +602,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    final database = ref.read(appDatabaseProvider);
+    final database = ref.read(inventoryRepositoryProvider);
     try {
       final productId = await database.createProduct(
         name: _nameController.text,
@@ -674,7 +675,7 @@ class ProductDetailsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final database = ref.watch(appDatabaseProvider);
+    final database = ref.watch(inventoryRepositoryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Product Details')),
       body: StreamBuilder<Product?>(
@@ -969,7 +970,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   Future<void> _save() async {
     try {
       await ref
-          .read(appDatabaseProvider)
+          .read(inventoryRepositoryProvider)
           .editProduct(
             productId: widget.product.id,
             sellingPrice: CurrencyFormatter.parseToCentavos(
@@ -1078,7 +1079,7 @@ class _AddStockScreenState extends ConsumerState<AddStockScreen> {
     final notes = trimmedNotes.isEmpty ? null : trimmedNotes;
 
     try {
-      await ref.read(appDatabaseProvider).addStock(
+      await ref.read(inventoryRepositoryProvider).addStock(
             productId: widget.productId,
             quantity: quantity,
             notes: notes,
@@ -1257,7 +1258,7 @@ class _AdjustStockScreenState extends ConsumerState<AdjustStockScreen> {
       final trimmedNotes = _notesController.text.trim();
       final notes = trimmedNotes.isEmpty ? null : trimmedNotes;
 
-      await ref.read(appDatabaseProvider).adjustStock(
+      await ref.read(inventoryRepositoryProvider).adjustStock(
             productId: widget.product.id,
             quantity: quantity,
             add: _add,
@@ -1770,7 +1771,7 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
       _loadMoreError = null;
     });
     try {
-      final db = ref.read(appDatabaseProvider);
+      final db = ref.read(inventoryRepositoryProvider);
       final page = await db.getStockHistoryPage(
         widget.productId,
         limit: _pageSize,
@@ -1801,7 +1802,7 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
       _loadMoreError = null;
     });
     try {
-      final db = ref.read(appDatabaseProvider);
+      final db = ref.read(inventoryRepositoryProvider);
       final page = await db.getStockHistoryPage(
         widget.productId,
         limit: _pageSize,

@@ -8,13 +8,14 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../shared/providers/app_providers.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../data/credits_repository.dart';
 
 class CreditsScreen extends ConsumerWidget {
   const CreditsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final database = ref.watch(appDatabaseProvider);
+    final database = ref.watch(creditsRepositoryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Credits')),
       body: StreamBuilder<List<Customer>>(
@@ -116,7 +117,7 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
   Future<void> _save() async {
     try {
       await ref
-          .read(appDatabaseProvider)
+          .read(creditsRepositoryProvider)
           .createCustomer(
             name: _nameController.text,
             contactNumber: _contactController.text,
@@ -141,7 +142,7 @@ class CustomerDetailsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final database = ref.watch(appDatabaseProvider);
+    final database = ref.watch(creditsRepositoryProvider);
     return StreamBuilder<Customer?>(
       stream: database.watchCustomer(customerId),
       builder: (context, snapshot) {
@@ -370,7 +371,7 @@ class CustomerDetailsScreen extends ConsumerWidget {
 
     if (confirm == true && context.mounted) {
       try {
-        await ref.read(appDatabaseProvider).deleteCustomer(customer.id);
+        await ref.read(creditsRepositoryProvider).deleteCustomer(customer.id);
         if (context.mounted) {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -448,7 +449,7 @@ class CustomerDetailsScreen extends ConsumerWidget {
     );
 
     if (confirm == true) {
-      final database = ref.read(appDatabaseProvider);
+      final database = ref.read(creditsRepositoryProvider);
       try {
         await database.reverseCreditPayment(
           paymentId: payment.id,
@@ -552,7 +553,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   Future<void> _save() async {
     try {
       await ref
-          .read(appDatabaseProvider)
+          .read(creditsRepositoryProvider)
           .recordCreditPayment(
             customerId: widget.customer.id,
             amount: CurrencyFormatter.parseToCentavos(_amountController.text),
@@ -638,7 +639,7 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
   Future<void> _save() async {
     try {
       await ref
-          .read(appDatabaseProvider)
+          .read(creditsRepositoryProvider)
           .updateCustomer(
             customerId: widget.customer.id,
             name: _nameController.text,
