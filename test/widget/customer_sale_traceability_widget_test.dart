@@ -194,4 +194,117 @@ void main() {
       await tester.pump(Duration.zero);
     },
   );
+
+  // ─── Test 3 ───────────────────────────────────────────────────────────────
+  // GoRouter navigation: Customer Details → tap linked credit record →
+  // SaleDetailsScreen. 320×640 at 2.0× text scale, verifying no overflow.
+  testWidgets(
+    'Customer Details credit record navigates to Sale Details without overflow under 2.0 text scale on 320×640',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1.0;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.platformDispatcher.clearTextScaleFactorTestValue();
+      });
+
+      final p1 = await database.createProduct(
+        name: 'Rice 1kg',
+        barcode: 'P-777',
+        barcodeType: BarcodeType.manufacturer,
+        sellingPrice: 5500,
+        initialStock: 20,
+        lowStockLevel: 5,
+      );
+      final c1 = await database.createCustomer(
+        name: 'Aling Rosa',
+        contactNumber: '09281234567',
+      );
+      final saleId = await database.completeSale(
+        lines: [SaleRequestLine(productId: p1, quantity: 1)],
+        paymentType: PaymentType.credit,
+        saleDate: DateTime(2026, 7, 28, 9, 0),
+        customerId: c1,
+      );
+      final sale = await database.getSale(saleId);
+
+      final router = GoRouter(
+        initialLocation: '/credits/$c1',
+        routes: [
+          GoRoute(
+            path: '/credits/:customerId',
+            name: AppRoutes.customerDetailsName,
+            builder: (context, state) => CustomerDetailsScreen(
+              customerId: state.pathParameters['customerId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/sales/:saleId',
+            name: AppRoutes.saleDetailsName,
+            builder: (context, state) => SaleDetailsScreen(
+              saleId: state.pathParameters['saleId']!,
+            ),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [appDatabaseProvider.overrideWithValue(database)],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+
+      // Allow Drift streams to emit (outer customer + inner credit records).
+      await tester.pump();
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 50)));
+      await tester.pump();
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 50)));
+      await tester.pump();
+
+      // Customer Details is on screen with the customer name.
+      expect(find.text('Aling Rosa'), findsOneWidget);
+      expect(find.text('Credit Records'), findsOneWidget);
+      expect(sale!.saleNumber, isNotEmpty);
+
+      // At 320×640 with 2.0× text scale the credit records are below the
+      // viewport. Scroll down so the lazy ListView builds them.
+      await tester.drag(find.byType(ListView), const Offset(0, -400));
+      await tester.pump();
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 50)));
+      await tester.pump();
+
+      // The credit record subtitle includes the sale number.
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Text && w.data?.contains(sale!.saleNumber) == true,
+        ),
+        findsOneWidget,
+      );
+
+      // Tap the credit record row.
+      await tester.tap(
+        find.ancestor(
+          of: find.textContaining(sale.saleNumber),
+          matching: find.byType(ListTile),
+        ),
+      );
+      // Allow the SaleDetailsScreen FutureBuilder to settle.
+      await tester.pump();
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 50)));
+      await tester.pump();
+
+      // Sale Details is now on top with the sale number visible.
+      expect(find.text('Sale Details'), findsOneWidget);
+      expect(find.text(sale.saleNumber), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      // Unmount widget tree so Drift streams unsubscribe before tearDown.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(Duration.zero);
+    },
+  );
 }

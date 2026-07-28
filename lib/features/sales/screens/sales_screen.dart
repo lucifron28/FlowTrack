@@ -808,17 +808,17 @@ class SaleDetailsScreen extends ConsumerWidget {
       body: FutureBuilder<SaleListEntry?>(
         future: database.getSaleWithCustomer(saleId),
         builder: (context, saleSnapshot) {
-          final entry = saleSnapshot.data;
-          if (saleSnapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (entry == null) {
+          if (!saleSnapshot.hasData) {
+            if (saleSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
             return const EmptyState(
               icon: Icons.error_outline,
               title: 'Sale not found',
               message: 'The selected transaction is unavailable.',
             );
           }
+          final entry = saleSnapshot.data!;
           final sale = entry.sale;
           final isCredit = sale.paymentType == PaymentType.credit.dbValue;
           final customerName = entry.customerName;
