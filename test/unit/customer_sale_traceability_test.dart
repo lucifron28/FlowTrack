@@ -1,8 +1,21 @@
+// ignore_for_file: depend_on_referenced_packages
+
+import 'dart:io';
+
+import 'package:drift/drift.dart' hide isNull, isNotNull;
+import 'package:drift/native.dart';
 import 'package:flowtrack/core/database/app_database.dart';
 import 'package:flowtrack/core/domain/flowtrack_models.dart';
+import 'package:flowtrack/core/services/backup_crypto_service.dart';
+import 'package:flowtrack/core/services/backup_service.dart';
+import 'package:flowtrack/core/services/backup_validator.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+import 'package:sqlite3/sqlite3.dart';
 
 void main() {
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+
   late AppDatabase database;
 
   setUp(() {
@@ -95,11 +108,22 @@ void main() {
     expect(entry!.customerName, 'Original Name');
   });
 
-  test('migration v5 -> v6 backfills existing credit sales and leaves cash sales null', () async {
-    final rawDb = AppDatabase.inMemory();
-    // Drop sales table and recreate without customer_name_snapshot column (schema v5 definition)
-    await rawDb.customStatement('DROP TABLE sales;');
-    await rawDb.customStatement('''
+  test('versioned v5 database automatically migrates to v6, backfilling credit sales and handling legacy cash customer IDs', () async {
+    final tempDir = await Directory.systemTemp.createTemp('flowtrack_v5_test');
+    final dbPath = p.join(tempDir.path, 'v5_legacy.db');
+
+    final sqliteDb = sqlite3.open(dbPath);
+    sqliteDb.execute('PRAGMA foreign_keys = ON;');
+    sqliteDb.execute('''
+      CREATE TABLE customers (
+        id TEXT NOT NULL PRIMARY KEY,
+        name TEXT NOT NULL,
+        contact_number TEXT,
+        outstanding_balance INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
       CREATE TABLE sales (
         id TEXT NOT NULL PRIMARY KEY,
         sale_number TEXT NOT NULL UNIQUE,
@@ -114,28 +138,151 @@ void main() {
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
+      CREATE TABLE products (
+        id TEXT NOT NULL PRIMARY KEY,
+        name TEXT NOT NULL,
+        barcode TEXT NOT NULL,
+        barcode_type TEXT NOT NULL,
+        selling_price INTEGER NOT NULL,
+        cost_price INTEGER,
+        stock INTEGER NOT NULL,
+        low_stock_level INTEGER NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE sale_items (
+        id TEXT NOT NULL PRIMARY KEY,
+        sale_id TEXT NOT NULL REFERENCES sales(id),
+        product_id TEXT NOT NULL REFERENCES products(id),
+        product_name_snapshot TEXT NOT NULL,
+        barcode_snapshot TEXT NOT NULL,
+        unit_price_snapshot INTEGER NOT NULL,
+        cost_price_snapshot INTEGER,
+        quantity INTEGER NOT NULL,
+        subtotal INTEGER NOT NULL
+      );
+      CREATE TABLE credit_records (
+        id TEXT NOT NULL PRIMARY KEY,
+        customer_id TEXT NOT NULL REFERENCES customers(id),
+        sale_id TEXT REFERENCES sales(id),
+        amount INTEGER NOT NULL,
+        paid_amount INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL,
+        credit_date INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE credit_payments (
+        id TEXT NOT NULL PRIMARY KEY,
+        customer_id TEXT NOT NULL REFERENCES customers(id),
+        amount INTEGER NOT NULL,
+        payment_date INTEGER NOT NULL,
+        notes TEXT,
+        created_at INTEGER NOT NULL,
+        is_reversed INTEGER NOT NULL DEFAULT 0,
+        reversed_at INTEGER,
+        reversal_reason TEXT
+      );
+      CREATE TABLE expenses (
+        id TEXT NOT NULL PRIMARY KEY,
+        category TEXT NOT NULL,
+        description TEXT,
+        amount INTEGER NOT NULL,
+        expense_date INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        is_voided INTEGER NOT NULL DEFAULT 0,
+        voided_at INTEGER,
+        void_reason TEXT
+      );
+      CREATE TABLE settings (
+        id TEXT NOT NULL PRIMARY KEY,
+        key TEXT NOT NULL UNIQUE,
+        value TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE app_metadata (
+        id TEXT NOT NULL PRIMARY KEY,
+        database_version INTEGER NOT NULL,
+        first_run_completed INTEGER NOT NULL DEFAULT 0,
+        owner_account_created INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE stock_movements (
+        id TEXT NOT NULL PRIMARY KEY,
+        product_id TEXT NOT NULL REFERENCES products(id),
+        movement_type TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        related_sale_id TEXT REFERENCES sales(id),
+        reason TEXT,
+        notes TEXT,
+        created_at INTEGER NOT NULL
+      );
+      CREATE TABLE audit_logs (
+        id TEXT NOT NULL PRIMARY KEY,
+        action TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        notes TEXT,
+        created_at INTEGER NOT NULL
+      );
+      PRAGMA user_version = 5;
     ''');
 
-    await rawDb.customStatement('''
+    sqliteDb.execute('''
+      INSERT INTO products (id, name, barcode, barcode_type, selling_price, cost_price, stock, low_stock_level, is_active, created_at, updated_at)
+      VALUES ('p1', 'Noodles', 'P-101', 'manufacturer', 1500, 1200, 50, 10, 1, 1750000000, 1750000000);
+
       INSERT INTO customers (id, name, contact_number, outstanding_balance, is_active, created_at, updated_at)
-      VALUES ('cust_1', 'Legacy Customer', '09180000000', 1000, 1, 1750000000, 1750000000);
+      VALUES ('c1', 'Legacy Credit Customer', '09170001111', 1500, 1, 1750000000, 1750000000);
 
       INSERT INTO sales (id, sale_number, sale_date, total_amount, payment_type, amount_received, change_amount, customer_id, status, void_reason, created_at, updated_at)
-      VALUES ('sale_cash', 'SAL-V5-001', 1750000000, 500, 'cash', 500, 0, NULL, 'completed', NULL, 1750000000, 1750000000);
+      VALUES ('s_credit', 'SAL-V5-101', 1750000000, 1500, 'credit', NULL, NULL, 'c1', 'completed', NULL, 1750000000, 1750000000);
+
+      INSERT INTO sale_items (id, sale_id, product_id, product_name_snapshot, barcode_snapshot, unit_price_snapshot, cost_price_snapshot, quantity, subtotal)
+      VALUES ('item_1', 's_credit', 'p1', 'Noodles', 'P-101', 1500, 1200, 1, 1500);
 
       INSERT INTO sales (id, sale_number, sale_date, total_amount, payment_type, amount_received, change_amount, customer_id, status, void_reason, created_at, updated_at)
-      VALUES ('sale_credit', 'SAL-V5-002', 1750000000, 1000, 'credit', NULL, NULL, 'cust_1', 'completed', NULL, 1750000000, 1750000000);
+      VALUES ('s_cash_normal', 'SAL-V5-102', 1750000000, 800, 'cash', 1000, 200, NULL, 'completed', NULL, 1750000000, 1750000000);
+
+      INSERT INTO sale_items (id, sale_id, product_id, product_name_snapshot, barcode_snapshot, unit_price_snapshot, cost_price_snapshot, quantity, subtotal)
+      VALUES ('item_2', 's_cash_normal', 'p1', 'Noodles', 'P-101', 800, 600, 1, 800);
+
+      INSERT INTO sales (id, sale_number, sale_date, total_amount, payment_type, amount_received, change_amount, customer_id, status, void_reason, created_at, updated_at)
+      VALUES ('s_cash_stale', 'SAL-V5-103', 1750000000, 500, 'cash', 500, 0, 'c1', 'completed', NULL, 1750000000, 1750000000);
+
+      INSERT INTO sale_items (id, sale_id, product_id, product_name_snapshot, barcode_snapshot, unit_price_snapshot, cost_price_snapshot, quantity, subtotal)
+      VALUES ('item_3', 's_cash_stale', 'p1', 'Noodles', 'P-101', 500, 400, 1, 500);
+
+      INSERT INTO credit_records (id, customer_id, sale_id, amount, paid_amount, status, credit_date, created_at, updated_at)
+      VALUES ('cr_1', 'c1', 's_credit', 1500, 0, 'unpaid', 1750000000, 1750000000, 1750000000);
     ''');
 
-    final migrator = rawDb.createMigrator();
-    await rawDb.migration.onUpgrade(migrator, 5, 6);
+    sqliteDb.close();
 
-    final cashSale = await rawDb.getSale('sale_cash');
-    final creditSale = await rawDb.getSale('sale_credit');
+    final migratedDb = AppDatabase(NativeDatabase(File(dbPath)));
+    final creditSale = await migratedDb.getSale('s_credit');
+    final normalCashSale = await migratedDb.getSale('s_cash_normal');
+    final staleCashSale = await migratedDb.getSale('s_cash_stale');
 
-    expect(cashSale!.customerNameSnapshot, isNull);
-    expect(creditSale!.customerNameSnapshot, 'Legacy Customer');
+    expect(migratedDb.schemaVersion, 6);
+    expect(creditSale!.customerNameSnapshot, 'Legacy Credit Customer');
+    expect(normalCashSale!.customerNameSnapshot, isNull);
+    expect(staleCashSale!.customerNameSnapshot, isNull);
 
-    await rawDb.close();
+    final backupService = BackupService(
+      migratedDb,
+      const BackupCryptoService(),
+      const BackupValidator(),
+    );
+
+    final backupJson = await backupService.createBackupJson('TestPass123!');
+    final validated = await backupService.validateBackupString(backupJson, passphrase: 'TestPass123!');
+    expect(validated.salesCount, 3);
+
+    await migratedDb.close();
+    await tempDir.delete(recursive: true);
   });
 }

@@ -266,7 +266,8 @@ class AppDatabase extends _$AppDatabase {
             FROM customers
             WHERE customers.id = sales.customer_id
           )
-          WHERE customer_id IS NOT NULL
+          WHERE payment_type = 'credit'
+            AND customer_id IS NOT NULL
             AND customer_name_snapshot IS NULL;
         ''');
       }

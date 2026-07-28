@@ -179,21 +179,25 @@ class BackupValidator {
       checkId(id, 'sales');
       saleIds.add(id);
 
-      final customerId = s['customerId'] as String?;
-      if (customerId != null && !customerIds.contains(customerId)) {
-        throw Exception('Sale $id references missing customer $customerId.');
-      }
-
       final customerNameSnapshot = s['customerNameSnapshot'];
       if (customerNameSnapshot != null && customerNameSnapshot is! String) {
         throw Exception('Sale $id customerNameSnapshot must be a string if present.');
       }
 
-      if (s['paymentType'] == 'cash') {
-        if (customerId != null || customerNameSnapshot != null) {
+      final isCash = s['paymentType'] == 'cash';
+      if (isCash) {
+        if (customerNameSnapshot != null) {
           throw Exception(
-            'Cash sale $id cannot contain customer details or customerNameSnapshot.',
+            'Cash sale $id cannot contain customerNameSnapshot.',
           );
+        }
+        if (s['customerId'] != null) {
+          s['customerId'] = null;
+        }
+      } else {
+        final customerId = s['customerId'] as String?;
+        if (customerId != null && !customerIds.contains(customerId)) {
+          throw Exception('Sale $id references missing customer $customerId.');
         }
       }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_routes.dart';
 import '../../../core/database/app_database.dart';
@@ -830,10 +831,22 @@ class SaleDetailsScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(16),
                 children: [
                   Card(
-                    child: ListTile(
-                      title: Text(sale.saleNumber),
-                      subtitle: Text('${sale.paymentType} • ${sale.status}'),
-                      trailing: CurrencyText(sale.totalAmount),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          title: Text(sale.saleNumber),
+                          subtitle: Text('${sale.paymentType} • ${sale.status}'),
+                          trailing: CurrencyText(sale.totalAmount),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.calendar_today),
+                          title: const Text('Date'),
+                          subtitle: Text(
+                            DateFormat('MMM d, yyyy • h:mm a').format(sale.saleDate),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   if (isCredit && customerName != null) ...[
