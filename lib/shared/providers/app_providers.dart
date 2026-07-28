@@ -112,14 +112,18 @@ class FontScaleController extends Notifier<AppFontScale> {
 
   Future<void> _loadSavedFontScale() async {
     final currentRevision = _revision;
-    final val = await ref.read(appDatabaseProvider).getSetting('font_scale');
-    if (!ref.mounted || _revision != currentRevision) return;
+    try {
+      final val = await ref.read(appDatabaseProvider).getSetting('font_scale');
+      if (!ref.mounted || _revision != currentRevision) return;
 
-    if (val != null) {
-      state = AppFontScale.values.firstWhere(
-        (e) => e.name == val,
-        orElse: () => AppFontScale.system,
-      );
+      if (val != null) {
+        state = AppFontScale.values.firstWhere(
+          (e) => e.name == val,
+          orElse: () => AppFontScale.system,
+        );
+      }
+    } catch (_) {
+      // Keep safe AppFontScale.system default.
     }
   }
 
