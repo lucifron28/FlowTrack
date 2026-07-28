@@ -208,31 +208,51 @@ class CustomerDetailsScreen extends ConsumerWidget {
                 'Credit Records',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
-              StreamBuilder<List<CreditRecord>>(
-                stream: database.watchCreditRecords(customer.id),
+              StreamBuilder<List<CreditRecordListEntry>>(
+                stream: database.watchCreditRecordsWithSale(customer.id),
                 builder: (context, snapshot) {
-                  final records = snapshot.data ?? [];
-                  if (records.isEmpty) {
+                  final entries = snapshot.data ?? [];
+                  if (entries.isEmpty) {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
                       child: Text('No credit records yet.'),
                     );
                   }
                   return Column(
-                    children: records
-                        .map(
-                          (record) => ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: CurrencyText(record.amount),
-                            subtitle: Text(record.status),
-                            trailing: record.paidAmount > 0
-                                ? Text(
-                                    'Paid ${CurrencyFormatter.format(record.paidAmount)}',
-                                  )
-                                : null,
-                          ),
-                        )
-                        .toList(),
+                    children: entries.map((entry) {
+                      final record = entry.record;
+                      final saleNumber = entry.saleNumber;
+                      final hasLinkedSale =
+                          record.saleId != null && saleNumber != null;
+                      final subtitleText = hasLinkedSale
+                          ? '$saleNumber • ${record.status}'
+                          : 'Manual credit record • ${record.status}';
+
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: CurrencyText(record.amount),
+                        subtitle: Text(subtitleText),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (record.paidAmount > 0)
+                              Text(
+                                'Paid ${CurrencyFormatter.format(record.paidAmount)}',
+                              ),
+                            if (hasLinkedSale) ...[
+                              const SizedBox(width: 4),
+                              const Icon(Icons.chevron_right, size: 20),
+                            ],
+                          ],
+                        ),
+                        onTap: hasLinkedSale
+                            ? () => context.pushNamed(
+                                  AppRoutes.saleDetailsName,
+                                  pathParameters: {'saleId': record.saleId!},
+                                )
+                            : null,
+                      );
+                    }).toList(),
                   );
                 },
               ),
