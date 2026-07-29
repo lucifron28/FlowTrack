@@ -1,30 +1,35 @@
 import 'package:flowtrack/core/database/app_database.dart';
-import 'package:flowtrack/shared/providers/app_providers.dart';
+import 'package:flowtrack/core/database/database_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 abstract class CreditsRepository {
   Stream<List<Customer>> watchCustomers();
-  Stream<CustomerCreditSummary?> watchCustomerCreditSummary(String customerId);
-  Stream<List<Sale>> watchCustomerSales(String customerId);
-  Stream<List<CreditPayment>> watchCustomerPayments(String customerId);
-  Future<String> createCustomer({
-    required String name,
-    String? phone,
-    String? address,
-  });
+  Stream<Customer?> watchCustomer(String customerId);
+  Stream<List<CreditRecordListEntry>> watchCreditRecordsWithSale(
+    String customerId,
+  );
+  Stream<List<CreditPayment>> watchCreditPayments(String customerId);
+
+  Future<String> createCustomer({required String name, String? contactNumber});
+
   Future<void> updateCustomer({
-    required String id,
+    required String customerId,
     required String name,
-    String? phone,
-    String? address,
+    String? contactNumber,
   });
+
   Future<void> deleteCustomer(String customerId);
-  Future<String> recordCreditPayment({
+
+  Future<void> recordCreditPayment({
     required String customerId,
     required int amount,
-    String? notes,
-    String? saleId,
     required DateTime paymentDate,
+    String? notes,
+  });
+
+  Future<void> reverseCreditPayment({
+    required String paymentId,
+    required String reason,
   });
 }
 
@@ -37,45 +42,37 @@ class DriftCreditsRepository implements CreditsRepository {
   Stream<List<Customer>> watchCustomers() => _db.watchCustomers();
 
   @override
-  Stream<CustomerCreditSummary?> watchCustomerCreditSummary(String customerId) {
-    return _db.watchCustomerCreditSummary(customerId);
+  Stream<Customer?> watchCustomer(String customerId) {
+    return _db.watchCustomer(customerId);
   }
 
   @override
-  Stream<List<Sale>> watchCustomerSales(String customerId) {
-    return _db.watchCustomerSales(customerId);
+  Stream<List<CreditRecordListEntry>> watchCreditRecordsWithSale(
+    String customerId,
+  ) {
+    return _db.watchCreditRecordsWithSale(customerId);
   }
 
   @override
-  Stream<List<CreditPayment>> watchCustomerPayments(String customerId) {
-    return _db.watchCustomerPayments(customerId);
+  Stream<List<CreditPayment>> watchCreditPayments(String customerId) {
+    return _db.watchCreditPayments(customerId);
   }
 
   @override
-  Future<String> createCustomer({
-    required String name,
-    String? phone,
-    String? address,
-  }) {
-    return _db.createCustomer(
-      name: name,
-      phone: phone,
-      address: address,
-    );
+  Future<String> createCustomer({required String name, String? contactNumber}) {
+    return _db.createCustomer(name: name, contactNumber: contactNumber);
   }
 
   @override
   Future<void> updateCustomer({
-    required String id,
+    required String customerId,
     required String name,
-    String? phone,
-    String? address,
+    String? contactNumber,
   }) {
     return _db.updateCustomer(
-      id: id,
+      customerId: customerId,
       name: name,
-      phone: phone,
-      address: address,
+      contactNumber: contactNumber,
     );
   }
 
@@ -85,20 +82,26 @@ class DriftCreditsRepository implements CreditsRepository {
   }
 
   @override
-  Future<String> recordCreditPayment({
+  Future<void> recordCreditPayment({
     required String customerId,
     required int amount,
-    String? notes,
-    String? saleId,
     required DateTime paymentDate,
+    String? notes,
   }) {
     return _db.recordCreditPayment(
       customerId: customerId,
       amount: amount,
-      notes: notes,
-      saleId: saleId,
       paymentDate: paymentDate,
+      notes: notes,
     );
+  }
+
+  @override
+  Future<void> reverseCreditPayment({
+    required String paymentId,
+    required String reason,
+  }) {
+    return _db.reverseCreditPayment(paymentId: paymentId, reason: reason);
   }
 }
 

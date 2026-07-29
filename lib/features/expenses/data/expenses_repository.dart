@@ -1,16 +1,26 @@
 import 'package:flowtrack/core/database/app_database.dart';
-import 'package:flowtrack/shared/providers/app_providers.dart';
+import 'package:flowtrack/core/database/database_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 abstract class ExpensesRepository {
   Stream<List<Expense>> watchExpenses();
-  Future<String> recordExpense({
+
+  Future<void> createExpense({
     required String category,
+    String? description,
     required int amount,
-    String? notes,
     required DateTime expenseDate,
   });
-  Future<void> voidExpense(String expenseId, {required String reason});
+
+  Future<void> updateExpense({
+    required String expenseId,
+    required String category,
+    String? description,
+    required int amount,
+    required DateTime expenseDate,
+  });
+
+  Future<void> voidExpense({required String expenseId, required String reason});
 }
 
 class DriftExpensesRepository implements ExpensesRepository {
@@ -22,23 +32,43 @@ class DriftExpensesRepository implements ExpensesRepository {
   Stream<List<Expense>> watchExpenses() => _db.watchExpenses();
 
   @override
-  Future<String> recordExpense({
+  Future<void> createExpense({
     required String category,
+    String? description,
     required int amount,
-    String? notes,
     required DateTime expenseDate,
   }) {
-    return _db.recordExpense(
+    return _db.createExpense(
       category: category,
+      description: description,
       amount: amount,
-      notes: notes,
       expenseDate: expenseDate,
     );
   }
 
   @override
-  Future<void> voidExpense(String expenseId, {required String reason}) {
-    return _db.voidExpense(expenseId, reason: reason);
+  Future<void> updateExpense({
+    required String expenseId,
+    required String category,
+    String? description,
+    required int amount,
+    required DateTime expenseDate,
+  }) {
+    return _db.updateExpense(
+      expenseId: expenseId,
+      category: category,
+      description: description,
+      amount: amount,
+      expenseDate: expenseDate,
+    );
+  }
+
+  @override
+  Future<void> voidExpense({
+    required String expenseId,
+    required String reason,
+  }) {
+    return _db.voidExpense(expenseId: expenseId, reason: reason);
   }
 }
 

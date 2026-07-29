@@ -1,12 +1,13 @@
 import 'package:flowtrack/core/database/app_database.dart';
+import 'package:flowtrack/core/database/database_provider.dart';
 import 'package:flowtrack/core/domain/flowtrack_models.dart';
-import 'package:flowtrack/shared/providers/app_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 abstract class InventoryRepository {
   Stream<List<Product>> watchAllProducts();
   Stream<Product?> watchProduct(String productId);
   Future<Product?> getProduct(String productId);
+  Future<Product?> findProductByBarcode(String barcode);
   Future<String> createProduct({
     required String name,
     required String barcode,
@@ -58,10 +59,16 @@ class DriftInventoryRepository implements InventoryRepository {
   Stream<List<Product>> watchAllProducts() => _db.watchAllProducts();
 
   @override
-  Stream<Product?> watchProduct(String productId) => _db.watchProduct(productId);
+  Stream<Product?> watchProduct(String productId) =>
+      _db.watchProduct(productId);
 
   @override
   Future<Product?> getProduct(String productId) => _db.getProduct(productId);
+
+  @override
+  Future<Product?> findProductByBarcode(String barcode) {
+    return _db.findProductByBarcode(barcode);
+  }
 
   @override
   Future<String> createProduct({
@@ -104,10 +111,7 @@ class DriftInventoryRepository implements InventoryRepository {
     required String productId,
     required bool isActive,
   }) {
-    return _db.updateProductActive(
-      productId: productId,
-      isActive: isActive,
-    );
+    return _db.updateProductActive(productId: productId, isActive: isActive);
   }
 
   @override
@@ -116,11 +120,7 @@ class DriftInventoryRepository implements InventoryRepository {
     required int quantity,
     String? notes,
   }) {
-    return _db.addStock(
-      productId: productId,
-      quantity: quantity,
-      notes: notes,
-    );
+    return _db.addStock(productId: productId, quantity: quantity, notes: notes);
   }
 
   @override
@@ -154,11 +154,7 @@ class DriftInventoryRepository implements InventoryRepository {
     required int limit,
     required int offset,
   }) {
-    return _db.getStockHistoryPage(
-      productId,
-      limit: limit,
-      offset: offset,
-    );
+    return _db.getStockHistoryPage(productId, limit: limit, offset: offset);
   }
 }
 

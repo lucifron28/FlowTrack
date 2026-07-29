@@ -19,33 +19,35 @@ void main() {
     await db.close();
   });
 
-  test('complete a sale through SalesRepository and verify stock and sale data remain correct', () async {
-    final productId = await inventoryRepository.createProduct(
-      name: 'Integration Rice 5kg',
-      barcode: 'INT-RICE-001',
-      barcodeType: BarcodeType.manufacturer,
-      sellingPrice: 25000,
-      initialStock: 10,
-      lowStockLevel: 2,
-    );
+  test(
+    'complete a sale through SalesRepository and verify stock and sale data remain correct',
+    () async {
+      final productId = await inventoryRepository.createProduct(
+        name: 'Integration Rice 5kg',
+        barcode: 'INT-RICE-001',
+        barcodeType: BarcodeType.manufacturer,
+        sellingPrice: 25000,
+        initialStock: 10,
+        lowStockLevel: 2,
+      );
 
-    final saleDate = DateTime(2026, 7, 28, 10, 0);
-    final saleId = await salesRepository.completeSale(
-      lines: [
-        SaleRequestLine(productId: productId, quantity: 3),
-      ],
-      paymentType: PaymentType.cash,
-      saleDate: saleDate,
-      amountReceived: 100000,
-    );
+      final saleDate = DateTime(2026, 7, 28, 10, 0);
+      final saleId = await salesRepository.completeSale(
+        lines: [SaleRequestLine(productId: productId, quantity: 3)],
+        paymentType: PaymentType.cash,
+        saleDate: saleDate,
+        amountReceived: 100000,
+      );
 
-    final sale = await salesRepository.getSale(saleId);
-    expect(sale, isNotNull);
-    expect(sale!.totalAmount, 75000);
-    expect(sale.paymentType, PaymentType.cash.dbValue);
+      final entry = await salesRepository.getSaleWithCustomer(saleId);
+      expect(entry, isNotNull);
+      final sale = entry!.sale;
+      expect(sale.totalAmount, 75000);
+      expect(sale.paymentType, PaymentType.cash.dbValue);
 
-    final updatedProduct = await inventoryRepository.getProduct(productId);
-    expect(updatedProduct, isNotNull);
-    expect(updatedProduct!.stock, 7);
-  });
+      final updatedProduct = await inventoryRepository.getProduct(productId);
+      expect(updatedProduct, isNotNull);
+      expect(updatedProduct!.stock, 7);
+    },
+  );
 }

@@ -42,10 +42,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       decoration: const InputDecoration(labelText: 'Lifecycle'),
       items: ProductLifecycleFilter.values
           .map(
-            (filter) => DropdownMenuItem(
-              value: filter,
-              child: Text(filter.label),
-            ),
+            (filter) =>
+                DropdownMenuItem(value: filter, child: Text(filter.label)),
           )
           .toList(),
       onChanged: (value) => setState(
@@ -60,10 +58,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       items: [
         const DropdownMenuItem(value: null, child: Text('All')),
         ...ProductStatus.values.map(
-          (status) => DropdownMenuItem(
-            value: status,
-            child: Text(status.label),
-          ),
+          (status) =>
+              DropdownMenuItem(value: status, child: Text(status.label)),
         ),
       ],
       onChanged: (value) => setState(() => _filter = value),
@@ -123,7 +119,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                          const Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: Colors.red,
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             'Failed to load products: ${snapshot.error}',
@@ -212,10 +212,7 @@ class ProductCard extends StatelessWidget {
       children: [
         _StatusBadge(label: status.label, color: statusColor),
         if (!product.isActive)
-          _StatusBadge(
-            label: 'Archived',
-            color: theme.colorScheme.outline,
-          ),
+          _StatusBadge(label: 'Archived', color: theme.colorScheme.outline),
       ],
     );
 
@@ -240,8 +237,9 @@ class ProductCard extends StatelessWidget {
                         ),
                         Icon(
                           Icons.chevron_right,
-                          color: theme.colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                       ],
                     ),
@@ -688,7 +686,11 @@ class ProductDetailsScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.red,
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       'Failed to load product details: ${snapshot.error}',
@@ -844,10 +846,7 @@ class ProductDetailsScreen extends ConsumerWidget {
                   }
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      titleWidget,
-                      buttonWidget,
-                    ],
+                    children: [titleWidget, buttonWidget],
                   );
                 },
               ),
@@ -858,7 +857,9 @@ class ProductDetailsScreen extends ConsumerWidget {
                   if (snapshot.hasError) {
                     return Text(
                       'Failed to load stock history preview.',
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     );
                   }
                   final entries = snapshot.data ?? [];
@@ -1079,7 +1080,9 @@ class _AddStockScreenState extends ConsumerState<AddStockScreen> {
     final notes = trimmedNotes.isEmpty ? null : trimmedNotes;
 
     try {
-      await ref.read(inventoryRepositoryProvider).addStock(
+      await ref
+          .read(inventoryRepositoryProvider)
+          .addStock(
             productId: widget.productId,
             quantity: quantity,
             notes: notes,
@@ -1090,9 +1093,9 @@ class _AddStockScreenState extends ConsumerState<AddStockScreen> {
     } catch (error) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
       }
     }
   }
@@ -1258,7 +1261,9 @@ class _AdjustStockScreenState extends ConsumerState<AdjustStockScreen> {
       final trimmedNotes = _notesController.text.trim();
       final notes = trimmedNotes.isEmpty ? null : trimmedNotes;
 
-      await ref.read(inventoryRepositoryProvider).adjustStock(
+      await ref
+          .read(inventoryRepositoryProvider)
+          .adjustStock(
             productId: widget.product.id,
             quantity: quantity,
             add: _add,
@@ -1270,9 +1275,9 @@ class _AdjustStockScreenState extends ConsumerState<AdjustStockScreen> {
       Navigator.of(context).pop();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -1587,11 +1592,14 @@ class StockHistoryTile extends StatelessWidget {
     final movement = entry.movement;
     final theme = Theme.of(context);
     final isInbound = isStockMovementInbound(movement.movementType);
-    final signedQty =
-        formatSignedQuantity(movement.movementType, movement.quantity);
+    final signedQty = formatSignedQuantity(
+      movement.movementType,
+      movement.quantity,
+    );
     final label = formatStockMovementLabel(movement.movementType);
-    final dateStr =
-        DateFormat('MMM d, yyyy • h:mm a').format(movement.createdAt);
+    final dateStr = DateFormat(
+      'MMM d, yyyy • h:mm a',
+    ).format(movement.createdAt);
 
     final String? saleText;
     final VoidCallback? onSaleTap;
@@ -1600,9 +1608,9 @@ class StockHistoryTile extends StatelessWidget {
         final saleNum = entry.relatedSaleNumber ?? movement.relatedSaleId!;
         saleText = 'Sale #$saleNum';
         onSaleTap = () => context.pushNamed(
-              AppRoutes.saleDetailsName,
-              pathParameters: {'saleId': movement.relatedSaleId!},
-            );
+          AppRoutes.saleDetailsName,
+          pathParameters: {'saleId': movement.relatedSaleId!},
+        );
       } else {
         saleText = 'Related sale unavailable';
         onSaleTap = null;
@@ -1628,7 +1636,9 @@ class StockHistoryTile extends StatelessWidget {
       children: [
         Text(
           label,
-          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
@@ -1639,10 +1649,7 @@ class StockHistoryTile extends StatelessWidget {
         ),
         if (movement.reason != null && movement.reason!.trim().isNotEmpty) ...[
           const SizedBox(height: 2),
-          Text(
-            'Reason: ${movement.reason}',
-            style: theme.textTheme.bodySmall,
-          ),
+          Text('Reason: ${movement.reason}', style: theme.textTheme.bodySmall),
         ],
         if (movement.notes != null && movement.notes!.trim().isNotEmpty) ...[
           const SizedBox(height: 2),
@@ -1728,8 +1735,7 @@ class StockHistoryScreen extends ConsumerStatefulWidget {
   final String productId;
 
   @override
-  ConsumerState<StockHistoryScreen> createState() =>
-      _StockHistoryScreenState();
+  ConsumerState<StockHistoryScreen> createState() => _StockHistoryScreenState();
 }
 
 class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
@@ -1846,10 +1852,7 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
             const SizedBox(height: 12),
             Text(_error!),
             const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _loadInitial,
-              child: const Text('Retry'),
-            ),
+            ElevatedButton(onPressed: _loadInitial, child: const Text('Retry')),
           ],
         ),
       );
@@ -1874,27 +1877,27 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
               child: _isLoadingMore
                   ? const CircularProgressIndicator()
                   : _loadMoreError != null
-                      ? Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Failed to load older history: $_loadMoreError',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            OutlinedButton(
-                              onPressed: _loadMore,
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        )
-                      : OutlinedButton(
-                          onPressed: _loadMore,
-                          child: const Text('Load More'),
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Failed to load older history: $_loadMoreError',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
+                        const SizedBox(height: 8),
+                        OutlinedButton(
+                          onPressed: _loadMore,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    )
+                  : OutlinedButton(
+                      onPressed: _loadMore,
+                      child: const Text('Load More'),
+                    ),
             ),
           );
         }

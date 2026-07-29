@@ -1,27 +1,26 @@
 import 'package:flowtrack/core/database/app_database.dart';
+import 'package:flowtrack/core/database/database_provider.dart';
 import 'package:flowtrack/core/domain/flowtrack_models.dart';
-import 'package:flowtrack/shared/providers/app_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 abstract class SalesRepository {
-  Stream<List<Sale>> watchSales();
-  Future<Sale?> getSale(String saleId);
+  Stream<List<SaleListEntry>> watchSalesWithCustomer();
+  Future<SaleListEntry?> getSaleWithCustomer(String saleId);
+  Future<List<SaleItem>> getSaleItems(String saleId);
   Future<List<Product>> getActiveProducts();
   Future<Product?> getProduct(String productId);
   Future<Product?> findProductByBarcode(String barcode);
-  Future<String> createCustomer({
-    required String name,
-    String? phone,
-    String? address,
-  });
+  Future<List<Customer>> getActiveCustomers();
   Future<String> completeSale({
     required List<SaleRequestLine> lines,
     required PaymentType paymentType,
     required DateTime saleDate,
+    int? amountReceived,
     String? customerId,
-    int? amountPaid,
+    String? customerName,
+    String? contactNumber,
   });
-  Future<void> voidSale(String saleId, {required String reason});
+  Future<void> voidSale(String saleId, {String? reason});
 }
 
 class DriftSalesRepository implements SalesRepository {
@@ -30,10 +29,19 @@ class DriftSalesRepository implements SalesRepository {
   final AppDatabase _db;
 
   @override
-  Stream<List<Sale>> watchSales() => _db.watchSales();
+  Stream<List<SaleListEntry>> watchSalesWithCustomer() {
+    return _db.watchSalesWithCustomer();
+  }
 
   @override
-  Future<Sale?> getSale(String saleId) => _db.getSale(saleId);
+  Future<SaleListEntry?> getSaleWithCustomer(String saleId) {
+    return _db.getSaleWithCustomer(saleId);
+  }
+
+  @override
+  Future<List<SaleItem>> getSaleItems(String saleId) {
+    return _db.getSaleItems(saleId);
+  }
 
   @override
   Future<List<Product>> getActiveProducts() => _db.getActiveProducts();
@@ -47,37 +55,31 @@ class DriftSalesRepository implements SalesRepository {
   }
 
   @override
-  Future<String> createCustomer({
-    required String name,
-    String? phone,
-    String? address,
-  }) {
-    return _db.createCustomer(
-      name: name,
-      phone: phone,
-      address: address,
-    );
-  }
+  Future<List<Customer>> getActiveCustomers() => _db.getActiveCustomers();
 
   @override
   Future<String> completeSale({
     required List<SaleRequestLine> lines,
     required PaymentType paymentType,
     required DateTime saleDate,
+    int? amountReceived,
     String? customerId,
-    int? amountPaid,
+    String? customerName,
+    String? contactNumber,
   }) {
     return _db.completeSale(
       lines: lines,
       paymentType: paymentType,
       saleDate: saleDate,
+      amountReceived: amountReceived,
       customerId: customerId,
-      amountPaid: amountPaid,
+      customerName: customerName,
+      contactNumber: contactNumber,
     );
   }
 
   @override
-  Future<void> voidSale(String saleId, {required String reason}) {
+  Future<void> voidSale(String saleId, {String? reason}) {
     return _db.voidSale(saleId, reason: reason);
   }
 }
