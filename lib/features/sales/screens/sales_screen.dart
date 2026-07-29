@@ -7,7 +7,6 @@ import '../../../core/constants/app_routes.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/domain/flowtrack_models.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../../../shared/providers/app_providers.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../inventory/screens/inventory_screen.dart';
@@ -60,9 +59,8 @@ class SalesScreen extends ConsumerWidget {
                         const SizedBox(height: 2),
                         Text(
                           customerName,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                       ],
                       const SizedBox(height: 2),
@@ -132,7 +130,8 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 450 ||
+              final isNarrow =
+                  constraints.maxWidth < 450 ||
                   MediaQuery.textScalerOf(context).scale(10.0) > 12.0;
               if (isNarrow) {
                 return Column(
@@ -434,7 +433,9 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   }
 
   Future<void> _changeQuantity(String productId, int delta) async {
-    final product = await ref.read(salesRepositoryProvider).getProduct(productId);
+    final product = await ref
+        .read(salesRepositoryProvider)
+        .getProduct(productId);
     final result = _cart.changeQuantity(
       productId: productId,
       delta: delta,
@@ -628,7 +629,9 @@ class _CashChangePanel extends StatelessWidget {
                         Row(
                           children: [
                             Icon(
-                              isShort ? Icons.warning_amber : Icons.change_circle,
+                              isShort
+                                  ? Icons.warning_amber
+                                  : Icons.change_circle,
                               color: isShort
                                   ? theme.colorScheme.onErrorContainer
                                   : theme.colorScheme.onPrimaryContainer,
@@ -836,7 +839,9 @@ class SaleDetailsScreen extends ConsumerWidget {
                       children: [
                         ListTile(
                           title: Text(sale.saleNumber),
-                          subtitle: Text('${sale.paymentType} • ${sale.status}'),
+                          subtitle: Text(
+                            '${sale.paymentType} • ${sale.status}',
+                          ),
                           trailing: CurrencyText(sale.totalAmount),
                         ),
                         const Divider(height: 1),
@@ -844,7 +849,9 @@ class SaleDetailsScreen extends ConsumerWidget {
                           leading: const Icon(Icons.calendar_today),
                           title: const Text('Date'),
                           subtitle: Text(
-                            DateFormat('MMM d, yyyy • h:mm a').format(sale.saleDate),
+                            DateFormat(
+                              'MMM d, yyyy • h:mm a',
+                            ).format(sale.saleDate),
                           ),
                         ),
                       ],
@@ -862,11 +869,11 @@ class SaleDetailsScreen extends ConsumerWidget {
                             : null,
                         onTap: sale.customerId != null
                             ? () => context.pushNamed(
-                                  AppRoutes.customerDetailsName,
-                                  pathParameters: {
-                                    'customerId': sale.customerId!,
-                                  },
-                                )
+                                AppRoutes.customerDetailsName,
+                                pathParameters: {
+                                  'customerId': sale.customerId!,
+                                },
+                              )
                             : null,
                       ),
                     ),

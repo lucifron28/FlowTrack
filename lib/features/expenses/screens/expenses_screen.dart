@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../../../shared/providers/app_providers.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../data/expenses_repository.dart';
@@ -318,7 +317,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               onPressed: () {
                 final value = reasonController.text.trim();
                 if (value.isEmpty) {
-                  setDialogState(() => errorText = 'A void reason is required.');
+                  setDialogState(
+                    () => errorText = 'A void reason is required.',
+                  );
                   return;
                 }
                 Navigator.of(dialogContext).pop(value);
@@ -341,10 +342,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     setState(() => _isVoiding = true);
     try {
-      await ref.read(expensesRepositoryProvider).voidExpense(
-            expenseId: widget.expense!.id,
-            reason: reason,
-          );
+      await ref
+          .read(expensesRepositoryProvider)
+          .voidExpense(expenseId: widget.expense!.id, reason: reason);
       if (mounted) {
         Navigator.of(context).pop();
       }

@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../../../shared/providers/app_providers.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../data/credits_repository.dart';
@@ -255,9 +254,9 @@ class CustomerDetailsScreen extends ConsumerWidget {
                             : null,
                         onTap: hasLinkedSale
                             ? () => context.pushNamed(
-                                  AppRoutes.saleDetailsName,
-                                  pathParameters: {'saleId': record.saleId!},
-                                )
+                                AppRoutes.saleDetailsName,
+                                pathParameters: {'saleId': record.saleId!},
+                              )
                             : null,
                       );
                     }).toList(),
@@ -280,56 +279,52 @@ class CustomerDetailsScreen extends ConsumerWidget {
                     );
                   }
                   return Column(
-                    children: payments
-                        .map(
-                          (payment) {
-                            final isRev = payment.isReversed;
-                            final notesText = payment.notes ?? 'Payment';
-                            final subtitleText = isRev
-                                ? '$notesText\nReversed: ${payment.reversalReason ?? ""}'
-                                : notesText;
+                    children: payments.map((payment) {
+                      final isRev = payment.isReversed;
+                      final notesText = payment.notes ?? 'Payment';
+                      final subtitleText = isRev
+                          ? '$notesText\nReversed: ${payment.reversalReason ?? ""}'
+                          : notesText;
 
-                            return ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Row(
-                                children: [
-                                  CurrencyText(payment.amount),
-                                  if (isRev) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red.shade100,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        'Reversed',
-                                        style: TextStyle(
-                                          color: Colors.red.shade900,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Row(
+                          children: [
+                            CurrencyText(payment.amount),
+                            if (isRev) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade100,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'Reversed',
+                                  style: TextStyle(
+                                    color: Colors.red.shade900,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                              subtitle: Text(subtitleText),
-                              trailing: isRev
-                                  ? null
-                                  : IconButton(
-                                      icon: const Icon(Icons.undo),
-                                      tooltip: 'Reverse Payment',
-                                      onPressed: () =>
-                                          _reversePayment(context, ref, payment),
-                                    ),
-                            );
-                          },
-                        )
-                        .toList(),
+                            ],
+                          ],
+                        ),
+                        subtitle: Text(subtitleText),
+                        trailing: isRev
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.undo),
+                                tooltip: 'Reverse Payment',
+                                onPressed: () =>
+                                    _reversePayment(context, ref, payment),
+                              ),
+                      );
+                    }).toList(),
                   );
                 },
               ),
@@ -462,9 +457,9 @@ class CustomerDetailsScreen extends ConsumerWidget {
         }
       } catch (error) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error.toString())),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error.toString())));
         }
       }
     }
