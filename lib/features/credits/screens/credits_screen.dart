@@ -5,16 +5,16 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../../../shared/providers/app_providers.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../data/credits_repository.dart';
 
 class CreditsScreen extends ConsumerWidget {
   const CreditsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final database = ref.watch(appDatabaseProvider);
+    final database = ref.watch(creditsRepositoryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Credits')),
       body: StreamBuilder<List<Customer>>(
@@ -116,7 +116,7 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
   Future<void> _save() async {
     try {
       await ref
-          .read(appDatabaseProvider)
+          .read(creditsRepositoryProvider)
           .createCustomer(
             name: _nameController.text,
             contactNumber: _contactController.text,
@@ -141,7 +141,7 @@ class CustomerDetailsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final database = ref.watch(appDatabaseProvider);
+    final database = ref.watch(creditsRepositoryProvider);
     return StreamBuilder<Customer?>(
       stream: database.watchCustomer(customerId),
       builder: (context, snapshot) {
@@ -254,9 +254,9 @@ class CustomerDetailsScreen extends ConsumerWidget {
                             : null,
                         onTap: hasLinkedSale
                             ? () => context.pushNamed(
-                                  AppRoutes.saleDetailsName,
-                                  pathParameters: {'saleId': record.saleId!},
-                                )
+                                AppRoutes.saleDetailsName,
+                                pathParameters: {'saleId': record.saleId!},
+                              )
                             : null,
                       );
                     }).toList(),
@@ -279,56 +279,52 @@ class CustomerDetailsScreen extends ConsumerWidget {
                     );
                   }
                   return Column(
-                    children: payments
-                        .map(
-                          (payment) {
-                            final isRev = payment.isReversed;
-                            final notesText = payment.notes ?? 'Payment';
-                            final subtitleText = isRev
-                                ? '$notesText\nReversed: ${payment.reversalReason ?? ""}'
-                                : notesText;
+                    children: payments.map((payment) {
+                      final isRev = payment.isReversed;
+                      final notesText = payment.notes ?? 'Payment';
+                      final subtitleText = isRev
+                          ? '$notesText\nReversed: ${payment.reversalReason ?? ""}'
+                          : notesText;
 
-                            return ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Row(
-                                children: [
-                                  CurrencyText(payment.amount),
-                                  if (isRev) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red.shade100,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        'Reversed',
-                                        style: TextStyle(
-                                          color: Colors.red.shade900,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Row(
+                          children: [
+                            CurrencyText(payment.amount),
+                            if (isRev) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade100,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'Reversed',
+                                  style: TextStyle(
+                                    color: Colors.red.shade900,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                              subtitle: Text(subtitleText),
-                              trailing: isRev
-                                  ? null
-                                  : IconButton(
-                                      icon: const Icon(Icons.undo),
-                                      tooltip: 'Reverse Payment',
-                                      onPressed: () =>
-                                          _reversePayment(context, ref, payment),
-                                    ),
-                            );
-                          },
-                        )
-                        .toList(),
+                            ],
+                          ],
+                        ),
+                        subtitle: Text(subtitleText),
+                        trailing: isRev
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.undo),
+                                tooltip: 'Reverse Payment',
+                                onPressed: () =>
+                                    _reversePayment(context, ref, payment),
+                              ),
+                      );
+                    }).toList(),
                   );
                 },
               ),
@@ -370,7 +366,7 @@ class CustomerDetailsScreen extends ConsumerWidget {
 
     if (confirm == true && context.mounted) {
       try {
-        await ref.read(appDatabaseProvider).deleteCustomer(customer.id);
+        await ref.read(creditsRepositoryProvider).deleteCustomer(customer.id);
         if (context.mounted) {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -448,7 +444,7 @@ class CustomerDetailsScreen extends ConsumerWidget {
     );
 
     if (confirm == true) {
-      final database = ref.read(appDatabaseProvider);
+      final database = ref.read(creditsRepositoryProvider);
       try {
         await database.reverseCreditPayment(
           paymentId: payment.id,
@@ -461,9 +457,9 @@ class CustomerDetailsScreen extends ConsumerWidget {
         }
       } catch (error) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error.toString())),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error.toString())));
         }
       }
     }
@@ -552,7 +548,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   Future<void> _save() async {
     try {
       await ref
-          .read(appDatabaseProvider)
+          .read(creditsRepositoryProvider)
           .recordCreditPayment(
             customerId: widget.customer.id,
             amount: CurrencyFormatter.parseToCentavos(_amountController.text),
@@ -638,7 +634,7 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
   Future<void> _save() async {
     try {
       await ref
-          .read(appDatabaseProvider)
+          .read(creditsRepositoryProvider)
           .updateCustomer(
             customerId: widget.customer.id,
             name: _nameController.text,

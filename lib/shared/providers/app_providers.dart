@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/config/app_config.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/database/app_database.dart';
+import '../../core/database/database_provider.dart';
 import '../../core/domain/flowtrack_models.dart';
 import '../../core/services/barcode_service.dart';
 import '../../core/services/barcode_print_service.dart';
@@ -25,14 +26,9 @@ import '../../features/settings/screens/settings_screen.dart';
 import '../../features/auth/domain/auth_state.dart';
 import '../../features/auth/application/auth_controller.dart';
 
+export '../../core/database/database_provider.dart';
 export '../../features/auth/domain/auth_state.dart';
 export '../../features/auth/application/auth_controller.dart';
-
-final appDatabaseProvider = Provider<AppDatabase>((ref) {
-  final database = AppDatabase.defaults();
-  ref.onDispose(database.close);
-  return database;
-});
 
 final barcodeServiceProvider = Provider<BarcodeService>((ref) {
   return BarcodeService();
@@ -134,9 +130,7 @@ class FontScaleController extends Notifier<AppFontScale> {
     state = value;
 
     try {
-      await ref
-          .read(appDatabaseProvider)
-          .setSetting('font_scale', value.name);
+      await ref.read(appDatabaseProvider).setSetting('font_scale', value.name);
       return true;
     } catch (_) {
       if (revision == _revision) {

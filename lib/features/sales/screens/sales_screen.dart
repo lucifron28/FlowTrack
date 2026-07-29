@@ -7,18 +7,18 @@ import '../../../core/constants/app_routes.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/domain/flowtrack_models.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../../../shared/providers/app_providers.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../inventory/screens/inventory_screen.dart';
 import '../controllers/sales_cart_controller.dart';
+import '../data/sales_repository.dart';
 
 class SalesScreen extends ConsumerWidget {
   const SalesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final database = ref.watch(appDatabaseProvider);
+    final database = ref.watch(salesRepositoryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Sales')),
       body: StreamBuilder<List<SaleListEntry>>(
@@ -59,9 +59,8 @@ class SalesScreen extends ConsumerWidget {
                         const SizedBox(height: 2),
                         Text(
                           customerName,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                       ],
                       const SizedBox(height: 2),
@@ -112,7 +111,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final database = ref.watch(appDatabaseProvider);
+    final database = ref.watch(salesRepositoryProvider);
     final amountReceived = _parseAmountReceived();
 
     return Scaffold(
@@ -131,7 +130,8 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 450 ||
+              final isNarrow =
+                  constraints.maxWidth < 450 ||
                   MediaQuery.textScalerOf(context).scale(10.0) > 12.0;
               if (isNarrow) {
                 return Column(
@@ -370,7 +370,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
       context: context,
       showDragHandle: true,
       builder: (context) => ProductPickerSheet(
-        productsFuture: ref.read(appDatabaseProvider).getActiveProducts(),
+        productsFuture: ref.read(salesRepositoryProvider).getActiveProducts(),
       ),
     );
     if (product != null) {
@@ -379,7 +379,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   }
 
   Future<void> _addBarcode(String barcode) async {
-    final database = ref.read(appDatabaseProvider);
+    final database = ref.read(salesRepositoryProvider);
     final product = await database.findProductByBarcode(barcode);
     if (product != null && !product.isActive) {
       if (mounted) {
@@ -433,7 +433,9 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   }
 
   Future<void> _changeQuantity(String productId, int delta) async {
-    final product = await ref.read(appDatabaseProvider).getProduct(productId);
+    final product = await ref
+        .read(salesRepositoryProvider)
+        .getProduct(productId);
     final result = _cart.changeQuantity(
       productId: productId,
       delta: delta,
@@ -459,7 +461,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
     setState(() => _isProcessing = true);
     try {
       await ref
-          .read(appDatabaseProvider)
+          .read(salesRepositoryProvider)
           .completeSale(
             lines: _cart.items
                 .map(
@@ -627,7 +629,9 @@ class _CashChangePanel extends StatelessWidget {
                         Row(
                           children: [
                             Icon(
-                              isShort ? Icons.warning_amber : Icons.change_circle,
+                              isShort
+                                  ? Icons.warning_amber
+                                  : Icons.change_circle,
                               color: isShort
                                   ? theme.colorScheme.onErrorContainer
                                   : theme.colorScheme.onPrimaryContainer,
@@ -802,7 +806,7 @@ class SaleDetailsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final database = ref.watch(appDatabaseProvider);
+    final database = ref.watch(salesRepositoryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Sale Details')),
       body: FutureBuilder<SaleListEntry?>(
@@ -835,7 +839,9 @@ class SaleDetailsScreen extends ConsumerWidget {
                       children: [
                         ListTile(
                           title: Text(sale.saleNumber),
-                          subtitle: Text('${sale.paymentType} • ${sale.status}'),
+                          subtitle: Text(
+                            '${sale.paymentType} • ${sale.status}',
+                          ),
                           trailing: CurrencyText(sale.totalAmount),
                         ),
                         const Divider(height: 1),
@@ -843,7 +849,9 @@ class SaleDetailsScreen extends ConsumerWidget {
                           leading: const Icon(Icons.calendar_today),
                           title: const Text('Date'),
                           subtitle: Text(
-                            DateFormat('MMM d, yyyy • h:mm a').format(sale.saleDate),
+                            DateFormat(
+                              'MMM d, yyyy • h:mm a',
+                            ).format(sale.saleDate),
                           ),
                         ),
                       ],
@@ -861,11 +869,11 @@ class SaleDetailsScreen extends ConsumerWidget {
                             : null,
                         onTap: sale.customerId != null
                             ? () => context.pushNamed(
-                                  AppRoutes.customerDetailsName,
-                                  pathParameters: {
-                                    'customerId': sale.customerId!,
-                                  },
-                                )
+                                AppRoutes.customerDetailsName,
+                                pathParameters: {
+                                  'customerId': sale.customerId!,
+                                },
+                              )
                             : null,
                       ),
                     ),
@@ -922,7 +930,7 @@ class SaleDetailsScreen extends ConsumerWidget {
       return;
     }
     try {
-      await ref.read(appDatabaseProvider).voidSale(saleId, reason: reason);
+      await ref.read(salesRepositoryProvider).voidSale(saleId, reason: reason);
       if (context.mounted) {
         Navigator.of(context).pop();
       }

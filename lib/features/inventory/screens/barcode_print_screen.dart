@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/domain/flowtrack_models.dart';
 import '../../../shared/providers/app_providers.dart';
+import '../data/inventory_repository.dart';
 import '../../../shared/widgets/empty_state.dart';
 
 class BarcodePrintScreen extends ConsumerWidget {
@@ -13,12 +14,12 @@ class BarcodePrintScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final database = ref.watch(appDatabaseProvider);
+    final repository = ref.watch(inventoryRepositoryProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Print Barcode')),
       body: FutureBuilder<Product?>(
-        future: database.getProduct(productId),
+        future: repository.getProduct(productId),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());

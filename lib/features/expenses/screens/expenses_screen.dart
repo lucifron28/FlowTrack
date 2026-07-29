@@ -5,9 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../../../shared/providers/app_providers.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../data/expenses_repository.dart';
 
 class ExpensesScreen extends ConsumerWidget {
   const ExpensesScreen({super.key, this.showAppBar = false});
@@ -16,7 +16,7 @@ class ExpensesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final database = ref.watch(appDatabaseProvider);
+    final database = ref.watch(expensesRepositoryProvider);
     return Scaffold(
       appBar: showAppBar ? AppBar(title: const Text('Expenses')) : null,
       body: StreamBuilder<List<Expense>>(
@@ -252,7 +252,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   Future<void> _save() async {
     try {
-      final db = ref.read(appDatabaseProvider);
+      final db = ref.read(expensesRepositoryProvider);
       final amount = CurrencyFormatter.parseToCentavos(_amountController.text);
       if (widget.expense == null) {
         await db.createExpense(
@@ -317,7 +317,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               onPressed: () {
                 final value = reasonController.text.trim();
                 if (value.isEmpty) {
-                  setDialogState(() => errorText = 'A void reason is required.');
+                  setDialogState(
+                    () => errorText = 'A void reason is required.',
+                  );
                   return;
                 }
                 Navigator.of(dialogContext).pop(value);
@@ -340,10 +342,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     setState(() => _isVoiding = true);
     try {
-      await ref.read(appDatabaseProvider).voidExpense(
-            expenseId: widget.expense!.id,
-            reason: reason,
-          );
+      await ref
+          .read(expensesRepositoryProvider)
+          .voidExpense(expenseId: widget.expense!.id, reason: reason);
       if (mounted) {
         Navigator.of(context).pop();
       }
