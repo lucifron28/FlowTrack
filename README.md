@@ -230,7 +230,9 @@ Money values are stored as integer centavos.
 ## Documentation
 
 - `README.md`: project status, features, setup, business rules, tests, pending work, and decisions.
-- `docs/backup.md`: local `.flowtrack-backup` format, owner flow, restore behavior, and limits.
+- `SECURITY.md`: offline security model, local storage boundaries, encrypted backups, permissions, and vulnerability reporting.
+- `CHANGELOG.md`: version history, release notes, and security hygiene additions.
+- `docs/backup.md`: local `.flowtrack-backup` encrypted format, owner flow, restore behavior, and limits.
 - `docs/demo.md`: phone demo script, QA checklist, sample data, and scan values.
 - `docs/release-checklist.md`: Android identity, release signing, demo QA, and final release blockers.
 - `demo/README.md`: barcode asset manifest aligned with Sync demo data.
