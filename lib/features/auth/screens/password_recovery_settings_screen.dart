@@ -92,7 +92,7 @@ class _PasswordRecoverySettingsScreenState
                       enabled: !isBusy,
                       title: 'New recovery questions',
                       subtitle:
-                          'Use answers that are personal and easy for you to remember.',
+                          'Use answers that are personal and easy for you to remember, but difficult for other people to guess. A private made-up answer is okay.',
                     ),
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 12),

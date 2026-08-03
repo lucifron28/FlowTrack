@@ -67,7 +67,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             if (questions.length != RecoveryQuestionCatalog.requiredCount) {
               return _MessageContent(
                 message:
-                    'Password recovery has not been set up on this device.',
+                    'Password recovery has not been set up on this device. If this account was created before recovery was added, log in once and set it up in Settings.',
                 onBack: () => context.go(AppRoutes.login),
               );
             }
@@ -85,6 +85,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       Text(
                         'Answer your three questions, then choose a new password.',
                         style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Choose answers that are easy for you but difficult for other people to know. Avoid information visible on social media, or use a private made-up answer only you will remember.',
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(height: 20),
                       for (
@@ -145,8 +150,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                           labelText: 'New password',
                           prefixIcon: Icon(Icons.lock),
                         ),
-                        validator: (value) => value == null || value.length < 4
-                            ? 'Password must be at least 4 characters.'
+                        validator: (value) => value == null || value.length < 8
+                            ? 'Password must be at least 8 characters.'
                             : null,
                       ),
                       const SizedBox(height: 12),
@@ -231,7 +236,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         case PasswordRecoveryStatus.notConfigured:
           setState(
             () => _errorMessage =
-                'Password recovery has not been set up on this device.',
+                'Password recovery has not been set up on this device. Log in once and set it up in Settings.',
           );
         case PasswordRecoveryStatus.invalidAnswers:
           setState(

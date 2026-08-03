@@ -152,8 +152,8 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                         prefixIcon: Icon(Icons.lock),
                       ),
                       validator: (value) {
-                        if (value == null || value.length < 4) {
-                          return 'Password must be at least 4 characters.';
+                        if (value == null || value.length < 8) {
+                          return 'Password must be at least 8 characters.';
                         }
                         return null;
                       },

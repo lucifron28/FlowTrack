@@ -9,7 +9,7 @@ class RecoveryQuestionsForm extends StatefulWidget {
     this.enabled = true,
     this.title = 'Recovery questions',
     this.subtitle =
-        'Choose three easy questions. You will need these answers if you forget your password.',
+        'Choose three easy questions. Use answers that are personal and difficult for other people to guess. A private made-up answer is okay.',
   });
 
   final List<String>? initialQuestionIds;
@@ -90,7 +90,10 @@ class RecoveryQuestionsFormState extends State<RecoveryQuestionsForm> {
               onChanged: widget.enabled
                   ? (value) {
                       if (value == null) return;
-                      setState(() => _selectedQuestionIds[index] = value);
+                      setState(() {
+                        _selectedQuestionIds[index] = value;
+                        _answerControllers[index].clear();
+                      });
                     }
                   : null,
             ),
@@ -120,9 +123,15 @@ class RecoveryQuestionsFormState extends State<RecoveryQuestionsForm> {
                   ),
                 ),
               ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Answer is required.'
-                  : null,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Answer is required.';
+                }
+                if (RecoveryQuestionCatalog.isWeakAnswer(value)) {
+                  return 'Choose a more personal answer.';
+                }
+                return null;
+              },
             ),
             if (index < RecoveryQuestionCatalog.requiredCount - 1)
               const SizedBox(height: 8),
