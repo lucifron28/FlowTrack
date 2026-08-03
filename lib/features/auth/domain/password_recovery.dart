@@ -61,6 +61,14 @@ class RecoveryQuestionCatalog {
 
   static const requiredCount = 3;
 
+  static const weakAnswers = <String>{
+    '123',
+    '1234',
+    'answer',
+    'none',
+    'password',
+  };
+
   static RecoveryQuestion byId(String id) {
     for (final question in all) {
       if (question.id == id) {
@@ -72,5 +80,9 @@ class RecoveryQuestionCatalog {
 
   static String normalizeAnswer(String answer) {
     return answer.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+  }
+
+  static bool isWeakAnswer(String answer) {
+    return weakAnswers.contains(normalizeAnswer(answer));
   }
 }

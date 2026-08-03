@@ -21,6 +21,16 @@ class MemorySecureStorage implements SecureStorageAdapter {
   }
 }
 
+class FailingPasswordStorage extends MemorySecureStorage {
+  @override
+  Future<void> write({required String key, required String value}) async {
+    if (key == 'owner_password_bundle_v2') {
+      throw StateError('Password storage is unavailable.');
+    }
+    await super.write(key: key, value: value);
+  }
+}
+
 void main() {
   const answers = {
     'family_nickname': 'Lala',
@@ -56,6 +66,50 @@ void main() {
       records.map((record) => (record as Map<String, dynamic>)['salt']).toSet(),
       hasLength(3),
     );
+    expect(
+      records.every(
+        (record) =>
+            (record as Map<String, dynamic>)['algorithm'] == 'pbkdf2_sha256_v1',
+      ),
+      isTrue,
+    );
+    expect(
+      records.every(
+        (record) => (record as Map<String, dynamic>)['iterations'] == 2,
+      ),
+      isTrue,
+    );
+
+    final serviceWithDifferentDefault = LocalAuthService(
+      adapter: storage,
+      passwordIterations: 3,
+    );
+    final result = await serviceWithDifferentDefault.recoverPassword(
+      recoveryAnswers: answers,
+      newPassword: 'new-pass',
+    );
+    expect(result.status, PasswordRecoveryStatus.success);
+  });
+
+  test('a failed first-run password write leaves no owner account', () async {
+    final failingStorage = FailingPasswordStorage();
+    final failingService = LocalAuthService(
+      adapter: failingStorage,
+      passwordIterations: 2,
+    );
+
+    await expectLater(
+      failingService.setupOwner(
+        ownerName: 'Nena',
+        password: 'old-pass',
+        recoveryAnswers: answers,
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(await failingService.hasOwnerAccount(), isFalse);
+    expect(await failingService.ownerName(), isNull);
+    expect(await failingService.recoveryQuestions(), isEmpty);
   });
 
   test('normalizes easy answer differences and resets the password', () async {
@@ -113,6 +167,147 @@ void main() {
       expect(await service.verifyPassword('old-pass'), isTrue);
     },
   );
+
+  test('evaluates every recovery answer before returning a mismatch', () async {
+    var hashCalls = 0;
+    final countingService = LocalAuthService(
+      adapter: storage,
+      passwordIterations: 2,
+      hashFunction:
+          ({
+            required String password,
+            required String salt,
+            required int iterations,
+          }) {
+            hashCalls++;
+            return '$password|$salt|$iterations';
+          },
+    );
+
+    await countingService.setupOwner(
+      ownerName: 'Nena',
+      password: 'old-pass',
+      recoveryAnswers: answers,
+    );
+    hashCalls = 0;
+
+    final result = await countingService.recoverPassword(
+      recoveryAnswers: const {
+        'family_nickname': 'wrong',
+        'first_pet': 'wrong',
+        'childhood_best_friend': 'wrong',
+      },
+      newPassword: 'new-pass',
+    );
+
+    expect(result.status, PasswordRecoveryStatus.invalidAnswers);
+    expect(hashCalls, 3);
+  });
+
+  test('recovery lockout expires using the injected clock', () async {
+    var now = DateTime(2026, 1, 1);
+    final clockedService = LocalAuthService(
+      adapter: storage,
+      passwordIterations: 2,
+      clock: () => now,
+    );
+    await clockedService.setupOwner(
+      ownerName: 'Nena',
+      password: 'old-pass',
+      recoveryAnswers: answers,
+    );
+
+    for (var attempt = 0; attempt < 5; attempt++) {
+      await clockedService.recoverPassword(
+        recoveryAnswers: const {
+          'family_nickname': 'wrong',
+          'first_pet': 'wrong',
+          'childhood_best_friend': 'wrong',
+        },
+        newPassword: 'new-pass',
+      );
+    }
+
+    now = now.add(const Duration(minutes: 16));
+    final result = await clockedService.recoverPassword(
+      recoveryAnswers: answers,
+      newPassword: 'new-pass',
+    );
+    expect(result.status, PasswordRecoveryStatus.success);
+  });
+
+  test('new and reset passwords require eight characters', () async {
+    await expectLater(
+      service.setupOwner(
+        ownerName: 'Nena',
+        password: '1234567',
+        recoveryAnswers: answers,
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    await service.setupOwner(
+      ownerName: 'Nena',
+      password: 'old-pass',
+      recoveryAnswers: answers,
+    );
+    await expectLater(
+      service.recoverPassword(recoveryAnswers: answers, newPassword: '1234567'),
+      throwsA(isA<StateError>()),
+    );
+  });
+
+  test('rejects unsupported recovery configuration versions', () async {
+    await service.setupOwner(
+      ownerName: 'Nena',
+      password: 'old-pass',
+      recoveryAnswers: answers,
+    );
+    final config =
+        jsonDecode(storage.values['owner_recovery_questions_v1']!)
+            as Map<String, dynamic>;
+    config['version'] = 2;
+    storage.values['owner_recovery_questions_v1'] = jsonEncode(config);
+
+    expect(await service.recoveryQuestions(), isEmpty);
+    final result = await service.recoverPassword(
+      recoveryAnswers: answers,
+      newPassword: 'new-pass',
+    );
+    expect(result.status, PasswordRecoveryStatus.notConfigured);
+  });
+
+  test('rejects common weak recovery answers', () async {
+    await expectLater(
+      service.setupOwner(
+        ownerName: 'Nena',
+        password: 'old-pass',
+        recoveryAnswers: const {
+          'family_nickname': 'password',
+          'first_pet': 'Bantay',
+          'childhood_best_friend': 'Mia',
+        },
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    await service.setupOwner(
+      ownerName: 'Nena',
+      password: 'old-pass',
+      recoveryAnswers: answers,
+    );
+    await expectLater(
+      service.updateRecoveryQuestions(
+        currentPassword: 'old-pass',
+        recoveryAnswers: const {
+          'family_nickname': 'Lala',
+          'first_pet': '1234',
+          'childhood_best_friend': 'Mia',
+        },
+      ),
+      throwsA(isA<StateError>()),
+    );
+  });
 
   test('updating recovery questions requires the current password', () async {
     await service.setupOwner(

@@ -6,6 +6,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../features/auth/domain/password_recovery.dart';
 
+typedef PasswordHashFunction =
+    String Function({
+      required String password,
+      required String salt,
+      required int iterations,
+    });
+
 abstract class SecureStorageAdapter {
   Future<String?> read({required String key});
 
@@ -35,10 +42,14 @@ class LocalAuthService {
     FlutterSecureStorage? storage,
     SecureStorageAdapter? adapter,
     int passwordIterations = _passwordIterations,
+    DateTime Function()? clock,
+    PasswordHashFunction? hashFunction,
   }) : _storage =
            adapter ??
            FlutterSecureStorageAdapter(storage ?? const FlutterSecureStorage()),
-       _hashIterations = passwordIterations {
+       _hashIterations = passwordIterations,
+       _clock = clock ?? DateTime.now,
+       _hashFunction = hashFunction ?? PasswordHasher.pbkdf2Hash {
     if (passwordIterations <= 0) {
       throw ArgumentError.value(
         passwordIterations,
@@ -56,6 +67,8 @@ class LocalAuthService {
   static const _passwordIterationsKey = 'owner_password_iterations';
   static const _passwordAlgorithm = 'pbkdf2_sha256_v1';
   static const _passwordIterations = 120000;
+  static const _minimumPasswordLength = 8;
+  static const _recoveryConfigVersion = 1;
   static const _recoveryConfigKey = 'owner_recovery_questions_v1';
   static const _recoveryAttemptsKey = 'owner_recovery_attempts';
   static const _recoveryLockedUntilKey = 'owner_recovery_locked_until';
@@ -64,6 +77,8 @@ class LocalAuthService {
 
   final SecureStorageAdapter _storage;
   final int _hashIterations;
+  final DateTime Function() _clock;
+  final PasswordHashFunction _hashFunction;
 
   Future<bool> hasOwnerAccount() async {
     final bundle = await _readPasswordBundle();
@@ -87,18 +102,27 @@ class LocalAuthService {
     required String password,
     required Map<String, String> recoveryAnswers,
   }) async {
+    if (await hasOwnerAccount()) {
+      throw StateError('Owner account already exists.');
+    }
     _validatePassword(password);
     final recoveryConfig = _buildRecoveryConfig(recoveryAnswers);
-    await _storage.write(key: _ownerNameKey, value: ownerName.trim());
-    await _storePassword(password);
-    await _writeRecoveryConfig(recoveryConfig);
-    await _clearRecoveryFailures();
+    try {
+      await _storage.write(key: _ownerNameKey, value: ownerName.trim());
+      await _writeRecoveryConfig(recoveryConfig);
+      // The password bundle is the final commit marker for a new account.
+      await _storePassword(password);
+      await _clearRecoveryFailures();
+    } catch (_) {
+      await _clearSetupArtifacts();
+      rethrow;
+    }
   }
 
   Future<bool> verifyPassword(String password) async {
     final bundle = await _readPasswordBundle();
     if (bundle != null) {
-      final hash = PasswordHasher.pbkdf2Hash(
+      final hash = _hashFunction(
         password: password,
         salt: bundle.salt,
         iterations: bundle.iterations,
@@ -115,7 +139,7 @@ class LocalAuthService {
     }
     if (algorithm == _passwordAlgorithm) {
       final iterations = int.tryParse(iterationsText ?? '') ?? _hashIterations;
-      final hash = PasswordHasher.pbkdf2Hash(
+      final hash = _hashFunction(
         password: password,
         salt: salt,
         iterations: iterations,
@@ -181,7 +205,7 @@ class LocalAuthService {
   }) async {
     _validatePassword(newPassword);
 
-    final now = DateTime.now();
+    final now = _clock();
     final lockedUntil = await _readRecoveryLockout();
     if (lockedUntil != null && now.isBefore(lockedUntil)) {
       return PasswordRecoveryResult(
@@ -219,7 +243,7 @@ class LocalAuthService {
     final salt = _newSalt();
     final record = _PasswordRecord(
       salt: salt,
-      hash: PasswordHasher.pbkdf2Hash(
+      hash: _hashFunction(
         password: password,
         salt: salt,
         iterations: _hashIterations,
@@ -282,13 +306,20 @@ class LocalAuthService {
       if (normalizedAnswer.isEmpty) {
         throw StateError('Recovery answers cannot be blank.');
       }
+      if (RecoveryQuestionCatalog.isWeakAnswer(normalizedAnswer)) {
+        throw StateError(
+          'Choose a personal recovery answer that is harder to guess.',
+        );
+      }
 
       final salt = _newSalt();
       records.add(
         _RecoveryAnswerRecord(
           questionId: questionId,
           salt: salt,
-          hash: PasswordHasher.pbkdf2Hash(
+          algorithm: _passwordAlgorithm,
+          iterations: _hashIterations,
+          hash: _hashFunction(
             password: normalizedAnswer,
             salt: salt,
             iterations: _hashIterations,
@@ -327,28 +358,21 @@ class LocalAuthService {
     _RecoveryConfig config,
     Map<String, String> answers,
   ) {
-    if (answers.length != config.records.length) {
-      return false;
-    }
+    var allMatch = answers.length == config.records.length;
     for (final record in config.records) {
-      final answer = answers[record.questionId];
-      if (answer == null) {
-        return false;
-      }
-      final normalizedAnswer = RecoveryQuestionCatalog.normalizeAnswer(answer);
-      if (normalizedAnswer.isEmpty) {
-        return false;
-      }
-      final hash = PasswordHasher.pbkdf2Hash(
+      final normalizedAnswer = RecoveryQuestionCatalog.normalizeAnswer(
+        answers[record.questionId] ?? '',
+      );
+      final hash = _hashFunction(
         password: normalizedAnswer,
         salt: record.salt,
-        iterations: _hashIterations,
+        iterations: record.iterations,
       );
-      if (!PasswordHasher.fixedTimeEquals(hash, record.hash)) {
-        return false;
-      }
+      final hashMatches = PasswordHasher.fixedTimeEquals(hash, record.hash);
+      final matches = normalizedAnswer.isNotEmpty && hashMatches;
+      allMatch = matches && allMatch;
     }
-    return true;
+    return allMatch;
   }
 
   Future<PasswordRecoveryResult> _recordRecoveryFailure(DateTime now) async {
@@ -394,9 +418,31 @@ class LocalAuthService {
     }
   }
 
+  Future<void> _clearSetupArtifacts() async {
+    for (final key in [
+      _ownerNameKey,
+      _passwordBundleKey,
+      _passwordSaltKey,
+      _passwordHashKey,
+      _passwordAlgorithmKey,
+      _passwordIterationsKey,
+      _recoveryConfigKey,
+      _recoveryAttemptsKey,
+      _recoveryLockedUntilKey,
+    ]) {
+      try {
+        await _storage.delete(key: key);
+      } catch (_) {
+        // Best-effort cleanup keeps a failed first-run setup retryable.
+      }
+    }
+  }
+
   void _validatePassword(String password) {
-    if (password.length < 4) {
-      throw StateError('Password must be at least 4 characters.');
+    if (password.length < _minimumPasswordLength) {
+      throw StateError(
+        'Password must be at least $_minimumPasswordLength characters.',
+      );
     }
   }
 }
@@ -438,30 +484,45 @@ class _PasswordRecord {
 class _RecoveryAnswerRecord {
   const _RecoveryAnswerRecord({
     required this.questionId,
+    required this.algorithm,
+    required this.iterations,
     required this.salt,
     required this.hash,
   });
 
   final String questionId;
+  final String algorithm;
+  final int iterations;
   final String salt;
   final String hash;
 
   Map<String, dynamic> toJson() => {
     'questionId': questionId,
+    'algorithm': algorithm,
+    'iterations': iterations,
     'salt': salt,
     'hash': hash,
   };
 
   factory _RecoveryAnswerRecord.fromJson(Map<String, dynamic> json) {
     final questionId = json['questionId'];
+    final algorithm = json['algorithm'];
+    final iterations = json['iterations'];
     final salt = json['salt'];
     final hash = json['hash'];
-    if (questionId is! String || salt is! String || hash is! String) {
+    if (questionId is! String ||
+        algorithm != LocalAuthService._passwordAlgorithm ||
+        iterations is! int ||
+        iterations <= 0 ||
+        salt is! String ||
+        hash is! String) {
       throw const FormatException('Invalid recovery answer record.');
     }
     RecoveryQuestionCatalog.byId(questionId);
     return _RecoveryAnswerRecord(
       questionId: questionId,
+      algorithm: algorithm as String,
+      iterations: iterations,
       salt: salt,
       hash: hash,
     );
@@ -477,11 +538,14 @@ class _RecoveryConfig {
       records.map((record) => record.questionId).toList(growable: false);
 
   Map<String, dynamic> toJson() => {
-    'version': 1,
+    'version': LocalAuthService._recoveryConfigVersion,
     'records': records.map((record) => record.toJson()).toList(),
   };
 
   factory _RecoveryConfig.fromJson(Map<String, dynamic> json) {
+    if (json['version'] != LocalAuthService._recoveryConfigVersion) {
+      throw const FormatException('Unsupported recovery configuration.');
+    }
     final records = json['records'];
     if (records is! List ||
         records.length != RecoveryQuestionCatalog.requiredCount) {
