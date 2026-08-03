@@ -92,13 +92,18 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         index < questions.length;
                         index++
                       ) ...[
+                        Text(
+                          questions[index].prompt,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 4),
                         TextFormField(
                           controller: _answerControllers[index],
                           enabled: !isBusy,
                           obscureText: !_showAnswers[index],
                           textCapitalization: TextCapitalization.sentences,
                           decoration: InputDecoration(
-                            labelText: questions[index].prompt,
+                            labelText: 'Answer ${index + 1}',
                             prefixIcon: const Icon(Icons.help_outline),
                             suffixIcon: IconButton(
                               tooltip: _showAnswers[index]
