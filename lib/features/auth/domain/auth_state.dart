@@ -11,6 +11,8 @@ enum AuthOperation {
   settingUpOwner,
   updatingProfile,
   authenticating,
+  recoveringPassword,
+  updatingRecoveryQuestions,
 }
 
 class AuthState {

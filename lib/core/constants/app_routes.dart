@@ -3,6 +3,7 @@ class AppRoutes {
 
   static const root = '/';
   static const login = '/login';
+  static const forgotPassword = '/forgot-password';
   static const ownerSetup = '/owner-setup';
   static const newSale = '/sales/new';
   static const saleDetails = '/sales/:saleId';
@@ -22,9 +23,11 @@ class AppRoutes {
   static const expenses = '/expenses';
   static const reports = '/reports';
   static const settings = '/settings';
+  static const passwordRecoverySettings = '/settings/password-recovery';
 
   static const rootName = 'root';
   static const loginName = 'login';
+  static const forgotPasswordName = 'forgot-password';
   static const ownerSetupName = 'owner-setup';
   static const newSaleName = 'new-sale';
   static const saleDetailsName = 'sale-details';
@@ -44,4 +47,5 @@ class AppRoutes {
   static const expensesName = 'expenses';
   static const reportsName = 'reports';
   static const settingsName = 'settings';
+  static const passwordRecoverySettingsName = 'password-recovery-settings';
 }
