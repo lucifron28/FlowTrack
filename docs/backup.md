@@ -26,6 +26,7 @@ Not included:
 
 - owner password
 - secure-storage password salt or hash
+- recovery question answers, hashes, and lockout state
 - generated barcode PDF files
 - temporary cache files
 

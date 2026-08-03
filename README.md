@@ -23,6 +23,7 @@ Feature status:
 | Feature | Status | Notes |
 | --- | --- | --- |
 | Owner setup/login/logout | Done | Offline local owner setup/login works with secure storage and PBKDF2-HMAC-SHA256. Theme and owner profile are rehydrated on startup. |
+| Offline password recovery | Done | New owners choose three simple personal questions. Forgot Password verifies salted answer hashes offline, applies a five-attempt/15-minute lockout, and lets the owner set a new password. |
 | Dashboard | Done | Shows local sales, expenses, net income, outstanding credit, stock alerts, completed recent sales, and ordered stock alerts. Pull-to-refresh reloads one dashboard snapshot. |
 | Inventory | Done | Add, edit price/cost/low-stock settings, restock, adjust stock, stock history, search, status filter. Product deactivation (archival) is fully implemented. |
 | Manufacturer barcode products | Done | Camera scan and manual barcode entry are implemented. Corrected EAN-13 checksums and barcode formats. |
@@ -49,6 +50,7 @@ Included in backup:
 Not included:
 
 - owner password and secure-storage credentials
+- recovery question answers, recovery hashes, and recovery lockout state
 - generated barcode PDF files
 - temporary cache files
 - cloud sync data
@@ -260,6 +262,7 @@ Current tests cover:
 - Local backup JSON export/restore behavior.
 - Printable barcode PDF generation.
 - Password hash helper behavior.
+- Offline password recovery answer hashing, reset, and lockout behavior.
 - Product active/deactive deactivation toggles and active list filtering.
 - Customer update and delete operations with balance/history constraint validation.
 - Expense update audit records and void-history preservation.
@@ -289,7 +292,8 @@ Product gaps:
 - Whether receipt printing is required.
 - Whether barcode PDF output is enough or dedicated printer support is required.
 - Target printer model and label size if printing is required.
-- Offline password recovery policy.
+- Whether to add a printable emergency recovery code for device loss.
+- Whether recovery questions should be required immediately for existing installations.
 - Whether partial credit payment during a sale is allowed.
 - Whether overpayment is ever allowed.
 - Whether negative stock is ever allowed.
