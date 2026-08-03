@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/local_auth_service.dart';
 import '../../../shared/providers/app_providers.dart';
-
+import '../domain/password_recovery.dart';
 
 class AuthController extends AsyncNotifier<AuthState> {
   LocalAuthService get _authService => ref.read(localAuthServiceProvider);
@@ -29,6 +29,7 @@ class AuthController extends AsyncNotifier<AuthState> {
   Future<bool> setupOwner({
     required String ownerName,
     required String password,
+    required Map<String, String> recoveryAnswers,
   }) async {
     final prev = state.asData?.value;
     if (prev == null) return false;
@@ -42,14 +43,20 @@ class AuthController extends AsyncNotifier<AuthState> {
     );
 
     try {
-      await _authService.setupOwner(ownerName: ownerName, password: password);
+      await _authService.setupOwner(
+        ownerName: ownerName,
+        password: password,
+        recoveryAnswers: recoveryAnswers,
+      );
       final current = state.asData?.value;
       if (current == null) return false;
-      state = AsyncValue.data(AuthState(
-        status: AuthStatus.authenticated,
-        hasOwner: true,
-        ownerName: ownerName.trim(),
-      ));
+      state = AsyncValue.data(
+        AuthState(
+          status: AuthStatus.authenticated,
+          hasOwner: true,
+          ownerName: ownerName.trim(),
+        ),
+      );
       return true;
     } catch (_) {
       final current = state.asData?.value;
@@ -61,6 +68,98 @@ class AuthController extends AsyncNotifier<AuthState> {
         ),
       );
       return false;
+    }
+  }
+
+  Future<bool> updateRecoveryQuestions({
+    required String currentPassword,
+    required Map<String, String> recoveryAnswers,
+  }) async {
+    final prev = state.asData?.value;
+    if (prev == null || prev.status != AuthStatus.authenticated) return false;
+    if (prev.operation != AuthOperation.idle) return false;
+
+    state = AsyncValue.data(
+      prev.copyWith(
+        operation: AuthOperation.updatingRecoveryQuestions,
+        errorMessage: null,
+      ),
+    );
+
+    try {
+      await _authService.updateRecoveryQuestions(
+        currentPassword: currentPassword,
+        recoveryAnswers: recoveryAnswers,
+      );
+      final current = state.asData?.value;
+      if (current == null || current.status != AuthStatus.authenticated) {
+        return false;
+      }
+      state = AsyncValue.data(current.copyWith(operation: AuthOperation.idle));
+      return true;
+    } catch (error) {
+      final current = state.asData?.value;
+      if (current == null || current.status != AuthStatus.authenticated) {
+        return false;
+      }
+      state = AsyncValue.data(
+        current.copyWith(
+          operation: AuthOperation.idle,
+          errorMessage: error is StateError
+              ? error.message.toString()
+              : 'Recovery questions could not be saved.',
+        ),
+      );
+      return false;
+    }
+  }
+
+  Future<PasswordRecoveryResult> recoverPassword({
+    required Map<String, String> recoveryAnswers,
+    required String newPassword,
+  }) async {
+    final prev = state.asData?.value;
+    if (prev == null || prev.status != AuthStatus.unauthenticated) {
+      return const PasswordRecoveryResult(
+        status: PasswordRecoveryStatus.invalidAnswers,
+      );
+    }
+    if (prev.operation != AuthOperation.idle) {
+      return const PasswordRecoveryResult(
+        status: PasswordRecoveryStatus.invalidAnswers,
+      );
+    }
+
+    state = AsyncValue.data(
+      prev.copyWith(
+        operation: AuthOperation.recoveringPassword,
+        errorMessage: null,
+      ),
+    );
+
+    try {
+      final result = await _authService.recoverPassword(
+        recoveryAnswers: recoveryAnswers,
+        newPassword: newPassword,
+      );
+      final current = state.asData?.value;
+      if (current != null && current.status == AuthStatus.unauthenticated) {
+        state = AsyncValue.data(
+          current.copyWith(operation: AuthOperation.idle),
+        );
+      }
+      return result;
+    } catch (_) {
+      final current = state.asData?.value;
+      if (current != null && current.status == AuthStatus.unauthenticated) {
+        state = AsyncValue.data(
+          current.copyWith(
+            operation: AuthOperation.idle,
+            errorMessage: 'Password recovery failed. Please try again.',
+          ),
+        );
+      }
+      rethrow;
     }
   }
 
@@ -83,10 +182,7 @@ class AuthController extends AsyncNotifier<AuthState> {
         return false;
       }
       state = AsyncValue.data(
-        current.copyWith(
-          ownerName: name.trim(),
-          operation: AuthOperation.idle,
-        ),
+        current.copyWith(ownerName: name.trim(), operation: AuthOperation.idle),
       );
       return true;
     } catch (_) {
@@ -105,7 +201,8 @@ class AuthController extends AsyncNotifier<AuthState> {
   }
 
   Future<void> login(String password) async {
-    final prev = state.asData?.value ??
+    final prev =
+        state.asData?.value ??
         AuthState(
           status: AuthStatus.unauthenticated,
           hasOwner: await _authService.hasOwnerAccount(),
@@ -114,20 +211,24 @@ class AuthController extends AsyncNotifier<AuthState> {
 
     if (prev.operation != AuthOperation.idle) return;
 
-    state = AsyncValue.data(prev.copyWith(
-      status: AuthStatus.authenticating,
-      operation: AuthOperation.authenticating,
-      errorMessage: null,
-    ));
+    state = AsyncValue.data(
+      prev.copyWith(
+        status: AuthStatus.authenticating,
+        operation: AuthOperation.authenticating,
+        errorMessage: null,
+      ),
+    );
 
     try {
       final success = await _authService.verifyPassword(password);
       if (!success) {
-        state = AsyncValue.data(prev.copyWith(
-          status: AuthStatus.unauthenticated,
-          operation: AuthOperation.idle,
-          errorMessage: 'Invalid password. Please try again.',
-        ));
+        state = AsyncValue.data(
+          prev.copyWith(
+            status: AuthStatus.unauthenticated,
+            operation: AuthOperation.idle,
+            errorMessage: 'Invalid password. Please try again.',
+          ),
+        );
         throw const AuthException('Invalid password. Please try again.');
       }
       state = AsyncValue.data(
@@ -139,11 +240,13 @@ class AuthController extends AsyncNotifier<AuthState> {
       );
     } catch (e) {
       if (e is! AuthException) {
-        state = AsyncValue.data(prev.copyWith(
-          status: AuthStatus.unauthenticated,
-          operation: AuthOperation.idle,
-          errorMessage: 'Authentication failed.',
-        ));
+        state = AsyncValue.data(
+          prev.copyWith(
+            status: AuthStatus.unauthenticated,
+            operation: AuthOperation.idle,
+            errorMessage: 'Authentication failed.',
+          ),
+        );
       }
       rethrow;
     }
