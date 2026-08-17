@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../core/constants/app_routes.dart';
 import '../../../shared/providers/app_providers.dart';
 import '../../dashboard/screens/main_shell.dart';
+import '../widgets/recovery_questions_form.dart';
 
 class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
@@ -17,7 +20,9 @@ class AuthGate extends ConsumerWidget {
       error: (error, stackTrace) => _AuthError(message: error.toString()),
       data: (state) {
         if (state.status == AuthStatus.initializing) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         if (state.status == AuthStatus.initializationFailed) {
           return Scaffold(
@@ -32,7 +37,11 @@ class AuthGate extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'Failed to initialize authentication service.',
@@ -70,6 +79,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   final _ownerController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+  final _recoveryFormKey = GlobalKey<RecoveryQuestionsFormState>();
 
   @override
   void dispose() {
@@ -142,8 +152,8 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                         prefixIcon: Icon(Icons.lock),
                       ),
                       validator: (value) {
-                        if (value == null || value.length < 4) {
-                          return 'Password must be at least 4 characters.';
+                        if (value == null || value.length < 8) {
+                          return 'Password must be at least 8 characters.';
                         }
                         return null;
                       },
@@ -161,11 +171,18 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                           ? 'Passwords do not match.'
                           : null,
                     ),
+                    const SizedBox(height: 20),
+                    RecoveryQuestionsForm(
+                      key: _recoveryFormKey,
+                      enabled: !isSettingUp,
+                    ),
                     if (errorMessage != null) ...[
                       const SizedBox(height: 12),
                       Text(
                         errorMessage,
-                        style: TextStyle(color: Theme.of(context).colorScheme.error),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -182,7 +199,9 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                               ),
                             )
                           : const Icon(Icons.check),
-                      label: Text(isSettingUp ? 'Creating...' : 'Create owner account'),
+                      label: Text(
+                        isSettingUp ? 'Creating...' : 'Create owner account',
+                      ),
                     ),
                   ],
                 ),
@@ -195,7 +214,8 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!.validate() ||
+        !_recoveryFormKey.currentState!.validate()) {
       return;
     }
     await ref
@@ -203,6 +223,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
         .setupOwner(
           ownerName: _ownerController.text,
           password: _passwordController.text,
+          recoveryAnswers: _recoveryFormKey.currentState!.answers,
         );
   }
 }
@@ -304,7 +325,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: null,
+                    onPressed: isAuthenticating
+                        ? null
+                        : () => context.push(AppRoutes.forgotPassword),
                     child: const Text('Forgot password'),
                   ),
                 ],

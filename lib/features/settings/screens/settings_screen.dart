@@ -2,9 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/config/app_environment.dart';
+import '../../../core/constants/app_routes.dart';
 import '../../../core/services/backup_crypto_service.dart';
 import '../../../shared/providers/app_providers.dart';
 
@@ -74,7 +76,8 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   SegmentedButton<ThemeMode>(
-                    direction: MediaQuery.textScalerOf(context).scale(10.0) > 14.0
+                    direction:
+                        MediaQuery.textScalerOf(context).scale(10.0) > 14.0
                         ? Axis.vertical
                         : Axis.horizontal,
                     segments: const [
@@ -172,6 +175,14 @@ class SettingsScreen extends ConsumerWidget {
                     storeNameAsync.value,
                   ),
                 ),
+                ListTile(
+                  leading: const Icon(Icons.lock_reset),
+                  title: const Text('Password recovery'),
+                  subtitle: const Text(
+                    'Update your offline recovery questions.',
+                  ),
+                  onTap: () => context.push(AppRoutes.passwordRecoverySettings),
+                ),
                 const ListTile(
                   leading: Icon(Icons.sell),
                   title: Text('Currency symbol'),
@@ -228,7 +239,8 @@ class SettingsScreen extends ConsumerWidget {
       builder: (context) => Consumer(
         builder: (context, ref, child) {
           final authState = ref.watch(authControllerProvider).asData?.value;
-          final isUpdating = authState?.operation == AuthOperation.updatingProfile;
+          final isUpdating =
+              authState?.operation == AuthOperation.updatingProfile;
           final authErrorMessage = authState?.errorMessage;
 
           return StatefulBuilder(
@@ -262,7 +274,9 @@ class SettingsScreen extends ConsumerWidget {
                       const SizedBox(height: 12),
                       Text(
                         displayError,
-                        style: TextStyle(color: Theme.of(context).colorScheme.error),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -270,7 +284,9 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 actions: [
                   TextButton(
-                    onPressed: isSaving ? null : () => Navigator.of(context).pop(),
+                    onPressed: isSaving
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     child: const Text('Cancel'),
                   ),
                   FilledButton(
@@ -294,7 +310,9 @@ class SettingsScreen extends ConsumerWidget {
                                 }
 
                                 try {
-                                  await ref.read(appDatabaseProvider).updateStoreName(newStore);
+                                  await ref
+                                      .read(appDatabaseProvider)
+                                      .updateStoreName(newStore);
                                   ref.invalidate(storeNameProvider);
                                 } catch (dbError) {
                                   setStateDialog(() {
@@ -309,7 +327,8 @@ class SettingsScreen extends ConsumerWidget {
                                 }
                               } catch (e) {
                                 setStateDialog(() {
-                                  localError = 'An error occurred while saving: $e';
+                                  localError =
+                                      'An error occurred while saving: $e';
                                 });
                               } finally {
                                 if (context.mounted) {
@@ -466,9 +485,7 @@ class _BackupToolsCardState extends ConsumerState<_BackupToolsCard> {
                       return;
                     }
                     if (!isRestore && passphrase != confirmPassphrase) {
-                      setState(
-                        () => errorText = 'Passphrases do not match',
-                      );
+                      setState(() => errorText = 'Passphrases do not match');
                       return;
                     }
                     Navigator.of(context).pop(passphrase);

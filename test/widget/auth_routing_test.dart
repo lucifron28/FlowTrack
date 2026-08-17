@@ -76,6 +76,7 @@ class FakeLocalAuthService extends LocalAuthService {
   Future<void> setupOwner({
     required String ownerName,
     required String password,
+    required Map<String, String> recoveryAnswers,
   }) async {
     setupCallCount++;
     if (setupCompleter != null) {
@@ -107,7 +108,10 @@ void main() {
   });
 
   testWidgets('Test 1: unauthenticated route protection', (tester) async {
-    final fakeAuth = FakeLocalAuthService(hasOwnerResult: true, verifyResult: false);
+    final fakeAuth = FakeLocalAuthService(
+      hasOwnerResult: true,
+      verifyResult: false,
+    );
 
     await tester.pumpWidget(
       ProviderScope(
@@ -138,7 +142,10 @@ void main() {
   });
 
   testWidgets('Test 2: successful login routing', (tester) async {
-    final fakeAuth = FakeLocalAuthService(hasOwnerResult: true, verifyResult: true);
+    final fakeAuth = FakeLocalAuthService(
+      hasOwnerResult: true,
+      verifyResult: true,
+    );
 
     await tester.pumpWidget(
       ProviderScope(
@@ -163,8 +170,13 @@ void main() {
     expect(find.byType(LoginScreen), findsNothing);
   });
 
-  testWidgets('Test 3: logout invalidates protected navigation', (tester) async {
-    final fakeAuth = FakeLocalAuthService(hasOwnerResult: true, verifyResult: true);
+  testWidgets('Test 3: logout invalidates protected navigation', (
+    tester,
+  ) async {
+    final fakeAuth = FakeLocalAuthService(
+      hasOwnerResult: true,
+      verifyResult: true,
+    );
 
     await tester.pumpWidget(
       ProviderScope(
@@ -195,7 +207,9 @@ void main() {
 
     // Invoke logout using the active settings context
     final settingsContext = tester.element(find.byType(SettingsScreen));
-    ProviderScope.containerOf(settingsContext).read(authControllerProvider.notifier).logout();
+    ProviderScope.containerOf(
+      settingsContext,
+    ).read(authControllerProvider.notifier).logout();
     await tester.pumpAndSettle();
 
     // Router transitions to LoginScreen
@@ -267,7 +281,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // Should show retry UI and NOT login or owner setup
-    expect(find.text('Failed to initialize authentication service.'), findsOneWidget);
+    expect(
+      find.text('Failed to initialize authentication service.'),
+      findsOneWidget,
+    );
     expect(find.text('Retry'), findsOneWidget);
     expect(find.byType(LoginScreen), findsNothing);
     expect(find.byType(OwnerSetupScreen), findsNothing);
@@ -279,100 +296,121 @@ void main() {
 
     // Should land on LoginScreen now
     expect(find.byType(LoginScreen), findsOneWidget);
-    expect(find.text('Failed to initialize authentication service.'), findsNothing);
+    expect(
+      find.text('Failed to initialize authentication service.'),
+      findsNothing,
+    );
   });
 
-  testWidgets('Test 6: setup operations preserve routing and prevent duplicates', (tester) async {
-    final fakeAuth = FakeLocalAuthService(
-      hasOwnerResult: false,
-    );
-    fakeAuth.setupCompleter = Completer<void>();
+  testWidgets(
+    'Test 6: setup operations preserve routing and prevent duplicates',
+    (tester) async {
+      final fakeAuth = FakeLocalAuthService(hasOwnerResult: false);
+      fakeAuth.setupCompleter = Completer<void>();
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localAuthServiceProvider.overrideWithValue(fakeAuth),
-          appDatabaseProvider.overrideWithValue(database),
-        ],
-        child: const FlowTrackApp(),
-      ),
-    );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localAuthServiceProvider.overrideWithValue(fakeAuth),
+            appDatabaseProvider.overrideWithValue(database),
+          ],
+          child: const FlowTrackApp(),
+        ),
+      );
 
-    await tester.pumpAndSettle();
-    expect(find.byType(OwnerSetupScreen), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.byType(OwnerSetupScreen), findsOneWidget);
 
-    // Enter details
-    await tester.enterText(find.bySemanticsLabel('Owner name'), 'Nena');
-    await tester.enterText(find.bySemanticsLabel('Password'), 'password');
-    await tester.enterText(find.bySemanticsLabel('Confirm password'), 'password');
+      // Enter details
+      await tester.enterText(find.bySemanticsLabel('Owner name'), 'Nena');
+      await tester.enterText(find.bySemanticsLabel('Password'), 'password');
+      await tester.enterText(
+        find.bySemanticsLabel('Confirm password'),
+        'password',
+      );
+      await tester.enterText(find.bySemanticsLabel('Answer 1'), 'Lala');
+      await tester.enterText(find.bySemanticsLabel('Answer 2'), 'Bantay');
+      await tester.enterText(find.bySemanticsLabel('Answer 3'), 'Piattos');
 
-    // Tap Create once
-    await tester.tap(find.text('Create owner account'));
-    await tester.pump();
+      // Tap Create once
+      await tester.ensureVisible(find.text('Create owner account'));
+      await tester.tap(find.text('Create owner account'));
+      await tester.pump();
 
-    // Verify it is loading/creating
-    expect(find.text('Creating...'), findsOneWidget);
+      // Verify it is loading/creating
+      expect(find.text('Creating...'), findsOneWidget);
 
-    // Tap again to verify duplicate attempts are blocked
-    await tester.tap(find.text('Creating...'));
-    await tester.pump();
+      // Tap again to verify duplicate attempts are blocked
+      await tester.tap(find.text('Creating...'));
+      await tester.pump();
 
-    // Complete setup
-    fakeAuth.setupCompleter!.complete();
-    await tester.pumpAndSettle();
+      // Complete setup
+      fakeAuth.setupCompleter!.complete();
+      await tester.pumpAndSettle();
 
-    expect(fakeAuth.setupCallCount, 1);
-    expect(find.byType(MainShell), findsOneWidget);
-  });
+      expect(fakeAuth.setupCallCount, 1);
+      expect(find.byType(MainShell), findsOneWidget);
+    },
+  );
 
-  testWidgets('Test 7: async profile update completion does not override logout', (tester) async {
-    final fakeAuth = FakeLocalAuthService(hasOwnerResult: true, verifyResult: true);
-    fakeAuth.updateCompleter = Completer<void>();
+  testWidgets(
+    'Test 7: async profile update completion does not override logout',
+    (tester) async {
+      final fakeAuth = FakeLocalAuthService(
+        hasOwnerResult: true,
+        verifyResult: true,
+      );
+      fakeAuth.updateCompleter = Completer<void>();
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localAuthServiceProvider.overrideWithValue(fakeAuth),
-          appDatabaseProvider.overrideWithValue(database),
-        ],
-        child: const FlowTrackApp(),
-      ),
-    );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localAuthServiceProvider.overrideWithValue(fakeAuth),
+            appDatabaseProvider.overrideWithValue(database),
+          ],
+          child: const FlowTrackApp(),
+        ),
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    // Log in
-    await tester.enterText(find.byType(TextField), 'password');
-    await tester.tap(find.text('Login'));
-    await tester.pumpAndSettle();
+      // Log in
+      await tester.enterText(find.byType(TextField), 'password');
+      await tester.tap(find.text('Login'));
+      await tester.pumpAndSettle();
 
-    expect(find.byType(MainShell), findsOneWidget);
+      expect(find.byType(MainShell), findsOneWidget);
 
-    // Trigger updateOwnerName
-    final container = ProviderScope.containerOf(tester.element(find.byType(MainShell)));
-    final authNotifier = container.read(authControllerProvider.notifier);
-    
-    final updateFuture = authNotifier.updateOwnerName('New Name');
-    await tester.pump(); // state is now updatingProfile
+      // Trigger updateOwnerName
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MainShell)),
+      );
+      final authNotifier = container.read(authControllerProvider.notifier);
 
-    // Trigger logout while update is in flight
-    authNotifier.logout();
-    await tester.pumpAndSettle();
+      final updateFuture = authNotifier.updateOwnerName('New Name');
+      await tester.pump(); // state is now updatingProfile
 
-    // State is now unauthenticated and route should redirect to login
-    expect(find.byType(LoginScreen), findsOneWidget);
+      // Trigger logout while update is in flight
+      authNotifier.logout();
+      await tester.pumpAndSettle();
 
-    // Complete the update
-    fakeAuth.updateCompleter!.complete();
-    await updateFuture; // waits for completion
-    await tester.pumpAndSettle();
+      // State is now unauthenticated and route should redirect to login
+      expect(find.byType(LoginScreen), findsOneWidget);
 
-    // Verify it is STILL unauthenticated and on login screen
-    expect(find.byType(LoginScreen), findsOneWidget);
-    expect(find.byType(MainShell), findsNothing);
-  });
+      // Complete the update
+      fakeAuth.updateCompleter!.complete();
+      await updateFuture; // waits for completion
+      await tester.pumpAndSettle();
 
-  testWidgets('Test 8: owner setup failure, visible error, clean retry', (tester) async {
+      // Verify it is STILL unauthenticated and on login screen
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.byType(MainShell), findsNothing);
+    },
+  );
+
+  testWidgets('Test 8: owner setup failure, visible error, clean retry', (
+    tester,
+  ) async {
     final fakeAuth = FakeLocalAuthService(hasOwnerResult: false);
     fakeAuth.setupCompleter = Completer<void>();
 
@@ -392,9 +430,16 @@ void main() {
     // Enter details
     await tester.enterText(find.bySemanticsLabel('Owner name'), 'Nena');
     await tester.enterText(find.bySemanticsLabel('Password'), 'password');
-    await tester.enterText(find.bySemanticsLabel('Confirm password'), 'password');
+    await tester.enterText(
+      find.bySemanticsLabel('Confirm password'),
+      'password',
+    );
+    await tester.enterText(find.bySemanticsLabel('Answer 1'), 'Lala');
+    await tester.enterText(find.bySemanticsLabel('Answer 2'), 'Bantay');
+    await tester.enterText(find.bySemanticsLabel('Answer 3'), 'Piattos');
 
     // Tap Create
+    await tester.ensureVisible(find.text('Create owner account'));
     await tester.tap(find.text('Create owner account'));
     await tester.pump();
 
@@ -415,6 +460,7 @@ void main() {
     fakeAuth.setupCompleter = Completer<void>();
 
     // Tap Create again (Retry)
+    await tester.ensureVisible(find.text('Create owner account'));
     await tester.tap(find.text('Create owner account'));
     await tester.pump();
 
@@ -431,110 +477,145 @@ void main() {
     expect(find.byType(OwnerSetupScreen), findsNothing);
   });
 
-  testWidgets('Test 9: profile Save becomes busy immediately, accepts one submission, and reports failure without closing', (tester) async {
-    final fakeAuth = FakeLocalAuthService(hasOwnerResult: true, verifyResult: true);
-    fakeAuth.updateCompleter = Completer<void>();
+  testWidgets(
+    'Test 9: profile Save becomes busy immediately, accepts one submission, and reports failure without closing',
+    (tester) async {
+      final fakeAuth = FakeLocalAuthService(
+        hasOwnerResult: true,
+        verifyResult: true,
+      );
+      fakeAuth.updateCompleter = Completer<void>();
 
-    final fakeDb = FakeAppDatabase();
-    fakeDb.storeNameCompleter = Completer<void>();
+      final fakeDb = FakeAppDatabase();
+      fakeDb.storeNameCompleter = Completer<void>();
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localAuthServiceProvider.overrideWithValue(fakeAuth),
-          appDatabaseProvider.overrideWithValue(fakeDb),
-        ],
-        child: const FlowTrackApp(),
-      ),
-    );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localAuthServiceProvider.overrideWithValue(fakeAuth),
+            appDatabaseProvider.overrideWithValue(fakeDb),
+          ],
+          child: const FlowTrackApp(),
+        ),
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    // Log in
-    await tester.enterText(find.byType(TextField), 'password');
-    await tester.tap(find.text('Login'));
-    await tester.pumpAndSettle();
+      // Log in
+      await tester.enterText(find.byType(TextField), 'password');
+      await tester.tap(find.text('Login'));
+      await tester.pumpAndSettle();
 
-    // Navigate to Settings
-    final context = tester.element(find.byType(MainShell));
-    final router = ProviderScope.containerOf(context).read(appRouterProvider);
-    router.go(AppRoutes.settings);
-    await tester.pumpAndSettle();
+      // Navigate to Settings
+      final context = tester.element(find.byType(MainShell));
+      final router = ProviderScope.containerOf(context).read(appRouterProvider);
+      router.go(AppRoutes.settings);
+      await tester.pumpAndSettle();
 
-    // Open Edit Profile Dialog
-    await tester.tap(find.text('Owner profile'));
-    await tester.pumpAndSettle();
+      // Open Edit Profile Dialog
+      await tester.tap(find.text('Owner profile'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Edit Owner Profile'), findsOneWidget);
+      expect(find.text('Edit Owner Profile'), findsOneWidget);
 
-    // Edit values
-    await tester.enterText(find.widgetWithText(TextField, 'Store name'), 'New Store');
-    await tester.enterText(find.widgetWithText(TextField, 'Owner name'), 'New Owner');
+      // Edit values
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Store name'),
+        'New Store',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Owner name'),
+        'New Owner',
+      );
 
-    // Tap Save
-    await tester.tap(find.text('Save'));
-    await tester.pump();
+      // Tap Save
+      await tester.tap(find.text('Save'));
+      await tester.pump();
 
-    // Dialog should immediately become busy (Save and Cancel disabled)
-    final saveButton = tester.widget<FilledButton>(
-      find.descendant(of: find.byType(AlertDialog), matching: find.byType(FilledButton)),
-    );
-    expect(saveButton.onPressed, isNull);
+      // Dialog should immediately become busy (Save and Cancel disabled)
+      final saveButton = tester.widget<FilledButton>(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(saveButton.onPressed, isNull);
 
-    final cancelButton = tester.widget<TextButton>(
-      find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextButton)),
-    );
-    expect(cancelButton.onPressed, isNull);
+      final cancelButton = tester.widget<TextButton>(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextButton),
+        ),
+      );
+      expect(cancelButton.onPressed, isNull);
 
-    // Tap again, verify no second call to updateOwnerName (first step)
-    await tester.tap(
-      find.descendant(of: find.byType(AlertDialog), matching: find.byType(FilledButton)),
-    );
-    await tester.pump();
-    expect(fakeAuth.updateCallCount, 1);
+      // Tap again, verify no second call to updateOwnerName (first step)
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      await tester.pump();
+      expect(fakeAuth.updateCallCount, 1);
 
-    // Complete the owner name update successfully
-    fakeAuth.updateCompleter!.complete();
-    await tester.pump();
+      // Complete the owner name update successfully
+      fakeAuth.updateCompleter!.complete();
+      await tester.pump();
 
-    // Now it should be executing the store name DB write
-    final saveButton2 = tester.widget<FilledButton>(
-      find.descendant(of: find.byType(AlertDialog), matching: find.byType(FilledButton)),
-    );
-    expect(saveButton2.onPressed, isNull);
+      // Now it should be executing the store name DB write
+      final saveButton2 = tester.widget<FilledButton>(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(saveButton2.onPressed, isNull);
 
-    // Tap again, verify no second call to updateStoreName
-    await tester.tap(
-      find.descendant(of: find.byType(AlertDialog), matching: find.byType(FilledButton)),
-    );
-    await tester.pump();
-    expect(fakeDb.storeNameCallCount, 1);
+      // Tap again, verify no second call to updateStoreName
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      await tester.pump();
+      expect(fakeDb.storeNameCallCount, 1);
 
-    // Fail the store name update call (second step)
-    fakeDb.storeNameCompleter!.completeError(Exception('Database error'));
-    await tester.pumpAndSettle();
+      // Fail the store name update call (second step)
+      fakeDb.storeNameCompleter!.completeError(Exception('Database error'));
+      await tester.pumpAndSettle();
 
-    // Verify: dialog remains open and displays the partial failure error message
-    expect(find.text('Edit Owner Profile'), findsOneWidget);
-    expect(
-      find.text('Owner profile updated, but store name failed to save: Exception: Database error'),
-      findsOneWidget,
-    );
+      // Verify: dialog remains open and displays the partial failure error message
+      expect(find.text('Edit Owner Profile'), findsOneWidget);
+      expect(
+        find.text(
+          'Owner profile updated, but store name failed to save: Exception: Database error',
+        ),
+        findsOneWidget,
+      );
 
-    // DB and auth should be back to idle
-    final saveButton3 = tester.widget<FilledButton>(
-      find.descendant(of: find.byType(AlertDialog), matching: find.byType(FilledButton)),
-    );
-    expect(saveButton3.onPressed, isNotNull);
+      // DB and auth should be back to idle
+      final saveButton3 = tester.widget<FilledButton>(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(saveButton3.onPressed, isNotNull);
 
-    // Verify cancel works
-    await tester.tap(
-      find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextButton)),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Edit Owner Profile'), findsNothing);
+      // Verify cancel works
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextButton),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Edit Owner Profile'), findsNothing);
 
-    // Clean up
-    await fakeDb.close();
-  });
+      // Clean up
+      await fakeDb.close();
+    },
+  );
 }

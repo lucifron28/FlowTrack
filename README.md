@@ -23,6 +23,7 @@ Feature status:
 | Feature | Status | Notes |
 | --- | --- | --- |
 | Owner setup/login/logout | Done | Offline local owner setup/login works with secure storage and PBKDF2-HMAC-SHA256. Theme and owner profile are rehydrated on startup. |
+| Offline password recovery | Done | New owners choose three simple personal questions. Forgot Password verifies versioned salted answer hashes offline, applies a five-attempt/15-minute lockout, and lets the owner set a new password of at least eight characters. Existing stored passwords remain verifiable for compatibility. |
 | Dashboard | Done | Shows local sales, expenses, net income, outstanding credit, stock alerts, completed recent sales, and ordered stock alerts. Pull-to-refresh reloads one dashboard snapshot. |
 | Inventory | Done | Add, edit price/cost/low-stock settings, restock, adjust stock, stock history, search, status filter. Product deactivation (archival) is fully implemented. |
 | Manufacturer barcode products | Done | Camera scan and manual barcode entry are implemented. Corrected EAN-13 checksums and barcode formats. |
@@ -49,6 +50,7 @@ Included in backup:
 Not included:
 
 - owner password and secure-storage credentials
+- recovery question answers, recovery hashes, and recovery lockout state
 - generated barcode PDF files
 - temporary cache files
 - cloud sync data
@@ -127,6 +129,33 @@ Demo barcode files:
 - Store-generated tingi barcodes are one barcode per product type, not per piece or batch.
 - App-name references should use `AppConfig.appName`.
 
+## Offline Password Recovery
+
+Password recovery is local to the device and does not use Supabase, email, SMS,
+or an online account. New owner setup and password reset require at least eight
+characters. Existing stored passwords from earlier builds remain verifiable so
+an upgrade does not lock the owner out; the stronger length rule applies when a
+new password is created or reset.
+
+The owner selects three questions from the small personal question catalog.
+Answers are normalized for case and accidental spacing, then stored as separate
+salted PBKDF2-HMAC-SHA256 hashes. Each stored answer record includes its
+algorithm and iteration count, and unsupported recovery configuration versions
+are rejected instead of being guessed at. Common weak answers such as `123`,
+`1234`, `password`, `answer`, and `none` are rejected when recovery questions
+are created or changed. The UI recommends answers that are personal, difficult
+for others to know, or private made-up words.
+
+New credentials never use raw SHA-256 by itself. The legacy SHA-256 password
+format is accepted only to migrate an older installation after a successful
+login; newly stored passwords and recovery answers use the salted PBKDF2 format.
+
+First-run setup writes the owner name and recovery configuration before writing
+the password bundle, which is the account commit marker. If the final password
+write fails, setup removes partial account artifacts so the owner can retry.
+Existing owners who have no recovery configuration can log in normally and set
+up recovery from Settings.
+
 ## Tech Stack
 
 - Flutter and Dart
@@ -143,7 +172,7 @@ Current pinned package versions are in `pubspec.yaml` and `pubspec.lock`.
 
 ## Setup
 
-Requires Flutter stable version `3.44.5` (compatible with Dart `^3.11.5`).
+Requires Flutter stable version `3.47.0` (compatible with Dart `^3.11.5`).
 
 ```bash
 flutter pub get
@@ -260,6 +289,9 @@ Current tests cover:
 - Local backup JSON export/restore behavior.
 - Printable barcode PDF generation.
 - Password hash helper behavior.
+- Offline password recovery answer hashing, reset, and lockout behavior.
+- Recovery storage metadata, failed setup cleanup, lockout expiry, weak-answer rejection, and all-answer evaluation.
+- Forgot Password success, existing-owner guidance, question-change clearing, and small-screen large-text rendering.
 - Product active/deactive deactivation toggles and active list filtering.
 - Customer update and delete operations with balance/history constraint validation.
 - Expense update audit records and void-history preservation.
@@ -289,7 +321,8 @@ Product gaps:
 - Whether receipt printing is required.
 - Whether barcode PDF output is enough or dedicated printer support is required.
 - Target printer model and label size if printing is required.
-- Offline password recovery policy.
+- Whether to add a printable emergency recovery code for device loss.
+- Whether recovery questions should be required immediately for existing installations.
 - Whether partial credit payment during a sale is allowed.
 - Whether overpayment is ever allowed.
 - Whether negative stock is ever allowed.

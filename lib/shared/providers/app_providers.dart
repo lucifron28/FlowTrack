@@ -16,6 +16,8 @@ import '../../core/services/local_auth_service.dart';
 import '../../core/services/report_pdf_service.dart';
 import '../../core/services/sample_data_service.dart';
 import '../../features/auth/screens/auth_gate.dart';
+import '../../features/auth/screens/forgot_password_screen.dart';
+import '../../features/auth/screens/password_recovery_settings_screen.dart';
 import '../../features/credits/screens/credits_screen.dart';
 import '../../features/expenses/screens/expenses_screen.dart';
 import '../../features/inventory/screens/inventory_screen.dart';
@@ -178,6 +180,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       );
 
       final isLoginRoute = state.matchedLocation == AppRoutes.login;
+      final isForgotPasswordRoute =
+          state.matchedLocation == AppRoutes.forgotPassword;
       final isOwnerSetupRoute = state.matchedLocation == AppRoutes.ownerSetup;
       final isRootRoute = state.matchedLocation == AppRoutes.root;
 
@@ -192,11 +196,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       if (status == AuthStatus.unauthenticated ||
           status == AuthStatus.authenticating) {
-        return isLoginRoute ? null : AppRoutes.login;
+        return isLoginRoute || isForgotPasswordRoute ? null : AppRoutes.login;
       }
 
       if (status == AuthStatus.authenticated) {
-        if (isLoginRoute || isOwnerSetupRoute) {
+        if (isLoginRoute || isForgotPasswordRoute || isOwnerSetupRoute) {
           return AppRoutes.root;
         }
         return null;
@@ -214,6 +218,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.loginName,
         path: AppRoutes.login,
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        name: AppRoutes.forgotPasswordName,
+        path: AppRoutes.forgotPassword,
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
       GoRoute(
         name: AppRoutes.ownerSetupName,
@@ -344,6 +353,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.settingsName,
         path: AppRoutes.settings,
         builder: (context, state) => const SettingsScreen(showAppBar: true),
+      ),
+      GoRoute(
+        name: AppRoutes.passwordRecoverySettingsName,
+        path: AppRoutes.passwordRecoverySettings,
+        builder: (context, state) => const PasswordRecoverySettingsScreen(),
       ),
     ],
   );
