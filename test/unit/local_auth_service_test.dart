@@ -21,11 +21,15 @@ class MemorySecureStorage implements SecureStorageAdapter {
   }
 }
 
-class FailingPasswordStorage extends MemorySecureStorage {
+class FailingWriteStorage extends MemorySecureStorage {
+  FailingWriteStorage(this.failingKey);
+
+  final String failingKey;
+
   @override
   Future<void> write({required String key, required String value}) async {
-    if (key == 'owner_password_bundle_v2') {
-      throw StateError('Password storage is unavailable.');
+    if (key == failingKey) {
+      throw StateError('Secure storage is unavailable.');
     }
     await super.write(key: key, value: value);
   }
@@ -92,7 +96,7 @@ void main() {
   });
 
   test('a failed first-run password write leaves no owner account', () async {
-    final failingStorage = FailingPasswordStorage();
+    final failingStorage = FailingWriteStorage('owner_password_bundle_v2');
     final failingService = LocalAuthService(
       adapter: failingStorage,
       passwordIterations: 2,
@@ -110,6 +114,39 @@ void main() {
     expect(await failingService.hasOwnerAccount(), isFalse);
     expect(await failingService.ownerName(), isNull);
     expect(await failingService.recoveryQuestions(), isEmpty);
+  });
+
+  test('a failed recovery write leaves the account uncommitted', () async {
+    final failingStorage = FailingWriteStorage('owner_recovery_questions_v1');
+    final failingService = LocalAuthService(
+      adapter: failingStorage,
+      passwordIterations: 2,
+    );
+
+    await expectLater(
+      failingService.setupOwner(
+        ownerName: 'Nena',
+        password: 'old-pass',
+        recoveryAnswers: answers,
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(failingStorage.values, isEmpty);
+    expect(await failingService.hasOwnerAccount(), isFalse);
+  });
+
+  test('a malformed modern password bundle fails closed', () async {
+    storage.values['owner_password_bundle_v2'] = '{not-json';
+
+    await expectLater(
+      () => service.hasOwnerAccount(),
+      throwsA(isA<FormatException>()),
+    );
+    await expectLater(
+      () => service.verifyPassword('old-pass'),
+      throwsA(isA<FormatException>()),
+    );
   });
 
   test('normalizes easy answer differences and resets the password', () async {
@@ -180,7 +217,13 @@ void main() {
             required int iterations,
           }) {
             hashCalls++;
-            return '$password|$salt|$iterations';
+            final bytes = utf8.encode('$password|$salt|$iterations');
+            return base64Url.encode(
+              List<int>.generate(
+                PasswordHasher.derivedKeyLength,
+                (index) => index < bytes.length ? bytes[index] : 0,
+              ),
+            );
           },
     );
 
@@ -256,6 +299,22 @@ void main() {
       throwsA(isA<StateError>()),
     );
   });
+
+  test(
+    'existing legacy passwords remain compatible with the new policy',
+    () async {
+      const legacyPassword = '1234';
+      const legacySalt = 'legacy-salt';
+      storage.values['owner_password_salt'] = legacySalt;
+      storage.values['owner_password_hash'] = PasswordHasher.legacySha256Hash(
+        password: legacyPassword,
+        salt: legacySalt,
+      );
+
+      expect(await service.verifyPassword(legacyPassword), isTrue);
+      expect(storage.values['owner_password_bundle_v2'], isNotNull);
+    },
+  );
 
   test('rejects unsupported recovery configuration versions', () async {
     await service.setupOwner(

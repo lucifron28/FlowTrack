@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
@@ -49,7 +50,7 @@ class LocalAuthService {
            FlutterSecureStorageAdapter(storage ?? const FlutterSecureStorage()),
        _hashIterations = passwordIterations,
        _clock = clock ?? DateTime.now,
-       _hashFunction = hashFunction ?? PasswordHasher.pbkdf2Hash {
+       _hashFunctionOverride = hashFunction {
     if (passwordIterations <= 0) {
       throw ArgumentError.value(
         passwordIterations,
@@ -78,7 +79,7 @@ class LocalAuthService {
   final SecureStorageAdapter _storage;
   final int _hashIterations;
   final DateTime Function() _clock;
-  final PasswordHashFunction _hashFunction;
+  final PasswordHashFunction? _hashFunctionOverride;
 
   Future<bool> hasOwnerAccount() async {
     final bundle = await _readPasswordBundle();
@@ -106,7 +107,7 @@ class LocalAuthService {
       throw StateError('Owner account already exists.');
     }
     _validatePassword(password);
-    final recoveryConfig = _buildRecoveryConfig(recoveryAnswers);
+    final recoveryConfig = await _buildRecoveryConfig(recoveryAnswers);
     try {
       await _storage.write(key: _ownerNameKey, value: ownerName.trim());
       await _writeRecoveryConfig(recoveryConfig);
@@ -122,7 +123,7 @@ class LocalAuthService {
   Future<bool> verifyPassword(String password) async {
     final bundle = await _readPasswordBundle();
     if (bundle != null) {
-      final hash = _hashFunction(
+      final hash = await _deriveHash(
         password: password,
         salt: bundle.salt,
         iterations: bundle.iterations,
@@ -139,7 +140,7 @@ class LocalAuthService {
     }
     if (algorithm == _passwordAlgorithm) {
       final iterations = int.tryParse(iterationsText ?? '') ?? _hashIterations;
-      final hash = _hashFunction(
+      final hash = await _deriveHash(
         password: password,
         salt: salt,
         iterations: iterations,
@@ -194,7 +195,7 @@ class LocalAuthService {
     if (!await verifyPassword(currentPassword)) {
       throw StateError('Current password is incorrect.');
     }
-    final config = _buildRecoveryConfig(recoveryAnswers);
+    final config = await _buildRecoveryConfig(recoveryAnswers);
     await _writeRecoveryConfig(config);
     await _clearRecoveryFailures();
   }
@@ -224,7 +225,7 @@ class LocalAuthService {
       );
     }
 
-    if (!_recoveryAnswersMatch(config, recoveryAnswers)) {
+    if (!await _recoveryAnswersMatch(config, recoveryAnswers)) {
       return _recordRecoveryFailure(now);
     }
 
@@ -239,11 +240,34 @@ class LocalAuthService {
     return base64Url.encode(bytes);
   }
 
+  Future<String> _deriveHash({
+    required String password,
+    required String salt,
+    required int iterations,
+  }) {
+    final override = _hashFunctionOverride;
+    if (override != null) {
+      return Future<String>.sync(
+        () => override(password: password, salt: salt, iterations: iterations),
+      );
+    }
+
+    // Password and recovery hashing is intentionally kept off Flutter's UI
+    // isolate. Tests may inject a cheap deterministic function instead.
+    return Isolate.run(
+      () => PasswordHasher.pbkdf2Hash(
+        password: password,
+        salt: salt,
+        iterations: iterations,
+      ),
+    );
+  }
+
   Future<void> _storePassword(String password) async {
     final salt = _newSalt();
     final record = _PasswordRecord(
       salt: salt,
-      hash: _hashFunction(
+      hash: await _deriveHash(
         password: password,
         salt: salt,
         iterations: _hashIterations,
@@ -273,21 +297,28 @@ class LocalAuthService {
 
   Future<_PasswordRecord?> _readPasswordBundle() async {
     final encoded = await _storage.read(key: _passwordBundleKey);
-    if (encoded == null || encoded.isEmpty) {
+    if (encoded == null) {
       return null;
+    }
+    if (encoded.isEmpty) {
+      throw const FormatException('Invalid password bundle.');
     }
     try {
       final decoded = jsonDecode(encoded);
       if (decoded is! Map) {
-        return null;
+        throw const FormatException('Invalid password bundle.');
       }
       return _PasswordRecord.fromJson(Map<String, dynamic>.from(decoded));
+    } on FormatException {
+      rethrow;
     } catch (_) {
-      return null;
+      throw const FormatException('Invalid password bundle.');
     }
   }
 
-  _RecoveryConfig _buildRecoveryConfig(Map<String, String> answers) {
+  Future<_RecoveryConfig> _buildRecoveryConfig(
+    Map<String, String> answers,
+  ) async {
     if (answers.length != RecoveryQuestionCatalog.requiredCount) {
       throw StateError('Choose three recovery questions.');
     }
@@ -319,7 +350,7 @@ class LocalAuthService {
           salt: salt,
           algorithm: _passwordAlgorithm,
           iterations: _hashIterations,
-          hash: _hashFunction(
+          hash: await _deriveHash(
             password: normalizedAnswer,
             salt: salt,
             iterations: _hashIterations,
@@ -354,16 +385,16 @@ class LocalAuthService {
     }
   }
 
-  bool _recoveryAnswersMatch(
+  Future<bool> _recoveryAnswersMatch(
     _RecoveryConfig config,
     Map<String, String> answers,
-  ) {
+  ) async {
     var allMatch = answers.length == config.records.length;
     for (final record in config.records) {
       final normalizedAnswer = RecoveryQuestionCatalog.normalizeAnswer(
         answers[record.questionId] ?? '',
       );
-      final hash = _hashFunction(
+      final hash = await _deriveHash(
         password: normalizedAnswer,
         salt: record.salt,
         iterations: record.iterations,
@@ -474,7 +505,8 @@ class _PasswordRecord {
         salt is! String ||
         hash is! String ||
         iterations is! int ||
-        iterations <= 0) {
+        iterations <= 0 ||
+        !PasswordHasher.isValidEncodedHash(salt, hash)) {
       throw const FormatException('Invalid password bundle.');
     }
     return _PasswordRecord(salt: salt, hash: hash, iterations: iterations);
@@ -515,7 +547,8 @@ class _RecoveryAnswerRecord {
         iterations is! int ||
         iterations <= 0 ||
         salt is! String ||
-        hash is! String) {
+        hash is! String ||
+        !PasswordHasher.isValidEncodedHash(salt, hash)) {
       throw const FormatException('Invalid recovery answer record.');
     }
     RecoveryQuestionCatalog.byId(questionId);
@@ -573,6 +606,16 @@ class PasswordHasher {
   const PasswordHasher._();
 
   static const derivedKeyLength = 32;
+
+  static bool isValidEncodedHash(String salt, String hash) {
+    try {
+      final saltBytes = base64Url.decode(salt);
+      final hashBytes = base64Url.decode(hash);
+      return saltBytes.isNotEmpty && hashBytes.length == derivedKeyLength;
+    } on FormatException {
+      return false;
+    }
+  }
 
   static String pbkdf2Hash({
     required String password,
