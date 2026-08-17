@@ -3,7 +3,7 @@ name: Demo Android Release
 on:
   push:
     tags:
-      - "v*"
+      - "v*-demo.*"
   workflow_dispatch:
 
 permissions:
@@ -45,8 +45,21 @@ jobs:
       - name: Test
         run: flutter test
 
+      - name: Resolve demo artifact version
+        id: demo_version
+        shell: bash
+        run: |
+          pubspec_version="$(awk '$1 == "version:" {print $2}' pubspec.yaml)"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" == *-demo.* ]]; then
+            build_name="${GITHUB_REF_NAME#v}"
+          else
+            build_name="${pubspec_version%%+*}"
+          fi
+          echo "build_name=${build_name}" >> "${GITHUB_OUTPUT}"
+          echo "build_number=${GITHUB_RUN_NUMBER}" >> "${GITHUB_OUTPUT}"
+
       - name: Build debug APK
-        run: flutter build apk --debug --dart-define=FLOWTRACK_MODE=demo --build-name 1.0.0 --build-number 1
+        run: flutter build apk --debug --dart-define=FLOWTRACK_MODE=demo --build-name "${{ steps.demo_version.outputs.build_name }}" --build-number "${{ steps.demo_version.outputs.build_number }}"
 
       - name: Rename APK
         run: mv build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/FlowTrack-demo-${{ github.ref_name }}.apk

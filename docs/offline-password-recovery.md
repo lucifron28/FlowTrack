@@ -57,6 +57,11 @@ successful login. New passwords and recovery answers never use raw SHA-256 by
 itself. Drift, SQLite, business-data backups, and the local backup JSON payload
 never contain passwords or recovery answers.
 
+Malformed or partially written modern password bundles fail closed; they are
+not treated as a missing account. PBKDF2 work runs off the UI isolate so setup,
+login, and recovery remain responsive on lower-end devices. A failed first-run
+write cleans up the account markers so setup can be retried safely.
+
 The recovery flow does not reveal whether an individual answer was correct. It
 reports only a generic mismatch and applies the same attempt counter to the
 whole recovery attempt.

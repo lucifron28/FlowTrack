@@ -90,13 +90,19 @@ The app performs complete preflight validation before any current data is cleare
 - required metadata fields
 - every required table exists and is structurally valid
 - constraints are checked: no duplicate primary IDs, barcodes, contacts, sale numbers
-- financial data integrity: no negative stock/prices, no over-payments, sale total equals sum of items, customer balance equals active credit remaining
+- financial data integrity: no negative stock/prices, no over-payments, sale total equals sum of items, and the credit payment ledger replays oldest-first to the stored credit-record statuses and customer balance
+- credit payments that cannot be allocated to an active credit record are rejected before restore
 - reversal validity
 - expense void validity: voided expenses require a timestamp and reason; active
   expenses cannot contain void metadata
 - 25 MiB file size limit is enforced
 
 If any error occurs during parsing, decryption, or validation, the restore is aborted and the current database remains entirely unchanged.
+
+Android automatic cloud backup and device-transfer extraction are disabled for
+FlowTrack's private app state. Use the encrypted `.flowtrack-backup` export for
+business-data migration. Restoring that export never changes the owner login,
+password, recovery answers, or lockout state.
 
 ## Current Limits
 

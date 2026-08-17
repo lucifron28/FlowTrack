@@ -5,6 +5,18 @@ All notable changes to FlowTrack will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - Unreleased
+
+### Security & Release Hygiene
+- Disabled Android automatic backup and device-transfer extraction for app-private data.
+- Tightened release signing fallback so non-debug builds fail closed without a private release keystore.
+- Restricted demo APK workflow tags to `v*-demo.*` and derive demo artifact metadata from the tag or workflow run.
+- Upgraded `flutter_secure_storage` to the current stable 10.x line used by this release candidate.
+
+### Fixed
+- Replayed credit payments oldest-first during backup validation so tampered payment amounts, record statuses, and customer balances are rejected before restore.
+- Kept release metadata and documentation aligned at `1.0.3+2`.
+
 ## [1.0.0] - Unreleased
 
 ### Added
@@ -22,4 +34,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Strictly offline main Android manifest with camera-only permission boundary.
 - Fail-closed Android release signing configuration requiring private `key.properties`.
 - Hardened `.gitignore` preventing accidental commitment of keys, keystores, database files, backups, and APKs.
-- Application identity set to `com.flowtrack.app` with canonical metadata version `1.0.0+1`.
+- Initial MVP application identity set to `com.flowtrack.app` with metadata version `1.0.0+1`.
