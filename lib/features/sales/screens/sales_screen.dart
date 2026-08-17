@@ -13,21 +13,40 @@ import '../../inventory/screens/inventory_screen.dart';
 import '../controllers/sales_cart_controller.dart';
 import '../data/sales_repository.dart';
 
-class SalesScreen extends ConsumerWidget {
+class SalesScreen extends ConsumerStatefulWidget {
   const SalesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SalesScreen> createState() => _SalesScreenState();
+}
+
+class _SalesScreenState extends ConsumerState<SalesScreen> {
+  int _streamRevision = 0;
+
+  void _retry() {
+    setState(() => _streamRevision++);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final database = ref.watch(salesRepositoryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Sales')),
       body: StreamBuilder<List<SaleListEntry>>(
+        key: ValueKey(_streamRevision),
         stream: database.watchSalesWithCustomer(),
         builder: (context, snapshot) {
-          final entries = snapshot.data ?? [];
+          if (snapshot.hasError) {
+            return LoadErrorState(
+              message:
+                  'Sales could not be loaded. Check the local store and retry.',
+              onRetry: _retry,
+            );
+          }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+          final entries = snapshot.data ?? [];
           if (entries.isEmpty) {
             return const EmptyState(
               icon: Icons.point_of_sale,
@@ -304,6 +323,16 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
             FutureBuilder<List<Customer>>(
               future: database.getActiveCustomers(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return SizedBox(
+                    height: 180,
+                    child: LoadErrorState(
+                      message:
+                          'Customers could not be loaded. Retry to choose a credit customer.',
+                      onRetry: () => setState(() {}),
+                    ),
+                  );
+                }
                 final customers = snapshot.data ?? [];
                 return Column(
                   children: [
@@ -370,7 +399,8 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
       context: context,
       showDragHandle: true,
       builder: (context) => ProductPickerSheet(
-        productsFuture: ref.read(salesRepositoryProvider).getActiveProducts(),
+        productsLoader: () =>
+            ref.read(salesRepositoryProvider).getActiveProducts(),
       ),
     );
     if (product != null) {
@@ -726,9 +756,9 @@ class _CashChangePanel extends StatelessWidget {
 }
 
 class ProductPickerSheet extends StatefulWidget {
-  const ProductPickerSheet({super.key, required this.productsFuture});
+  const ProductPickerSheet({super.key, required this.productsLoader});
 
-  final Future<List<Product>> productsFuture;
+  final Future<List<Product>> Function() productsLoader;
 
   @override
   State<ProductPickerSheet> createState() => _ProductPickerSheetState();
@@ -736,6 +766,17 @@ class ProductPickerSheet extends StatefulWidget {
 
 class _ProductPickerSheetState extends State<ProductPickerSheet> {
   String _query = '';
+  late Future<List<Product>> _productsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _productsFuture = widget.productsLoader();
+  }
+
+  void _retry() {
+    setState(() => _productsFuture = widget.productsLoader());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -754,8 +795,15 @@ class _ProductPickerSheetState extends State<ProductPickerSheet> {
             const SizedBox(height: 12),
             Expanded(
               child: FutureBuilder<List<Product>>(
-                future: widget.productsFuture,
+                future: _productsFuture,
                 builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return LoadErrorState(
+                      message:
+                          'Products could not be loaded. Check the local store and retry.',
+                      onRetry: _retry,
+                    );
+                  }
                   final products = (snapshot.data ?? [])
                       .where(
                         (product) =>
@@ -799,19 +847,38 @@ class _ProductPickerSheetState extends State<ProductPickerSheet> {
   }
 }
 
-class SaleDetailsScreen extends ConsumerWidget {
+class SaleDetailsScreen extends ConsumerStatefulWidget {
   const SaleDetailsScreen({super.key, required this.saleId});
 
   final String saleId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SaleDetailsScreen> createState() => _SaleDetailsScreenState();
+}
+
+class _SaleDetailsScreenState extends ConsumerState<SaleDetailsScreen> {
+  int _futureRevision = 0;
+
+  void _retry() {
+    setState(() => _futureRevision++);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final database = ref.watch(salesRepositoryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Sale Details')),
       body: FutureBuilder<SaleListEntry?>(
-        future: database.getSaleWithCustomer(saleId),
+        key: ValueKey('sale-$_futureRevision'),
+        future: database.getSaleWithCustomer(widget.saleId),
         builder: (context, saleSnapshot) {
+          if (saleSnapshot.hasError) {
+            return LoadErrorState(
+              message:
+                  'Sale details could not be loaded. Check the local store and retry.',
+              onRetry: _retry,
+            );
+          }
           if (!saleSnapshot.hasData) {
             if (saleSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -828,8 +895,16 @@ class SaleDetailsScreen extends ConsumerWidget {
           final customerName = entry.customerName;
 
           return FutureBuilder<List<SaleItem>>(
+            key: ValueKey('items-$_futureRevision'),
             future: database.getSaleItems(sale.id),
             builder: (context, itemSnapshot) {
+              if (itemSnapshot.hasError) {
+                return LoadErrorState(
+                  message:
+                      'Sale items could not be loaded. Check the local store and retry.',
+                  onRetry: _retry,
+                );
+              }
               final items = itemSnapshot.data ?? [];
               return ListView(
                 padding: const EdgeInsets.all(16),
@@ -879,6 +954,11 @@ class SaleDetailsScreen extends ConsumerWidget {
                     ),
                   ],
                   const SizedBox(height: 12),
+                  if (itemSnapshot.connectionState == ConnectionState.waiting)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
                   ...items.map(
                     (item) => ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -930,7 +1010,9 @@ class SaleDetailsScreen extends ConsumerWidget {
       return;
     }
     try {
-      await ref.read(salesRepositoryProvider).voidSale(saleId, reason: reason);
+      await ref
+          .read(salesRepositoryProvider)
+          .voidSale(widget.saleId, reason: reason);
       if (context.mounted) {
         Navigator.of(context).pop();
       }
