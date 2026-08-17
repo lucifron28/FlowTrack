@@ -1,6 +1,6 @@
 # FlowTrack Release and Demo Checklist
 
-FlowTrack is the final app name. The Android application ID and namespace are `com.flowtrack.app`. Canonical version is `1.0.0+1`.
+FlowTrack is the final app name. The Android application ID and namespace are `com.flowtrack.app`. The next candidate version is `1.0.3+2`.
 
 ## Pre-Release Verification & Hygiene
 
@@ -11,7 +11,9 @@ FlowTrack is the final app name. The Android application ID and namespace are `c
 - [ ] Automated test gate (`flutter test` passing 100%).
 - [ ] Generated Drift code integrity (`dart run build_runner build --delete-conflicting-outputs`, `git diff --exit-code`).
 - [ ] Production-mode build verification (`flutter build apk --debug --dart-define=FLOWTRACK_MODE=production`).
-- [ ] Application ID (`com.flowtrack.app`), version name (`1.0.0`), and version code (`1`) verification via AAPT/apkanalyzer.
+- [ ] Application ID (`com.flowtrack.app`), version name (`1.0.3`), and version code (`2`) verification via AAPT/apkanalyzer.
+- [ ] Confirm `android:allowBackup="false"`, Android cloud-backup exclusions, and device-transfer exclusions in the built production manifest.
+- [ ] Compare the release certificate SHA-256 fingerprint with the certificate used by the currently installed production app before any update or distribution.
 - [ ] Artifact SHA-256 hash recording for release candidate build.
 
 ## Demo & Manual QA Readiness
@@ -29,6 +31,7 @@ FlowTrack is the final app name. The Android application ID and namespace are `c
 - [ ] Barcode PDF export & share QA.
 - [ ] Financial report PDF export & share QA.
 - [ ] Backup create/restore smoke test with passphrase-protected `.flowtrack-backup` file.
+- [ ] Tamper a credit payment amount in a backup and confirm validation rejects the restore before current data is cleared.
 
 ## Android Identity
 
@@ -56,12 +59,13 @@ flutter build apk --release --dart-define=FLOWTRACK_MODE=production
 - If `android/key.properties` is missing, the release build fails closed immediately.
 - Production releases must NEVER silently use debug signing.
 - Debug-signed demo APKs must be clearly documented as non-production artifacts and MUST NOT be distributed as production releases.
+- A missing or changed release certificate is a hard stop; do not install over a production build until certificate continuity is confirmed.
 
 ## GitHub Demo Release
 
 The repository includes `.github/workflows/demo-release.yml` for demo APK releases.
 
-- Trigger: push a tag matching `v*`, or run the workflow manually from GitHub Actions.
+- Trigger: push a tag matching `v*-demo.*`, or run the workflow manually from GitHub Actions.
 - Output: a debug-signed APK attached to a GitHub prerelease.
 - Intended use: phone QA, walkthroughs, and client demo installation.
 - Not intended for production distribution or Play Store upload.
@@ -69,7 +73,7 @@ The repository includes `.github/workflows/demo-release.yml` for demo APK releas
 Suggested demo tag pattern:
 
 ```bash
-v1.0.0-demo.1
+v1.0.3-demo.1
 ```
 
 Before tagging, make sure the release branch has been merged into `main`.
@@ -82,4 +86,5 @@ Before tagging, make sure the release branch has been merged into `main`.
 - Physical scanner QA under real store lighting and barcode sizes.
 - Barcode and report PDF save/share QA on target device file system.
 - Encrypted backup restore QA with a real `.flowtrack-backup` file on target device.
+- Release certificate continuity check against the installed production APK.
 - CSV export decision.

@@ -118,6 +118,22 @@ void main() {
     expect(targetStore, 'Initial Target Store');
   });
 
+  test('rejects tampered credit payment allocation before restore', () async {
+    await setupBackupTestFixtures(source);
+
+    final json = await createUnencryptedBackupJsonForTest(source);
+    final decoded = jsonDecode(json) as Map<String, dynamic>;
+    final data = decoded['data'] as Map<String, dynamic>;
+    final payments = (data['creditPayments'] as List)
+        .cast<Map<String, dynamic>>();
+    payments.single['amount'] = 1;
+
+    await expectLater(
+      () => targetService.validateBackupString(jsonEncode(decoded)),
+      throwsA(isA<BackupException>()),
+    );
+  });
+
   test('legacy restore and versioning', () async {
     await setupBackupTestFixtures(source);
     await source.createProduct(
@@ -129,7 +145,7 @@ void main() {
       lowStockLevel: 5,
     );
     await source.createCustomer(name: 'NormCust', contactNumber: '09171234567');
-    
+
     // Create legacy version 1 backup manually (test helper)
     final json = await createUnencryptedBackupJsonForTest(source, backupVersion: 1);
     final decoded = jsonDecode(json) as Map<String, dynamic>;
@@ -145,14 +161,14 @@ void main() {
     normCustJson['contactNumber'] = ' +63  917  123 4567  ';
 
     final unnormalizedJson = jsonEncode(decoded);
-    
+
     // Target starts clean
     await target.updateStoreName('Initial Target Store');
-    
+
     // Validate and restore
     final payload = await targetService.validateBackupString(unnormalizedJson);
     await targetService.restoreValidatedBackup(payload);
-    
+
     final targetProducts = await target.select(target.products).get();
     final normProduct = targetProducts.firstWhere((p) => p.name == 'NormTest');
     expect(normProduct.barcode, 'aBc-123'); // Case is preserved for Code 128

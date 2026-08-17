@@ -20,10 +20,12 @@ FlowTrack is an offline-first mobile application designed to operate entirely lo
 ### Android Permissions & Boundaries
 - `android.permission.CAMERA`: Used exclusively for real-time barcode scanning. Manual barcode entry remains fully functional if camera access is denied.
 - `android.permission.INTERNET`: Strictly limited to Flutter development/debug builds for hot reload and debugging tools. Production Android manifests contain zero internet permissions.
+- Android automatic backup and device-transfer extraction are disabled for the production app. Explicit backup rules exclude the app database, files, shared preferences, and other app-private state; business backups must use FlowTrack's encrypted export instead.
 
 ### Release Signing Policy
 - Production release builds require private release signing configured via untracked `android/key.properties`.
 - Build configurations fail closed if release signing keys are absent. Debug-signed APKs must never be distributed as production software.
+- Before installing an update over an existing production build, compare the release certificate fingerprint. A changed certificate requires a migration decision and must not be treated as a routine update.
 
 ## Reporting Security Vulnerabilities
 

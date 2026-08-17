@@ -1,4 +1,5 @@
 import '../../core/config/app_config.dart';
+import '../../core/domain/flowtrack_models.dart';
 import '../../core/utils/barcode_utils.dart';
 import '../../core/utils/contact_utils.dart';
 
@@ -12,6 +13,51 @@ class BackupValidator {
       );
     }
     return value;
+  }
+
+  DateTime _requireDateTime(dynamic value, String field) {
+    if (value is int) {
+      // Drift's default JSON serializer represents DateTime values as epoch
+      // milliseconds. Accept the larger microsecond form as well for backups
+      // produced by older serializers.
+      return value.abs() > 100000000000000
+          ? DateTime.fromMicrosecondsSinceEpoch(value, isUtc: true)
+          : DateTime.fromMillisecondsSinceEpoch(value, isUtc: true);
+    }
+    if (value is! String) {
+      throw Exception(
+        'Field $field must be an ISO-8601 date string, got ${value.runtimeType}.',
+      );
+    }
+    final parsed = DateTime.tryParse(value);
+    if (parsed == null) {
+      throw Exception('Field $field must be a valid ISO-8601 date string.');
+    }
+    return parsed;
+  }
+
+  int _compareLedgerRows(
+    Map<String, dynamic> left,
+    Map<String, dynamic> right,
+    String dateField,
+  ) {
+    final dateComparison = _requireDateTime(
+      left[dateField],
+      dateField,
+    ).compareTo(_requireDateTime(right[dateField], dateField));
+    if (dateComparison != 0) {
+      return dateComparison;
+    }
+
+    final createdComparison = _requireDateTime(
+      left['createdAt'],
+      'createdAt',
+    ).compareTo(_requireDateTime(right['createdAt'], 'createdAt'));
+    if (createdComparison != 0) {
+      return createdComparison;
+    }
+
+    return (left['id'] as String).compareTo(right['id'] as String);
   }
 
   void validateBackup(Map<String, dynamic> decoded, int expectedBackupVersion) {
@@ -286,7 +332,7 @@ class BackupValidator {
     }
 
     // Credit Records
-    final customerRemainingBalances = <String, int>{};
+    final creditRecordsByCustomer = <String, List<Map<String, dynamic>>>{};
     for (final cr in creditRecords) {
       final id = cr['id'] as String;
       checkId(id, 'creditRecords');
@@ -303,11 +349,14 @@ class BackupValidator {
         throw Exception('Credit record $id references missing sale $crSaleId.');
       }
 
-      final status = cr['status'] as String? ?? 'active';
-      final isVoided = status == 'voided';
+      final status = cr['status'] as String? ?? CreditStatus.unpaid.dbValue;
+      const validStatuses = {'unpaid', 'partially_paid', 'paid', 'voided'};
+      if (!validStatuses.contains(status)) {
+        throw Exception('Unknown status for credit record $id.');
+      }
+      final isVoided = status == CreditStatus.voided.dbValue;
       final amount = _requireInt(cr['amount'], 'amount');
       final paid = _requireInt(cr['paidAmount'], 'paidAmount');
-      final remaining = amount - paid;
 
       if (amount <= 0) {
         throw Exception('Non-positive amount for credit record $id.');
@@ -315,29 +364,20 @@ class BackupValidator {
       if (paid < 0 || paid > amount) {
         throw Exception('Invalid paid amount for credit record $id.');
       }
+      if (isVoided && paid != 0) {
+        throw Exception('Voided credit record $id cannot have payments.');
+      }
+      _requireDateTime(cr['creditDate'], 'creditDate');
+      _requireDateTime(cr['createdAt'], 'createdAt');
+      _requireDateTime(cr['updatedAt'], 'updatedAt');
 
       if (!isVoided) {
-        customerRemainingBalances[customerId] =
-            (customerRemainingBalances[customerId] ?? 0) + remaining;
-      }
-    }
-
-    // Check customer outstanding balances
-    for (final c in customers) {
-      final id = c['id'] as String;
-      final headerBalance = _requireInt(
-        c['outstandingBalance'],
-        'outstandingBalance',
-      );
-      final calculatedBalance = customerRemainingBalances[id] ?? 0;
-      if (headerBalance != calculatedBalance) {
-        throw Exception(
-          'Customer $id balance does not match active credit records.',
-        );
+        creditRecordsByCustomer.putIfAbsent(customerId, () => []).add(cr);
       }
     }
 
     // Credit Payments
+    final creditPaymentsByCustomer = <String, List<Map<String, dynamic>>>{};
     for (final cp in creditPayments) {
       final id = cp['id'] as String;
       checkId(id, 'creditPayments');
@@ -354,6 +394,9 @@ class BackupValidator {
         throw Exception('Non-positive amount for credit payment $id.');
       }
 
+      _requireDateTime(cp['paymentDate'], 'paymentDate');
+      _requireDateTime(cp['createdAt'], 'createdAt');
+
       final isReversed = cp['isReversed'] as bool? ?? false;
       if (isReversed) {
         final reason = cp['reversalReason'] as String?;
@@ -364,6 +407,68 @@ class BackupValidator {
             'Reversed payment $id is missing reversal timestamp or reason.',
           );
         }
+        _requireDateTime(cp['reversedAt'], 'reversedAt');
+      } else {
+        if (cp['reversedAt'] != null || cp['reversalReason'] != null) {
+          throw Exception('Active payment $id contains reversal metadata.');
+        }
+        creditPaymentsByCustomer.putIfAbsent(customerId, () => []).add(cp);
+      }
+    }
+
+    // Replay the same oldest-first ledger allocation used by the database.
+    // This catches tampered payment amounts and stale record headers before
+    // restore can replace the current database.
+    for (final customerId in customerIds) {
+      final records = [...?creditRecordsByCustomer[customerId]]
+        ..sort((left, right) => _compareLedgerRows(left, right, 'creditDate'));
+      final payments = [...?creditPaymentsByCustomer[customerId]]
+        ..sort((left, right) => _compareLedgerRows(left, right, 'paymentDate'));
+
+      var remainingPayment = payments.fold<int>(
+        0,
+        (sum, payment) => sum + _requireInt(payment['amount'], 'amount'),
+      );
+      var expectedBalance = 0;
+
+      for (final record in records) {
+        final id = record['id'] as String;
+        final amount = _requireInt(record['amount'], 'amount');
+        final expectedPaid = remainingPayment >= amount
+            ? amount
+            : remainingPayment;
+        remainingPayment -= expectedPaid;
+        final expectedStatus = expectedPaid == amount
+            ? CreditStatus.paid.dbValue
+            : expectedPaid > 0
+            ? CreditStatus.partiallyPaid.dbValue
+            : CreditStatus.unpaid.dbValue;
+
+        final actualPaid = _requireInt(record['paidAmount'], 'paidAmount');
+        final actualStatus = record['status'] as String;
+        if (actualPaid != expectedPaid || actualStatus != expectedStatus) {
+          throw Exception(
+            'Credit record $id does not match its payment ledger.',
+          );
+        }
+        expectedBalance += amount - expectedPaid;
+      }
+
+      if (remainingPayment != 0) {
+        throw Exception(
+          'Credit payments for customer $customerId exceed active credit records.',
+        );
+      }
+
+      final customer = customers.firstWhere((c) => c['id'] == customerId);
+      final storedBalance = _requireInt(
+        customer['outstandingBalance'],
+        'outstandingBalance',
+      );
+      if (storedBalance != expectedBalance) {
+        throw Exception(
+          'Customer $customerId balance does not match its payment ledger.',
+        );
       }
     }
 

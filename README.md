@@ -225,12 +225,12 @@ Demo mode includes sample-data Sync/Reset tools and a visible `DEMO` badge in Se
 ## Continuous Integration (CI)
 
 This repository enforces continuous validation on all Pull Requests and pushes to `main` via GitHub Actions:
-- Validates the exact pinned Flutter SDK version (`3.44.5`).
+- Validates the exact pinned Flutter SDK version (`3.47.0`).
 - Verifies that generated Drift code matches checked-in source files (fails if build runner leaves uncommitted changes).
 - Runs static analysis and the full unit/widget test suite.
 - Performs a dry run of the production mode debug build.
 
-Manual demo APK builds are released via `demo-release.yml` on `v*` tag pushes. These builds are explicitly compiled in demo mode and are debug-signed.
+Manual demo APK builds are released via `demo-release.yml` on `v*-demo.*` tag pushes. These builds are explicitly compiled in demo mode and are debug-signed. Production-looking tags such as `v1.0.3` do not trigger the demo workflow.
 
 ---
 
