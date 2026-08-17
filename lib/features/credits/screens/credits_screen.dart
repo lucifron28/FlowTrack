@@ -9,21 +9,40 @@ import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../data/credits_repository.dart';
 
-class CreditsScreen extends ConsumerWidget {
+class CreditsScreen extends ConsumerStatefulWidget {
   const CreditsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CreditsScreen> createState() => _CreditsScreenState();
+}
+
+class _CreditsScreenState extends ConsumerState<CreditsScreen> {
+  int _streamRevision = 0;
+
+  void _retry() {
+    setState(() => _streamRevision++);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final database = ref.watch(creditsRepositoryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Credits')),
       body: StreamBuilder<List<Customer>>(
+        key: ValueKey(_streamRevision),
         stream: database.watchCustomers(),
         builder: (context, snapshot) {
-          final customers = snapshot.data ?? [];
+          if (snapshot.hasError) {
+            return LoadErrorState(
+              message:
+                  'Customers could not be loaded. Check the local store and retry.',
+              onRetry: _retry,
+            );
+          }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+          final customers = snapshot.data ?? [];
           if (customers.isEmpty) {
             return const EmptyState(
               icon: Icons.people_outline,
@@ -134,17 +153,39 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
   }
 }
 
-class CustomerDetailsScreen extends ConsumerWidget {
+class CustomerDetailsScreen extends ConsumerStatefulWidget {
   const CustomerDetailsScreen({super.key, required this.customerId});
 
   final String customerId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CustomerDetailsScreen> createState() =>
+      _CustomerDetailsScreenState();
+}
+
+class _CustomerDetailsScreenState extends ConsumerState<CustomerDetailsScreen> {
+  int _streamRevision = 0;
+
+  void _retry() {
+    setState(() => _streamRevision++);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final database = ref.watch(creditsRepositoryProvider);
     return StreamBuilder<Customer?>(
-      stream: database.watchCustomer(customerId),
+      key: ValueKey('customer-$_streamRevision'),
+      stream: database.watchCustomer(widget.customerId),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: LoadErrorState(
+              message:
+                  'Customer details could not be loaded. Check the local store and retry.',
+              onRetry: _retry,
+            ),
+          );
+        }
         final customer = snapshot.data;
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -223,8 +264,19 @@ class CustomerDetailsScreen extends ConsumerWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               StreamBuilder<List<CreditRecordListEntry>>(
+                key: ValueKey('records-$_streamRevision'),
                 stream: database.watchCreditRecordsWithSale(customer.id),
                 builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return SizedBox(
+                      height: 180,
+                      child: LoadErrorState(
+                        message:
+                            'Credit records could not be loaded. Retry to try again.',
+                        onRetry: _retry,
+                      ),
+                    );
+                  }
                   final entries = snapshot.data ?? [];
                   if (entries.isEmpty) {
                     return const Padding(
@@ -269,8 +321,19 @@ class CustomerDetailsScreen extends ConsumerWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               StreamBuilder<List<CreditPayment>>(
+                key: ValueKey('payments-$_streamRevision'),
                 stream: database.watchCreditPayments(customer.id),
                 builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return SizedBox(
+                      height: 180,
+                      child: LoadErrorState(
+                        message:
+                            'Payment records could not be loaded. Retry to try again.',
+                        onRetry: _retry,
+                      ),
+                    );
+                  }
                   final payments = snapshot.data ?? [];
                   if (payments.isEmpty) {
                     return const Padding(
@@ -480,6 +543,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
   DateTime _date = DateTime.now();
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -503,6 +567,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           ),
           TextField(
             controller: _amountController,
+            enabled: !_isSaving,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
               labelText: 'Payment amount',
@@ -515,18 +580,24 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
             title: const Text('Payment date'),
             subtitle: Text(_date.toLocal().toString().split(' ').first),
             trailing: const Icon(Icons.calendar_today),
-            onTap: _pickDate,
+            onTap: _isSaving ? null : _pickDate,
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _notesController,
+            enabled: !_isSaving,
             decoration: const InputDecoration(labelText: 'Notes optional'),
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: _save,
-            icon: const Icon(Icons.save),
-            label: const Text('Save Payment'),
+            onPressed: _isSaving ? null : _save,
+            icon: _isSaving
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save),
+            label: Text(_isSaving ? 'Saving…' : 'Save Payment'),
           ),
         ],
       ),
@@ -534,6 +605,9 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   }
 
   Future<void> _pickDate() async {
+    if (_isSaving) {
+      return;
+    }
     final picked = await showDatePicker(
       context: context,
       firstDate: DateTime(2020),
@@ -546,6 +620,10 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   }
 
   Future<void> _save() async {
+    if (_isSaving) {
+      return;
+    }
+    setState(() => _isSaving = true);
     try {
       await ref
           .read(creditsRepositoryProvider)
@@ -563,6 +641,10 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
       }
     }
   }

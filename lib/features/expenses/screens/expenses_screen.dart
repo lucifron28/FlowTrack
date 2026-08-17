@@ -9,23 +9,42 @@ import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../data/expenses_repository.dart';
 
-class ExpensesScreen extends ConsumerWidget {
+class ExpensesScreen extends ConsumerStatefulWidget {
   const ExpensesScreen({super.key, this.showAppBar = false});
 
   final bool showAppBar;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ExpensesScreen> createState() => _ExpensesScreenState();
+}
+
+class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
+  int _streamRevision = 0;
+
+  void _retry() {
+    setState(() => _streamRevision++);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final database = ref.watch(expensesRepositoryProvider);
     return Scaffold(
-      appBar: showAppBar ? AppBar(title: const Text('Expenses')) : null,
+      appBar: widget.showAppBar ? AppBar(title: const Text('Expenses')) : null,
       body: StreamBuilder<List<Expense>>(
+        key: ValueKey(_streamRevision),
         stream: database.watchExpenses(),
         builder: (context, snapshot) {
-          final expenses = snapshot.data ?? [];
+          if (snapshot.hasError) {
+            return LoadErrorState(
+              message:
+                  'Expenses could not be loaded. Check the local store and retry.',
+              onRetry: _retry,
+            );
+          }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+          final expenses = snapshot.data ?? [];
           if (expenses.isEmpty) {
             return const EmptyState(
               icon: Icons.receipt_long,
@@ -127,6 +146,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   String _category = categories.first;
   DateTime _date = DateTime.now();
   bool _isVoiding = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -171,14 +191,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       DropdownMenuItem(value: category, child: Text(category)),
                 )
                 .toList(),
-            onChanged: isVoided
+            onChanged: isVoided || _isSaving
                 ? null
                 : (value) => setState(() => _category = value ?? _category),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _descriptionController,
-            enabled: !isVoided,
+            enabled: !isVoided && !_isSaving,
             decoration: const InputDecoration(
               labelText: 'Description optional',
               prefixIcon: Icon(Icons.notes),
@@ -187,7 +207,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           const SizedBox(height: 12),
           TextField(
             controller: _amountController,
-            enabled: !isVoided,
+            enabled: !isVoided && !_isSaving,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
               labelText: 'Amount',
@@ -200,7 +220,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             title: const Text('Expense date'),
             subtitle: Text(_date.toLocal().toString().split(' ').first),
             trailing: const Icon(Icons.calendar_today),
-            onTap: isVoided ? null : _pickDate,
+            onTap: isVoided || _isSaving ? null : _pickDate,
           ),
           const SizedBox(height: 20),
           if (isVoided) ...[
@@ -211,15 +231,26 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             ),
           ] else ...[
             FilledButton.icon(
-              onPressed: _save,
-              icon: const Icon(Icons.save),
-              label: Text(isEdit ? 'Save Changes' : 'Save Expense'),
+              onPressed: _isSaving ? null : _save,
+              icon: _isSaving
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save),
+              label: Text(
+                _isSaving
+                    ? 'Saving…'
+                    : isEdit
+                        ? 'Save Changes'
+                        : 'Save Expense',
+              ),
             ),
           ],
           if (isEdit && !isVoided) ...[
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: _isVoiding ? null : _voidExpense,
+              onPressed: _isVoiding || _isSaving ? null : _voidExpense,
               icon: _isVoiding
                   ? const SizedBox.square(
                       dimension: 18,
@@ -239,6 +270,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Future<void> _pickDate() async {
+    if (_isSaving || _isVoiding) {
+      return;
+    }
     final picked = await showDatePicker(
       context: context,
       firstDate: DateTime(2020),
@@ -251,6 +285,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Future<void> _save() async {
+    if (_isSaving || _isVoiding) {
+      return;
+    }
+    setState(() => _isSaving = true);
     try {
       final db = ref.read(expensesRepositoryProvider);
       final amount = CurrencyFormatter.parseToCentavos(_amountController.text);
@@ -279,10 +317,17 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           context,
         ).showSnackBar(SnackBar(content: Text(error.toString())));
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 
   Future<void> _voidExpense() async {
+    if (_isVoiding || _isSaving) {
+      return;
+    }
     final reasonController = TextEditingController();
     String? errorText;
     final reason = await showDialog<String>(
