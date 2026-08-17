@@ -55,15 +55,14 @@ android {
             if (hasReleaseKeystore) {
                 signingConfig = signingConfigs.getByName("release")
             } else {
-                val isDebugTask = gradle.startParameter.taskNames.any {
-                    it.contains("debug", ignoreCase = true)
+                val isReleaseTask = gradle.startParameter.taskNames.any {
+                    it.contains("release", ignoreCase = true)
                 }
-                if (!isDebugTask) {
+                if (isReleaseTask) {
                     throw GradleException(
                         "Production release signing is not configured. Create android/key.properties and provide the release keystore."
                     )
                 }
-                signingConfig = signingConfigs.getByName("debug")
             }
         }
     }
