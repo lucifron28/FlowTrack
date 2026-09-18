@@ -65,6 +65,7 @@ void main() {
 
       await database.editProduct(
         productId: product.id,
+        name: product.name,
         sellingPrice: 1500,
         lowStockLevel: product.lowStockLevel,
       );
@@ -240,6 +241,7 @@ void main() {
     );
     await database.editProduct(
       productId: product.id,
+      name: product.name,
       sellingPrice: 1000,
       costPrice: 900,
       lowStockLevel: product.lowStockLevel,

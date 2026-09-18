@@ -56,6 +56,7 @@ class FakeInventoryRepository implements InventoryRepository {
   @override
   Future<void> editProduct({
     required String productId,
+    required String name,
     required int sellingPrice,
     int? costPrice,
     required int lowStockLevel,
