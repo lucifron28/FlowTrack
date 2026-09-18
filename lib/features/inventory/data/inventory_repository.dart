@@ -19,6 +19,7 @@ abstract class InventoryRepository {
   });
   Future<void> editProduct({
     required String productId,
+    required String name,
     required int sellingPrice,
     int? costPrice,
     required int lowStockLevel,
@@ -94,12 +95,14 @@ class DriftInventoryRepository implements InventoryRepository {
   @override
   Future<void> editProduct({
     required String productId,
+    required String name,
     required int sellingPrice,
     int? costPrice,
     required int lowStockLevel,
   }) {
     return _db.editProduct(
       productId: productId,
+      name: name,
       sellingPrice: sellingPrice,
       costPrice: costPrice,
       lowStockLevel: lowStockLevel,

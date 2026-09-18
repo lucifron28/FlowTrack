@@ -100,6 +100,7 @@ void main() {
     // Simulate price change in database
     await database.editProduct(
       productId: product.id,
+      name: product.name,
       sellingPrice: 1250,
       lowStockLevel: product.lowStockLevel,
     );
@@ -125,6 +126,7 @@ void main() {
     // Database price changes
     await database.editProduct(
       productId: product.id,
+      name: product.name,
       sellingPrice: 1250,
       lowStockLevel: product.lowStockLevel,
     );

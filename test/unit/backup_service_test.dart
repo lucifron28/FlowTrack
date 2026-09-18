@@ -167,6 +167,7 @@ void main() {
       await targetService.restoreValidatedBackup(payload);
       await target.editProduct(
         productId: productId,
+        name: product.name,
         sellingPrice: 2500,
         costPrice: 1800,
         lowStockLevel: 2,

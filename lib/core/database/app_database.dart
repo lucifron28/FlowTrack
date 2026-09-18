@@ -455,10 +455,12 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> editProduct({
     required String productId,
+    required String name,
     required int sellingPrice,
     int? costPrice,
     required int lowStockLevel,
   }) async {
+    _requireText(name, 'Product name');
     _requireNonNegative(sellingPrice, 'Selling price');
     if (costPrice != null) {
       _requireNonNegative(costPrice, 'Cost price');
@@ -467,6 +469,7 @@ class AppDatabase extends _$AppDatabase {
 
     await (update(products)..where((tbl) => tbl.id.equals(productId))).write(
       ProductsCompanion(
+        name: Value(name.trim()),
         sellingPrice: Value(sellingPrice),
         costPrice: Value(costPrice),
         lowStockLevel: Value(lowStockLevel),

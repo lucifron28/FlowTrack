@@ -895,6 +895,7 @@ class EditProductScreen extends ConsumerStatefulWidget {
 
 class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
   late final TextEditingController _sellingPriceController;
   late final TextEditingController _costPriceController;
   late final TextEditingController _lowStockController;
@@ -902,6 +903,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   @override
   void initState() {
     super.initState();
+    _nameController = TextEditingController(text: widget.product.name);
     _sellingPriceController = TextEditingController(
       text: (widget.product.sellingPrice / 100).toStringAsFixed(2),
     );
@@ -917,6 +919,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _sellingPriceController.dispose();
     _costPriceController.dispose();
     _lowStockController.dispose();
@@ -932,9 +935,12 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text(
-              widget.product.name,
-              style: Theme.of(context).textTheme.titleLarge,
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Product name'),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Product name is required.'
+                  : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -969,11 +975,15 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   }
 
   Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
     try {
       await ref
           .read(inventoryRepositoryProvider)
           .editProduct(
             productId: widget.product.id,
+            name: _nameController.text,
             sellingPrice: CurrencyFormatter.parseToCentavos(
               _sellingPriceController.text,
             ),
