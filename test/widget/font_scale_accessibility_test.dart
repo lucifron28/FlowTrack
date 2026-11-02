@@ -25,6 +25,36 @@ void main() {
   });
 
   group('Font Scale Accessibility Widget Tests', () {
+    testWidgets('Owner setup password fields toggle independently and keep input', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [appDatabaseProvider.overrideWithValue(database)],
+        child: const MaterialApp(home: OwnerSetupScreen()),
+      ));
+      await tester.pumpAndSettle();
+      final password = find.widgetWithText(TextFormField, 'Password');
+      final confirm = find.widgetWithText(TextFormField, 'Confirm password');
+      TextField field(Finder parent) => tester.widget<TextField>(
+        find.descendant(of: parent, matching: find.byType(TextField)),
+      );
+      await tester.enterText(password, 'secret123');
+      await tester.enterText(confirm, 'secret123');
+      expect(field(password).obscureText, isTrue);
+      expect(field(confirm).obscureText, isTrue);
+      await tester.tap(find.byTooltip('Show password'));
+      await tester.pump();
+      expect(field(password).obscureText, isFalse);
+      expect(field(confirm).obscureText, isTrue);
+      await tester.tap(find.byTooltip('Show confirm password'));
+      await tester.pump();
+      expect(field(confirm).obscureText, isFalse);
+      expect(field(password).controller!.text, 'secret123');
+      expect(field(confirm).controller!.text, 'secret123');
+      await tester.tap(find.byTooltip('Hide password'));
+      await tester.tap(find.byTooltip('Hide confirm password'));
+      await tester.pump();
+      expect(field(password).obscureText, isTrue);
+      expect(field(confirm).obscureText, isTrue);
+    });
     testWidgets('Login password can be shown and hidden without losing input', (
       tester,
     ) async {
