@@ -52,7 +52,17 @@ void main() {
       await tester.tap(find.text('Set quantity'));
       await tester.pump(const Duration(milliseconds: 500));
       await tester.enterText(find.widgetWithText(TextField, 'Quantity'), '4');
+      final quantityController = tester.widget<TextField>(find.widgetWithText(TextField, 'Quantity')).controller!;
+      tester.view.viewInsets = const FakeViewPadding(bottom: 250);
+      await tester.pump();
       await tester.tap(find.text('Apply'));
+      await tester.pump();
+      tester.view.resetViewInsets();
+      await tester.pump(const Duration(milliseconds: 50));
+      if (find.widgetWithText(TextField, 'Quantity').evaluate().isNotEmpty) {
+        quantityController.addListener(() {});
+      }
+      expect(tester.takeException(), isNull);
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.text('Not enough stock available.'), findsOneWidget);
       expect(find.text('Test item × 2'), findsOneWidget);

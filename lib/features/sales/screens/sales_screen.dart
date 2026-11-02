@@ -468,15 +468,14 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
                         ),
                         TextButton(
                           onPressed: () => pauseWhile(() async {
-                            final quantityController = TextEditingController(
-                              text: '${line.quantity}',
-                            );
+                            var quantityText = '${line.quantity}';
                             final quantity = await showDialog<int>(
                               context: scannerContext,
                               builder: (dialogContext) => AlertDialog(
                                 title: const Text('Set quantity'),
-                                content: TextField(
-                                  controller: quantityController,
+                                content: TextFormField(
+                                  initialValue: quantityText,
+                                  onChanged: (value) => quantityText = value,
                                   autofocus: true,
                                   keyboardType: TextInputType.number,
                                   inputFormatters: [
@@ -495,14 +494,13 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
                                   FilledButton(
                                     onPressed: () => Navigator.pop(
                                       dialogContext,
-                                      int.tryParse(quantityController.text),
+                                      int.tryParse(quantityText),
                                     ),
                                     child: const Text('Apply'),
                                   ),
                                 ],
                               ),
                             );
-                            quantityController.dispose();
                             if (quantity == null || !scannerContext.mounted) {
                               return;
                             }
