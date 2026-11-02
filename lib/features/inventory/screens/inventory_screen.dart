@@ -1448,6 +1448,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
   }
 
   void _handleContinuousScan(String code) {
+    if (_processing && _visibleCode != code) return;
     _absenceTimer?.cancel();
     final alreadyVisible = _visibleCode == code;
     _visibleCode = code;
