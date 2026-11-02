@@ -25,6 +25,28 @@ void main() {
   });
 
   group('Font Scale Accessibility Widget Tests', () {
+    testWidgets('Login password can be shown and hidden without losing input', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [appDatabaseProvider.overrideWithValue(database)],
+          child: const MaterialApp(home: LoginScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final field = find.byType(TextField);
+      await tester.enterText(field, 'secret123');
+      expect(tester.widget<TextField>(field).obscureText, isTrue);
+      await tester.tap(find.byTooltip('Show password'));
+      await tester.pump();
+      expect(tester.widget<TextField>(field).obscureText, isFalse);
+      expect(tester.widget<TextField>(field).controller!.text, 'secret123');
+      await tester.tap(find.byTooltip('Hide password'));
+      await tester.pump();
+      expect(tester.widget<TextField>(field).obscureText, isTrue);
+      expect(tester.widget<TextField>(field).controller!.text, 'secret123');
+    });
     testWidgets('System scale 2.0 is preserved when AppFontScale is system using FlowTrackApp', (
       WidgetTester tester,
     ) async {

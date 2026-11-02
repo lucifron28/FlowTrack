@@ -238,6 +238,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   String? _passwordError;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -295,12 +296,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 24),
                   TextField(
                     controller: _passwordController,
-                    obscureText: true,
+                    obscureText: _obscurePassword,
                     enabled: !isAuthenticating,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Password',
-                      prefixIcon: Icon(Icons.lock),
-                    ).copyWith(errorText: _passwordError),
+                      prefixIcon: const Icon(Icons.lock),
+                      errorText: _passwordError,
+                      suffixIcon: IconButton(
+                        tooltip: _obscurePassword
+                            ? 'Show password'
+                            : 'Hide password',
+                        onPressed: isAuthenticating
+                            ? null
+                            : () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                      ),
+                    ),
                     onChanged: (_) {
                       if (_passwordError != null) {
                         setState(() => _passwordError = null);
