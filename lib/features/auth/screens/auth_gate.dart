@@ -80,6 +80,8 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   final _recoveryFormKey = GlobalKey<RecoveryQuestionsFormState>();
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
@@ -145,11 +147,26 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _passwordController,
-                      obscureText: true,
+                      obscureText: _obscurePassword,
                       enabled: !isSettingUp,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock),
+                        prefixIcon: const Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          tooltip: _obscurePassword
+                              ? 'Show password'
+                              : 'Hide password',
+                          onPressed: isSettingUp
+                              ? null
+                              : () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                        ),
                       ),
                       validator: (value) {
                         if (value == null || value.length < 8) {
@@ -161,11 +178,27 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _confirmController,
-                      obscureText: true,
+                      obscureText: _obscureConfirmPassword,
                       enabled: !isSettingUp,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Confirm password',
-                        prefixIcon: Icon(Icons.lock_outline),
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          tooltip: _obscureConfirmPassword
+                              ? 'Show confirm password'
+                              : 'Hide confirm password',
+                          onPressed: isSettingUp
+                              ? null
+                              : () => setState(
+                                  () => _obscureConfirmPassword =
+                                      !_obscureConfirmPassword,
+                                ),
+                          icon: Icon(
+                            _obscureConfirmPassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                        ),
                       ),
                       validator: (value) => value != _passwordController.text
                           ? 'Passwords do not match.'
@@ -238,6 +271,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   String? _passwordError;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -295,12 +329,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 24),
                   TextField(
                     controller: _passwordController,
-                    obscureText: true,
+                    obscureText: _obscurePassword,
                     enabled: !isAuthenticating,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Password',
-                      prefixIcon: Icon(Icons.lock),
-                    ).copyWith(errorText: _passwordError),
+                      prefixIcon: const Icon(Icons.lock),
+                      errorText: _passwordError,
+                      suffixIcon: IconButton(
+                        tooltip: _obscurePassword
+                            ? 'Show password'
+                            : 'Hide password',
+                        onPressed: isAuthenticating
+                            ? null
+                            : () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                      ),
+                    ),
                     onChanged: (_) {
                       if (_passwordError != null) {
                         setState(() => _passwordError = null);

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -1297,7 +1298,14 @@ class _AdjustStockScreenState extends ConsumerState<AdjustStockScreen> {
 }
 
 class BarcodeScannerScreen extends StatefulWidget {
-  const BarcodeScannerScreen({super.key});
+  const BarcodeScannerScreen({super.key, this.onScan, this.summaryBuilder});
+
+  final Future<void> Function(BuildContext context, String code)? onScan;
+  final Widget Function(
+    BuildContext context,
+    Future<void> Function(Future<void> Function()) pauseWhile,
+  )?
+  summaryBuilder;
 
   @override
   State<BarcodeScannerScreen> createState() => _BarcodeScannerScreenState();
@@ -1317,6 +1325,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
   );
   late final AnimationController _scanLineController;
   bool _locked = false;
+  bool _processing = false;
+  String? _visibleCode;
+  Timer? _absenceTimer;
 
   @override
   void initState() {
@@ -1329,6 +1340,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
 
   @override
   void dispose() {
+    _absenceTimer?.cancel();
     _manualController.dispose();
     _controller.dispose();
     _scanLineController.dispose();
@@ -1341,6 +1353,11 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
       appBar: AppBar(
         title: const Text('Scan Barcode'),
         actions: [
+          if (widget.onScan != null)
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Done'),
+            ),
           IconButton(
             icon: const Icon(Icons.flash_on),
             onPressed: () => _controller.toggleTorch(),
@@ -1362,9 +1379,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
                       controller: _controller,
                       scanWindow: scanWindow,
                       onDetect: (capture) {
-                        if (_locked) {
-                          return;
-                        }
                         final code = capture.barcodes
                             .map((barcode) => barcode.rawValue)
                             .whereType<String>()
@@ -1372,6 +1386,11 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
                         if (code == null || code.isEmpty) {
                           return;
                         }
+                        if (widget.onScan != null) {
+                          _handleContinuousScan(code);
+                          return;
+                        }
+                        if (_locked) return;
                         _locked = true;
                         HapticFeedback.mediumImpact();
                         Navigator.of(context).pop(code);
@@ -1386,6 +1405,8 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
               },
             ),
           ),
+          if (widget.summaryBuilder != null)
+            widget.summaryBuilder!(context, _pauseWhile),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -1417,7 +1438,38 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
   void _submitManual() {
     final value = _manualController.text.trim();
     if (value.isNotEmpty) {
-      Navigator.of(context).pop(value);
+      if (widget.onScan == null) {
+        Navigator.of(context).pop(value);
+      } else {
+        _manualController.clear();
+        _processScan(value);
+      }
+    }
+  }
+
+  void _handleContinuousScan(String code) {
+    if (_processing && _visibleCode != code) return;
+    _absenceTimer?.cancel();
+    final alreadyVisible = _visibleCode == code;
+    _visibleCode = code;
+    _absenceTimer = Timer(const Duration(milliseconds: 1500), () {
+      _visibleCode = null;
+    });
+    if (!alreadyVisible && !_processing) _processScan(code);
+  }
+
+  Future<void> _processScan(String code) async {
+    await _pauseWhile(() => widget.onScan!(context, code));
+  }
+
+  Future<void> _pauseWhile(Future<void> Function() action) async {
+    if (_processing) return;
+    _processing = true;
+    try {
+      await action();
+    } finally {
+      _processing = false;
+      if (mounted) setState(() {});
     }
   }
 }
