@@ -3,9 +3,13 @@ package com.flowtrack.app
 import android.app.Activity
 import android.content.ContentValues
 import android.content.Intent
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.provider.MediaStore
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -17,11 +21,38 @@ import java.io.FileOutputStream
 class MainActivity : FlutterActivity() {
     private val pdfChannelName = "flowtrack/pdf_export"
     private val backupChannelName = "flowtrack/backup_file"
+    private var scanTone: ToneGenerator? = null
     private val pickBackupRequestCode = 4101
     private var pendingPickBackupResult: Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "flowtrack/scan_feedback")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "success") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                try {
+                    @Suppress("DEPRECATION")
+                    val vibrator = getSystemService(VIBRATOR_SERVICE) as? Vibrator
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vibrator?.vibrate(VibrationEffect.createOneShot(120, VibrationEffect.DEFAULT_AMPLITUDE))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vibrator?.vibrate(120)
+                    }
+                } catch (_: Exception) {
+                    // Feedback should never interrupt adding a product.
+                }
+                try {
+                    val tone = scanTone ?: ToneGenerator(AudioManager.STREAM_MUSIC, 80).also { scanTone = it }
+                    tone.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+                } catch (_: Exception) {
+                    // The device may not have an available audio output.
+                }
+                result.success(null)
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, pdfChannelName).setMethodCallHandler { call, result ->
             val fileName = call.argument<String>("fileName")
             val bytes = call.argument<ByteArray>("bytes")
@@ -75,6 +106,12 @@ class MainActivity : FlutterActivity() {
                 result.error("backup_failed", error.message, null)
             }
         }
+    }
+
+    override fun onDestroy() {
+        scanTone?.release()
+        scanTone = null
+        super.onDestroy()
     }
 
     @Deprecated("Deprecated in Android framework, still supported by FlutterActivity.")

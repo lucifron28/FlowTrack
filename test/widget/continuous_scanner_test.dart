@@ -5,7 +5,9 @@ import 'package:flowtrack/core/domain/flowtrack_models.dart' as domain;
 import 'package:flowtrack/features/sales/screens/sales_screen.dart';
 import 'package:flowtrack/shared/providers/app_providers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -13,6 +15,23 @@ void main() {
   testWidgets(
     'continuous scan updates cart, guards duplicates and stock, and returns to sale',
     (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      var feedbackCount = 0;
+      const feedback = MethodChannel('flowtrack/scan_feedback');
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(feedback, (
+        call,
+      ) async {
+        expect(call.method, 'success');
+        feedbackCount++;
+        return null;
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          feedback,
+          null,
+        ),
+      );
       final previousPlatform = MobileScannerPlatform.instance;
       final scanner = _FakeScanner();
       MobileScannerPlatform.instance = scanner;
@@ -40,19 +59,24 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Test item × 1'), findsOneWidget);
+      expect(feedbackCount, 1);
       expect(find.textContaining('1 items'), findsOneWidget);
       scanner.scan('12345');
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Test item × 1'), findsOneWidget);
+      expect(feedbackCount, 1);
       await tester.pump(const Duration(seconds: 2));
       scanner.scan('12345');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Test item × 2'), findsOneWidget);
+      expect(feedbackCount, 2);
       await tester.tap(find.text('Set quantity'));
       await tester.pump(const Duration(milliseconds: 500));
       await tester.enterText(find.widgetWithText(TextField, 'Quantity'), '4');
-      final quantityController = tester.widget<TextField>(find.widgetWithText(TextField, 'Quantity')).controller!;
+      final quantityController = tester
+          .widget<TextField>(find.widgetWithText(TextField, 'Quantity'))
+          .controller!;
       tester.view.viewInsets = const FakeViewPadding(bottom: 250);
       await tester.pump();
       await tester.tap(find.text('Apply'));
@@ -78,10 +102,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Not enough stock available.'), findsOneWidget);
       expect(find.text('Test item × 3'), findsOneWidget);
+      expect(feedbackCount, 2);
       scanner.scan('unknown');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.text('Product not found'), findsOneWidget);
+      expect(feedbackCount, 2);
       scanner.scan('12345');
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('Cancel'));
@@ -92,6 +118,7 @@ void main() {
       expect(find.text('Test item'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
+      debugDefaultTargetPlatformOverride = null;
     },
   );
 }
