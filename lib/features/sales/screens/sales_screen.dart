@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -386,12 +387,162 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
   }
 
   Future<void> _scanBarcode() async {
-    final code = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
+    Product? latestProduct;
+    String? message;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => BarcodeScannerScreen(
+          onScan: (scannerContext, barcode) async {
+            try {
+              final product = await ref
+                  .read(salesRepositoryProvider)
+                  .findProductByBarcode(barcode);
+              if (!scannerContext.mounted) return;
+              if (product == null) {
+                message = 'Product not found';
+                final add = await showDialog<bool>(
+                  context: scannerContext,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Product not found'),
+                    content: const Text('Add this product to inventory?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Add Product'),
+                      ),
+                    ],
+                  ),
+                );
+                if (add == true && scannerContext.mounted) {
+                  await Navigator.of(scannerContext).push(
+                    MaterialPageRoute(
+                      builder: (_) => AddProductScreen(initialBarcode: barcode),
+                    ),
+                  );
+                }
+                return;
+              }
+              if (!product.isActive) {
+                message = 'Product is archived in inventory.';
+                return;
+              }
+              if (_cart.addProduct(product) ==
+                  SalesCartResult.insufficientStock) {
+                message = 'Not enough stock available.';
+                return;
+              }
+              latestProduct = product;
+              message = null;
+              HapticFeedback.mediumImpact();
+            } catch (_) {
+              message = 'Could not look up product. Please try again.';
+            }
+          },
+          summaryBuilder: (scannerContext, pauseWhile) {
+            final product = latestProduct;
+            final matching = _cart.items.where(
+              (item) => item.productId == product?.id,
+            );
+            final line = matching.isEmpty ? null : matching.first;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (message != null)
+                    Text(
+                      message!,
+                      style: TextStyle(
+                        color: Theme.of(scannerContext).colorScheme.error,
+                      ),
+                    ),
+                  if (line != null)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text('${line.productName} × ${line.quantity}'),
+                        ),
+                        TextButton(
+                          onPressed: () => pauseWhile(() async {
+                            final quantityController = TextEditingController(
+                              text: '${line.quantity}',
+                            );
+                            final quantity = await showDialog<int>(
+                              context: scannerContext,
+                              builder: (dialogContext) => AlertDialog(
+                                title: const Text('Set quantity'),
+                                content: TextField(
+                                  controller: quantityController,
+                                  autofocus: true,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  decoration: const InputDecoration(
+                                    labelText: 'Quantity',
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () => Navigator.pop(
+                                      dialogContext,
+                                      int.tryParse(quantityController.text),
+                                    ),
+                                    child: const Text('Apply'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            quantityController.dispose();
+                            if (quantity == null || !scannerContext.mounted) {
+                              return;
+                            }
+                            if (quantity < 1) {
+                              message = 'Enter a quantity of at least 1.';
+                            } else {
+                              final current = await ref
+                                  .read(salesRepositoryProvider)
+                                  .getProduct(product!.id);
+                              if (!scannerContext.mounted) return;
+                              if (current == null || !current.isActive) {
+                                message = 'Product is no longer available.';
+                              } else {
+                                final result = _cart.changeQuantity(
+                                  productId: current.id,
+                                  delta: quantity - line.quantity,
+                                  availableStock: current.stock,
+                                );
+                                message =
+                                    result == SalesCartResult.insufficientStock
+                                    ? 'Not enough stock available.'
+                                    : null;
+                              }
+                            }
+                          }),
+                          child: const Text('Set quantity'),
+                        ),
+                      ],
+                    ),
+                  Text(
+                    '${_cart.itemCount} items • ${CurrencyFormatter.format(_cart.total)}',
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
     );
-    if (code != null) {
-      await _addBarcode(code);
-    }
+    if (mounted) setState(() {});
   }
 
   Future<void> _searchProduct() async {
@@ -403,51 +554,6 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
             ref.read(salesRepositoryProvider).getActiveProducts(),
       ),
     );
-    if (product != null) {
-      _addProduct(product);
-    }
-  }
-
-  Future<void> _addBarcode(String barcode) async {
-    final database = ref.read(salesRepositoryProvider);
-    final product = await database.findProductByBarcode(barcode);
-    if (product != null && !product.isActive) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Product is deactivated/archived in inventory.'),
-          ),
-        );
-      }
-      return;
-    }
-    if (product == null && mounted) {
-      final add = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Product not found'),
-          content: const Text('Do you want to add this product to inventory?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Add Product'),
-            ),
-          ],
-        ),
-      );
-      if (add == true && mounted) {
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => AddProductScreen(initialBarcode: barcode),
-          ),
-        );
-      }
-      return;
-    }
     if (product != null) {
       _addProduct(product);
     }
